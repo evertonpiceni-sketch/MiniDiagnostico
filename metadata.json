@@ -1,0 +1,8 @@
+{
+  "name": "Mini Diagnóstico",
+  "description": "Mini diagnóstico de autoconhecimento com 12 perguntas e resultado personalizado.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
