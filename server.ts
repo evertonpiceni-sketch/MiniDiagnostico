@@ -11,7 +11,10 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} must be configured.`);
+  if (!value) {
+    console.warn(`WARNING: ${name} environment variable is missing. Some features may not work until it is configured.`);
+    return '';
+  }
   return value;
 }
 
