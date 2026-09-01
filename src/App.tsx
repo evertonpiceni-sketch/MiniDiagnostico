@@ -3,11 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
 import { Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+
+const StripeBuyButton = 'stripe-buy-button' as any;
+
+
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>('inicio');
@@ -18,42 +22,67 @@ export default function App() {
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
   const [resultado, setResultado] = useState<any>(null);
 
+  const fetchResult = async (sessionId: string | null) => {
+    try {
+      // Small delay to allow webhook to process
+      await new Promise(r => setTimeout(r, 2000));
+      
+      let backendPaid = false;
+      
+      if (sessionId) {
+        const res = await fetch(`/api/quiz/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.payment_status === 'paid') {
+            setResultado(data);
+            setCurrentStep('resultado');
+            backendPaid = true;
+            return;
+          }
+        }
+      }
+      
+      // Fallback para Stripe Buy Button: 
+      // Como o Buy Button gerencia o checkout sozinho, o success_url configurado pela Janaína no painel do Stripe
+      // pode apenas redirecionar para /resultado. Se chegarmos aqui na página de resultado, confiamos no localStorage.
+      if (!backendPaid && window.location.pathname.includes('/resultado')) {
+         const localRes = localStorage.getItem('janaina_resultado');
+         if (localRes) {
+           setResultado(JSON.parse(localRes));
+           setCurrentStep('resultado');
+           return;
+         }
+      }
+
+      setCurrentStep('paywall');
+    } catch (e) {
+      // Fallback
+      if (window.location.pathname.includes('/resultado')) {
+         const localRes = localStorage.getItem('janaina_resultado');
+         if (localRes) {
+           setResultado(JSON.parse(localRes));
+           setCurrentStep('resultado');
+           return;
+         }
+      }
+      toast.error('Não foi possível carregar seu resultado no momento.');
+      setCurrentStep('paywall');
+    }
+  };
+
   useEffect(() => {
     // Check if returning from Stripe
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     const isCanceled = params.get('canceled');
 
-    if (sessionId) {
-      setQuizSessionId(sessionId);
-      if (window.location.pathname === '/resultado') {
-        setCurrentStep('loading');
-        fetchResult(sessionId);
-      } else if (isCanceled) {
-        setCurrentStep('paywall');
-      }
-    }
-  }, []);
-
-  const fetchResult = async (sessionId: string) => {
-    try {
-      // Small delay to allow webhook to process
-      await new Promise(r => setTimeout(r, 2000));
-      const res = await fetch(`/api/quiz/${sessionId}`);
-      if (!res.ok) throw new Error('Falha ao buscar resultado');
-      const data = await res.json();
-      if (data.payment_status === 'paid') {
-        setResultado(data);
-        setCurrentStep('resultado');
-      } else {
-        // Not paid yet or failed
-        setCurrentStep('paywall');
-      }
-    } catch (e) {
-      toast.error('Não foi possível carregar seu resultado no momento.');
+    if (window.location.pathname.includes('/resultado') || sessionId) {
+      setCurrentStep('loading');
+      fetchResult(sessionId);
+    } else if (isCanceled) {
       setCurrentStep('paywall');
     }
-  };
+  }, []);
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +123,17 @@ export default function App() {
     if (score_procrastinacao > max) { dominante = 'PROCRASTINAÇÃO'; max = score_procrastinacao; }
     // TODO: Tiebreaker logic from Janaína
 
+    const resultadoCalculado = {
+      nome, 
+      resultado_dominante: dominante,
+      score_medo,
+      score_inseguranca,
+      score_procrastinacao
+    };
+    
+    // Salvar no localStorage para recuperar caso o Stripe Buy Button redirecione de volta
+    localStorage.setItem('janaina_resultado', JSON.stringify(resultadoCalculado));
+
     try {
       const res = await fetch('/api/quiz', {
         method: 'POST',
@@ -116,43 +156,26 @@ export default function App() {
     }
   };
 
-  const handleCheckout = async () => {
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quiz_session_id: quizSessionId })
-      });
-      if (!res.ok) throw new Error('Falha ao iniciar pagamento');
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('URL de pagamento não encontrada');
-      }
-    } catch (e) {
-      toast.error('Erro ao conectar com o sistema de pagamento. Tente novamente.');
-    }
-  };
+
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center p-4 text-neutral-900 font-sans">
+    <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
       <Toaster position="top-center" />
       <AnimatePresence mode="wait">
         {currentStep === 'inicio' && (
-          <motion.div key="inicio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-neutral-100">
+          <motion.div key="inicio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
             <h1 className="text-2xl font-bold mb-2 text-center">Mini Diagnóstico</h1>
-            <p className="text-neutral-500 mb-8 text-center">Descubra o que te trava</p>
+            <p className="text-stone-500 mb-8 text-center">Descubra o que te trava</p>
             <form onSubmit={handleStart} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Nome</label>
-                <input required type="text" value={nome} onChange={e => setNome(e.target.value)} className="w-full border border-neutral-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-900" placeholder="Seu nome" />
+                <input required type="text" value={nome} onChange={e => setNome(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-900" placeholder="Seu nome" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">E-mail</label>
-                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border border-neutral-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-900" placeholder="seu@email.com" />
+                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-900" placeholder="seu@email.com" />
               </div>
-              <button type="submit" className="w-full bg-neutral-900 text-white font-medium py-3 rounded-lg hover:bg-neutral-800 transition-colors mt-4">
+              <button type="submit" className="w-full bg-teal-700 text-white font-medium py-3 rounded-lg hover:bg-teal-800 transition-colors mt-4">
                 COMEÇAR
               </button>
             </form>
@@ -160,11 +183,11 @@ export default function App() {
         )}
 
         {currentStep === 'quiz' && (
-          <motion.div key="quiz" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-neutral-100">
+          <motion.div key="quiz" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
             <div className="mb-8">
-              <span className="text-sm font-medium text-neutral-400">Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span>
-              <div className="w-full bg-neutral-100 h-1.5 rounded-full mt-2 overflow-hidden">
-                <div className="bg-neutral-900 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex) / PERGUNTAS.length) * 100}%` }} />
+              <span className="text-sm font-medium text-stone-400">Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span>
+              <div className="w-full bg-stone-100 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="bg-teal-700 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex) / PERGUNTAS.length) * 100}%` }} />
               </div>
             </div>
             <h2 className="text-xl font-medium mb-8 leading-relaxed">
@@ -175,7 +198,7 @@ export default function App() {
                 <button
                   key={opcao.label}
                   onClick={() => handleAnswer(opcao.valor)}
-                  className="w-full text-left px-6 py-4 rounded-xl border border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50 transition-colors"
+                  className="w-full text-left px-6 py-4 rounded-xl border border-stone-200 hover:border-teal-700 hover:bg-stone-50 transition-colors"
                 >
                   {opcao.label}
                 </button>
@@ -186,36 +209,39 @@ export default function App() {
 
         {currentStep === 'loading' && (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center">
-            <Loader2 className="w-8 h-8 animate-spin text-neutral-400 mb-4" />
-            <p className="text-neutral-500">Processando...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-stone-400 mb-4" />
+            <p className="text-stone-500">Processando...</p>
           </motion.div>
         )}
 
         {currentStep === 'paywall' && (
-          <motion.div key="paywall" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-neutral-100 text-center">
+          <motion.div key="paywall" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
             <h2 className="text-2xl font-bold mb-4">Seu resultado está pronto!</h2>
-            <p className="text-neutral-600 mb-8 leading-relaxed">
+            <p className="text-stone-600 mb-8 leading-relaxed">
               Identificamos qual dos três padrões aparece com mais força nas suas respostas.
               <br /><br />
               Desbloqueie seu diagnóstico completo para descobrir o que pode estar por trás desse padrão, como ele aparece na sua vida e qual pode ser seu primeiro movimento.
             </p>
             
-            <div className="bg-neutral-50 p-6 rounded-xl border border-neutral-200 mb-6 text-left">
-              <p className="font-bold text-lg text-neutral-900 mb-2">Diagnóstico Completo — R$ 9,90</p>
-              <p className="text-sm text-neutral-600 mb-4">Pague via PIX ou Cartão de Crédito/Débito (Até parcelado)</p>
+            <div className="bg-stone-50 p-6 rounded-xl border border-stone-200 mb-6 text-left">
+              <p className="font-bold text-lg text-stone-800 mb-2">Diagnóstico Completo — R$ 9,90</p>
+              <p className="text-sm text-stone-600 mb-4">Pague via PIX ou Cartão de Crédito/Débito (Até parcelado)</p>
               
-              <button onClick={handleCheckout} className="w-full bg-neutral-900 text-white font-medium py-4 rounded-xl hover:bg-neutral-800 transition-colors shadow-lg shadow-neutral-200">
-                PAGAR COM CARTÃO OU PIX
-              </button>
+              <StripeBuyButton
+                buy-button-id="buy_btn_1UAhRXDi05Nlzxp3LUM7iKKs"
+                publishable-key="pk_live_51U8Y2oDi05Nlzxp3UkGitm1KdK7v7pIZAsZKY61BkVjmArAtt7DDDjQsL3ogLG45jfA3BDah4CUniaQjPzq5At4X00uTTvUtF1"
+                client-reference-id={quizSessionId || undefined}
+              >
+              </StripeBuyButton>
             </div>
 
-            <div className="text-sm text-neutral-600 bg-white border border-neutral-200 p-6 rounded-xl text-left">
+            <div className="text-sm text-stone-600 bg-white border border-stone-200 p-6 rounded-xl text-left">
               <p className="font-semibold mb-1">Prefere PIX direto (Manual)?</p>
               <p>Envie <strong>R$ 9,90</strong> para a Chave PIX E-mail:</p>
-              <p className="font-mono bg-neutral-100 block px-3 py-2 rounded border border-neutral-200 mt-2 mb-2 text-center text-sm font-bold">contato.janainaaraujo@gmail.com</p>
+              <p className="font-mono bg-stone-100 block px-3 py-2 rounded border border-stone-200 mt-2 mb-2 text-center text-sm font-bold">contato.janainaaraujo@gmail.com</p>
               <p className="text-xs mb-4 text-center">(JANAINA BRANDÃO ARAUJO TREINAMENTOS)</p>
               
-              <a href={`https://wa.me/5521983928113?text=Oi!%20Fiz%20o%20PIX%20manual%20do%20Diagnóstico%20Completo.%20Aqui%20está%20o%20comprovante.`} target="_blank" rel="noreferrer" className="block text-center text-neutral-900 underline font-medium hover:text-neutral-600 transition-colors">
+              <a href={`https://wa.me/5521983928113?text=Oi!%20Fiz%20o%20PIX%20manual%20do%20Diagnóstico%20Completo.%20Aqui%20está%20o%20comprovante.`} target="_blank" rel="noreferrer" className="block text-center text-stone-800 underline font-medium hover:text-stone-600 transition-colors">
                 Enviar o comprovante no WhatsApp
               </a>
             </div>
@@ -228,10 +254,10 @@ export default function App() {
             initial={{ opacity: 0, scale: 0.9, y: 30 }} 
             animate={{ opacity: 1, scale: 1, y: 0 }} 
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} 
-            className="w-full max-w-2xl bg-white p-6 sm:p-8 md:p-12 rounded-2xl shadow-sm border border-neutral-100"
+            className="w-full max-w-2xl bg-white p-6 sm:p-8 md:p-12 rounded-2xl shadow-sm border border-stone-200"
           >
             
-            <div className="prose prose-neutral prose-p:text-base prose-h3:text-lg md:prose-h3:text-xl mt-4 max-w-none">
+            <div className="prose prose-stone prose-p:text-base prose-h3:text-lg md:prose-h3:text-xl mt-4 max-w-none">
                 {resultado.resultado_dominante === 'MEDO' && (
                   <>
                     <p>Olá, {resultado.nome || 'JANAINA BRANDAO ARAUJO'}.</p>
@@ -309,16 +335,16 @@ export default function App() {
                 
             </div>
 
-            <div className="mt-12 p-6 md:p-8 bg-neutral-100 rounded-2xl border border-neutral-200 text-center">
+            <div className="mt-12 p-6 md:p-8 bg-stone-100 rounded-2xl border border-stone-200 text-center">
               <h3 className="text-xl font-bold mb-2">E SE VOCÊ QUISER IR ALÉM DESTE PRIMEIRO PASSO?</h3>
-              <p className="text-neutral-700 mb-6">
+              <p className="text-stone-700 mb-6">
                 Este resultado mostra o padrão que mais se destacou nas suas respostas, mas ele não conta toda a sua história. Por trás da {resultado.resultado_dominante.toLowerCase()} podem existir experiências, crenças e formas de proteção que foram sendo construídas ao longo da sua vida — e compreender essa origem pode ser o próximo passo para transformar esse padrão.
               </p>
-              <p className="text-neutral-700 mb-8">
+              <p className="text-stone-700 mb-8">
                 Se você percebeu que esse padrão se repete em diferentes áreas da sua vida e sente que está na hora de compreender o que existe por trás dele, eu posso te acompanhar nesse processo.
               </p>
               
-              <a href={`https://wa.me/5521983928113?text=Quero%20aprofundar%20meu%20diagnóstico%20de%20${resultado.resultado_dominante}`} target="_blank" rel="noreferrer" className="block text-center w-full bg-neutral-900 text-white font-medium py-4 rounded-xl hover:bg-neutral-800 transition-colors shadow-lg shadow-neutral-200">
+              <a href={`https://wa.me/5521983928113?text=Quero%20aprofundar%20meu%20diagnóstico%20de%20${resultado.resultado_dominante}`} target="_blank" rel="noreferrer" className="block text-center w-full bg-teal-700 text-white font-medium py-4 rounded-xl hover:bg-teal-800 transition-colors shadow-lg shadow-stone-200">
                 QUERO APROFUNDAR MEU DIAGNÓSTICO
               </a>
             </div>
