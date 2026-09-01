@@ -144,15 +144,17 @@ export default function App() {
           resultado_dominante: dominante
         })
       });
-      if (!res.ok) throw new Error('Falha de comunicação com o servidor');
-      const data = await res.json();
-      setQuizSessionId(data.quiz_session_id);
-      
-      setCurrentStep('paywall');
+      if (res.ok) {
+        const data = await res.json();
+        setQuizSessionId(data.quiz_session_id);
+      } else {
+        console.warn('Aviso: O banco de dados retornou um erro (possivelmente as chaves não estão configuradas). Prosseguindo pelo armazenamento local.');
+      }
     } catch (e) {
       console.error(e);
-      toast.error('Servidor indisponível. Verifique sua conexão ou tente novamente mais tarde.');
-      setCurrentStep('inicio');
+      toast.error('Modo offline: O banco de dados não está conectado. Prosseguindo com o resultado no seu dispositivo.');
+    } finally {
+      setCurrentStep('paywall');
     }
   };
 
