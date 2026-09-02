@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
 import { Loader2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -6,28 +7,34 @@ import toast, { Toaster } from 'react-hot-toast';
 const StripeBuyButton = 'stripe-buy-button' as any;
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>('inicio');
+  const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>(() => { if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/resultado') return 'resultado'; if (path === '/paywall') return 'paywall'; } return 'inicio'; });
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
-  const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
+  const [quizSessionId, setQuizSessionId] = useState<string | null>(() => { return new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'); });
   const [resultado, setResultado] = useState<any>(null);
+  useEffect(() => { if (quizSessionId) localStorage.setItem('quiz_session_id', quizSessionId); }, [quizSessionId]);
 
   const [showPix, setShowPix] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   const handleCheckout = async () => {
-    if (!quizSessionId) {
-       toast.error("Sessão inválida. Tente novamente.");
+    let currentSessionId = quizSessionId || new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id');
+    if (!currentSessionId) {
+       toast.error("Sessão não encontrada. Por favor, volte e refaça o quiz.");
+       setTimeout(() => { window.location.href = '/'; }, 2000);
        return;
+    }
+    if (currentSessionId !== quizSessionId) {
+       setQuizSessionId(currentSessionId);
     }
     setIsCheckoutLoading(true);
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quiz_session_id: quizSessionId })
+        body: JSON.stringify({ quiz_session_id: currentSessionId })
       });
       const data = await res.json();
       if (res.ok && data.url) {
@@ -163,8 +170,15 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-sky-50 to-emerald-50 flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
       <Toaster position="top-center" />
       
+      <AnimatePresence mode="wait">
       {currentStep === 'inicio' && (
-        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 fade-in">
+        <motion.div
+          key="inicio"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
           <h1 className="text-2xl font-bold mb-2 text-center text-emerald-800">Mini Diagnóstico</h1>
           <p className="text-stone-500 mb-8 text-center">Descubra o que te trava</p>
           <form onSubmit={handleStart} className="space-y-4">
@@ -180,11 +194,17 @@ export default function App() {
               COMEÇAR
             </button>
           </form>
-        </div>
+        </motion.div>
       )}
 
       {currentStep === 'quiz' && (
-        <div className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200 fade-in">
+        <motion.div
+          key="pergunta"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
           <div className="mb-8">
             <span className="text-sm font-medium text-stone-400">Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span>
             <div className="w-full bg-stone-100 h-1.5 rounded-full mt-2 overflow-hidden">
@@ -205,18 +225,30 @@ export default function App() {
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {currentStep === 'loading' && (
-        <div className="flex flex-col items-center fade-in">
+        <motion.div
+          key="processando"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.1 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col items-center">
           <Loader2 className="w-8 h-8 animate-spin text-stone-400 mb-4" />
           <p className="text-stone-500 font-medium">Processando...</p>
-        </div>
+        </motion.div>
       )}
 
       {currentStep === 'paywall' && (
-        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 text-center fade-in">
+        <motion.div
+          key="paywall"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
           <h2 className="text-2xl font-bold mb-4 text-emerald-800">Seu resultado está pronto!</h2>
           <p className="text-stone-600 mb-8 leading-relaxed">
             Identificamos qual dos três padrões aparece com mais força nas suas respostas.
@@ -246,7 +278,7 @@ export default function App() {
             </button>
             
             {showPix && (
-              <div className="mt-4 p-4 bg-teal-50 border border-teal-100 rounded-lg text-left text-sm text-stone-700 fade-in">
+              <div className="mt-4 p-4 bg-teal-50 border border-teal-100 rounded-lg text-left text-sm text-stone-700">
                 <p className="font-bold mb-2 text-teal-900">Como pagar via PIX Manual:</p>
                 <ol className="list-decimal pl-4 space-y-2 mb-4">
                   <li>Faça um PIX de <strong>R$ 9,90</strong> para a chave E-mail: <strong>contato.janainaaraujo@gmail.com</strong></li>
@@ -264,11 +296,16 @@ export default function App() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {currentStep === 'resultado' && resultado && (
-        <div className="w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200 fade-in">
+        <motion.div
+          key="resultado"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200">
           <h2 className="text-2xl md:text-3xl font-bold mb-6 text-emerald-800 text-center border-b border-stone-100 pb-6">
             Seu Padrão Dominante: {resultado.resultado_dominante}
           </h2>
@@ -351,8 +388,9 @@ export default function App() {
               QUERO APROFUNDAR MEU DIAGNÓSTICO
             </a>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
