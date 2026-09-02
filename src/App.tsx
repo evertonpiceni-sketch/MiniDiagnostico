@@ -50,26 +50,34 @@ export default function App() {
   };
 
   const fetchResult = async (sessionId: string | null) => {
+    const maxAttempts = 10;
+    const delayMs = 1500;
     try {
-      await new Promise(r => setTimeout(r, 2000));
-      let backendPaid = false;
-      if (sessionId) {
-        const res = await fetch(`/api/quiz/${sessionId}`);
+      if (!sessionId) {
+        setCurrentStep('paywall');
+        return;
+      }
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const res = await fetch(`/api/quiz/${sessionId}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data.payment_status === 'paid') {
             setResultado(data);
             setCurrentStep('resultado');
-            backendPaid = true;
             return;
           }
         }
-      }
-      if (!backendPaid) {
-        if (window.location.pathname.includes('/resultado')) {
-           toast.error('Pagamento não identificado. Conclua o pagamento para ver seu resultado.');
-           setTimeout(() => { window.location.href = '/'; }, 2000);
+
+        if (attempt < maxAttempts - 1) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
         }
+      }
+
+      if (window.location.pathname.includes('/resultado')) {
+        toast.error('O pagamento ainda está sendo confirmado. Tente novamente em alguns instantes.');
+        setCurrentStep('paywall');
+      } else {
         setCurrentStep('paywall');
       }
     } catch (e) {
@@ -82,11 +90,13 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     const isCanceled = params.get('canceled');
+    if (isCanceled === 'true') {
+      setCurrentStep('paywall');
+      return;
+    }
     if (window.location.pathname.includes('/resultado') || sessionId) {
       setCurrentStep('loading');
-      fetchResult(sessionId);
-    } else if (isCanceled) {
-      setCurrentStep('paywall');
+      fetchResult(sessionId || quizSessionId);
     }
   }, []);
 
