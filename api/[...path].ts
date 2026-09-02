@@ -99,11 +99,11 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
     } catch (e: any) {
       const m = String(e?.message || '');
-      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente. Verifique SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel.' });
-      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Verifique o projeto Supabase e tente novamente.' });
-      if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Não foi possível conectar ao banco de dados. Verifique SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.' });
-      if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no banco de dados.' });
-      if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.' });
+      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente. Verifique as variáveis do Supabase na Vercel.', code: m });
+      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Verifique o projeto Supabase e tente novamente.', code: m });
+      if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Falha de acesso ao banco de dados.', code: m });
+      if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no banco de dados.', code: m });
+      if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.', code: m });
       return send(res, 400, { error: m || 'Não foi possível salvar o diagnóstico.' });
     }
   }
@@ -176,7 +176,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return checkout(req, res);
   if (p.endsWith('/quiz')) return quiz(req, res);
-  const match = p.match(/\/quiz\/([^/]+)$/);
-  if (match) { req.query.id = match[1]; return quiz(req, res); }
-  return send(res, 404, { error: 'API não encontrada.' });
+  return send(res, 404, { error: 'Rota não encontrada.' });
 }
