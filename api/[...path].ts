@@ -61,9 +61,9 @@ function scores(a: Record<string, number>) {
   if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
-async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status`))[0] || null; }
+async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,email_sent_at`))[0] || null; }
 async function findDuplicate(email: string, respostas: Record<string, number>) {
-  const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status&limit=20`);
+  const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status,email_sent_at&limit=20`);
   return rows.find((row) => {
     if (!row?.quiz_session_id || !validId(String(row.quiz_session_id))) return false;
     if (String(row.email || '').toLowerCase() !== email) return false;
@@ -75,11 +75,12 @@ function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = 
 function escapeHtml(value: unknown) { return String(value ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#039;' } as any)[c]); }
 function answerLabel(value: unknown) { return ({ 0: 'Nunca', 1: 'Às vezes', 2: 'Quase sempre', 3: 'Sempre' } as Record<number, string>)[Number(value)] || 'Não informado'; }
 async function sendResultEmail(q: any) {
-  if (!RESEND_KEY || !q?.email) return;
+  if (!RESEND_KEY || !q?.email) throw new Error('EMAIL_CONFIG');
   const respostas = q.respostas && typeof q.respostas === 'object' ? q.respostas : {};
   const items = Array.from({ length: 12 }, (_, i) => `<li>Pergunta ${i + 1}: <strong>${escapeHtml(answerLabel(respostas[String(i + 1)] ?? respostas[i + 1]))}</strong></li>`).join('');
   const html = `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Seu Mini Diagnóstico está pronto!</h2><p>Olá, ${escapeHtml(q.nome)}.</p><p>Seu pagamento foi confirmado e este é o resultado do seu quiz:</p><p><strong>Padrão dominante: ${escapeHtml(q.resultado_dominante)}</strong></p><ul><li>Medo: ${Number(q.score_medo) || 0} pontos</li><li>Insegurança: ${Number(q.score_inseguranca) || 0} pontos</li><li>Procrastinação: ${Number(q.score_procrastinacao) || 0} pontos</li></ul><h3>Suas respostas</h3><ol>${items}</ol><p>Guarde este e-mail para consultar seu resultado.</p></div>`;
-  await new Resend(RESEND_KEY).emails.send({ from: RESEND_FROM, to: q.email, subject: 'Seu resultado do Mini Diagnóstico', html });
+  const result = await new Resend(RESEND_KEY).emails.send({ from: RESEND_FROM, to: q.email, subject: 'Seu resultado do Mini Diagnóstico', html });
+  if ((result as any)?.error) throw new Error(`EMAIL_SEND_${(result as any).error.message || 'ERROR'}`);
 }
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
@@ -147,9 +148,12 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
       const confirmed = event.type === 'checkout.session.async_payment_succeeded' || s.payment_status === 'paid';
       if (confirmed && id && validId(id)) {
         const q = await findQuiz(id);
-        if (q && q.payment_status !== 'paid') {
-          await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
-          try { await sendResultEmail(q); } catch (e) { console.error('Email', e); }
+        if (q) {
+          if (q.payment_status !== 'paid') await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
+          if (!q.email_sent_at) {
+            await sendResultEmail(q);
+            await patch(id, { email_sent_at: new Date().toISOString() });
+          }
         }
       }
     }
@@ -160,7 +164,15 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawPath = String(req.url || '').split('?')[0].replace(/\/$/, '');
   const p = rawPath.startsWith('/api/') ? rawPath : `/api${rawPath}`;
-  if (p.endsWith('/health')) return send(res, 200, { status: 'ok', databaseConfigured: Boolean(DB_URL && DB_KEY.length >= 20), stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID), resendConfigured: Boolean(RESEND_KEY) });
+  if (p.endsWith('/health')) {
+    const configured = Boolean(DB_URL && DB_KEY.length >= 20);
+    let database = 'not_configured';
+    if (configured) {
+      try { await db<any[]>('quiz_sessions?select=quiz_session_id&limit=1'); database = 'connected'; }
+      catch (e: any) { database = String(e?.message || 'error'); }
+    }
+    return send(res, 200, { status: 'ok', databaseConfigured: configured, database, stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET), resendConfigured: Boolean(RESEND_KEY), resendFromConfigured: Boolean(process.env.RESEND_FROM_EMAIL) });
+  }
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return checkout(req, res);
   if (p.endsWith('/quiz')) return quiz(req, res);
