@@ -14,6 +14,8 @@ export default function App() {
   const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
   const [resultado, setResultado] = useState<any>(null);
 
+  const [showPix, setShowPix] = useState(false);
+
   const fetchResult = async (sessionId: string | null) => {
     try {
       await new Promise(r => setTimeout(r, 2000));
@@ -198,7 +200,7 @@ export default function App() {
           
           <div className="bg-stone-50 p-6 rounded-xl border border-stone-200 mb-6 text-left shadow-sm">
             <p className="font-bold text-lg text-stone-800 mb-2">Diagnóstico Completo — R$ 9,90</p>
-            <p className="text-sm text-stone-500 mb-4">Pague via PIX ou Cartão de Crédito/Débito (Até parcelado)</p>
+            <p className="text-sm text-stone-500 mb-4">Pague via Cartão de Crédito ou Apple/Google Pay (Até parcelado)</p>
             
             <StripeBuyButton
               buy-button-id="buy_btn_1UAhRXDi05Nlzxp3LUM7iKKs"
@@ -206,6 +208,34 @@ export default function App() {
               client-reference-id={quizSessionId || undefined}
             >
             </StripeBuyButton>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-stone-100">
+            <button 
+              onClick={() => setShowPix(!showPix)}
+              className="text-teal-700 font-medium text-sm hover:underline"
+            >
+              Prefere pagar via PIX direto? Clique aqui.
+            </button>
+            
+            {showPix && (
+              <div className="mt-4 p-4 bg-teal-50 border border-teal-100 rounded-lg text-left text-sm text-stone-700 fade-in">
+                <p className="font-bold mb-2 text-teal-900">Como pagar via PIX Manual:</p>
+                <ol className="list-decimal pl-4 space-y-2 mb-4">
+                  <li>Faça um PIX de <strong>R$ 9,90</strong> para a chave E-mail: <strong>contato.janainaaraujo@gmail.com</strong></li>
+                  <li>Clique no botão abaixo para enviar o comprovante no WhatsApp</li>
+                  <li>Nós liberaremos seu acesso ao resultado imediatamente!</li>
+                </ol>
+                <a 
+                  href="https://wa.me/5521983928113?text=Ol%C3%A1!%20Fiz%20o%20pagamento%20do%20Mini%20Diagn%C3%B3stico%20via%20PIX.%20Segue%20o%20comprovante:" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="block w-full text-center bg-[#25D366] text-white font-medium py-3 rounded-lg hover:bg-[#20bd5a] transition-colors"
+                >
+                  ENVIAR COMPROVANTE
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}
