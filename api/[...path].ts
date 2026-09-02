@@ -42,20 +42,33 @@ async function raw(req: VercelRequest) {
 async function body(req: VercelRequest) {
   const b = await raw(req);
   if (!b.length) return {};
-  try { return JSON.parse(b.toString('utf8')); } catch { throw new Error('JSON inválido.'); }
+  try { return JSON.parse(b.toString('utf8')); } catch { throw new Error('JSON_INVALID'); }
+}
+function validateDbConfig() {
+  if (!DB_URL || DB_KEY.length < 20) throw new Error('DB_CONFIG');
+  try {
+    const u = new URL(DB_URL);
+    if (u.protocol !== 'https:' || !u.hostname.endsWith('.supabase.co')) throw new Error('DB_URL_INVALID');
+  } catch (e: any) {
+    if (e?.message === 'DB_URL_INVALID') throw e;
+    throw new Error('DB_URL_INVALID');
+  }
 }
 async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
-  if (!DB_URL || DB_KEY.length < 20) throw new Error('DB_CONFIG');
+  validateDbConfig();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 10000);
   try {
     const r = await fetch(`${DB_URL}/rest/v1/${resource}`, { ...init, signal: ctl.signal, headers: { apikey: DB_KEY, Authorization: `Bearer ${DB_KEY}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
     const text = await r.text();
-    if (!r.ok) { console.error('Supabase', r.status, text.slice(0, 500)); throw new Error(`DB_${r.status}`); }
+    if (!r.ok) {
+      console.error('Supabase', r.status, text.slice(0, 500));
+      throw new Error(`DB_${r.status}`);
+    }
     return text ? JSON.parse(text) : undefined as T;
   } catch (e: any) {
     if (e?.name === 'AbortError') throw new Error('DB_TIMEOUT');
-    if (e?.message?.includes('fetch failed')) throw new Error('DB_CONNECTION');
+    if (e?.message === 'fetch failed' || e?.cause?.code === 'ENOTFOUND' || e?.cause?.code === 'EAI_AGAIN' || e?.cause?.code === 'ECONNREFUSED') throw new Error('DB_CONNECTION');
     throw e;
   } finally { clearTimeout(timer); }
 }
@@ -116,11 +129,15 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
     } catch (e: any) {
       const m = String(e?.message || '');
-      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente. Verifique as variáveis do Supabase na Vercel.', code: m });
-      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Verifique o projeto Supabase e tente novamente.', code: m });
-      if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Falha de acesso ao banco de dados.', code: m });
-      if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no banco de dados.', code: m });
+      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Supabase não configurado: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente/inválido.', code: m });
+      if (m === 'DB_URL_INVALID') return send(res, 503, { error: 'SUPABASE_URL inválida. Use a URL do projeto no formato https://SEU-PROJETO.supabase.co.', code: m });
+      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'Supabase demorou para responder. Verifique o projeto Supabase.', code: m });
+      if (m === 'DB_CONNECTION') return send(res, 503, { error: 'Não foi possível conectar ao Supabase. Verifique SUPABASE_URL e se o projeto está acessível.', code: m });
+      if (m === 'DB_401') return send(res, 503, { error: 'Supabase recusou a chave. Verifique SUPABASE_SERVICE_ROLE_KEY.', code: m });
+      if (m === 'DB_403') return send(res, 503, { error: 'Supabase recusou a permissão da chave. Use a service_role key no backend.', code: m });
+      if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no projeto Supabase informado.', code: m });
       if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.', code: m });
+      if (m === 'DB_400') return send(res, 503, { error: 'Supabase rejeitou os dados da sessão. Verifique se o schema quiz_sessions está atualizado.', code: m });
       return send(res, 400, { error: m || 'Não foi possível salvar o diagnóstico.' });
     }
   }
@@ -133,7 +150,10 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
       if (q.payment_status !== 'paid') return send(res, 200, { quiz_session_id: q.quiz_session_id, payment_status: q.payment_status });
       return send(res, 200, { quiz_session_id: q.quiz_session_id, nome: q.nome, score_medo: q.score_medo, score_inseguranca: q.score_inseguranca, score_procrastinacao: q.score_procrastinacao, resultado_dominante: q.resultado_dominante, payment_status: q.payment_status });
-    } catch { return send(res, 503, { error: 'Não foi possível consultar o diagnóstico.' }); }
+    } catch (e: any) {
+      const m = String(e?.message || '');
+      return send(res, m === 'DB_TIMEOUT' ? 504 : 503, { error: 'Não foi possível consultar o diagnóstico.', code: m || 'DB_UNKNOWN' });
+    }
   }
   return send(res, 405, { error: 'Método não permitido.' });
 }
@@ -187,8 +207,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const configured = Boolean(DB_URL && DB_KEY.length >= 20);
     let database = 'not_configured';
     if (configured) {
-      try { await db<any[]>('quiz_sessions?select=quiz_session_id&limit=1'); database = 'connected'; }
-      catch (e: any) { database = String(e?.message || 'error'); }
+      try { validateDbConfig(); await db<any[]>('quiz_sessions?select=quiz_session_id&limit=1'); database = 'connected'; }
+      catch (e: any) { database = String(e?.message || 'DB_UNKNOWN'); }
     }
     const healthy = database === 'connected';
     return send(res, healthy ? 200 : 503, { status: healthy ? 'ok' : 'degraded', databaseConfigured: configured, database, stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET), resendConfigured: Boolean(RESEND_KEY), resendFromConfigured: Boolean(process.env.RESEND_FROM_EMAIL) });
