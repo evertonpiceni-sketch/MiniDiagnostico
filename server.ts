@@ -108,10 +108,10 @@ type Quiz = {
 
 async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T> {
   if (!supabaseUrl || !/^https:\/\/[^/]+\.supabase\.co$/.test(supabaseUrl)) {
-    throw new Error('SUPABASE_URL_INVALID: SUPABASE_URL deve ser a URL do projeto Supabase, por exemplo https://xyz.supabase.co.');
+    throw new Error('SUPABASE_URL_INVALID');
   }
   if (!supabaseServiceRoleKey || supabaseServiceRoleKey.length < 20) {
-    throw new Error('SUPABASE_KEY_INVALID: SUPABASE_SERVICE_ROLE_KEY não está configurada ou é inválida.');
+    throw new Error('SUPABASE_KEY_INVALID');
   }
 
   const controller = new AbortController();
@@ -133,16 +133,17 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
       try {
         const parsed = JSON.parse(body);
         detail = parsed.message || parsed.hint || parsed.details || detail;
-      } catch { /* keep raw response */ }
-      const error = new Error(`SUPABASE_DB_ERROR:${response.status}:${detail}`);
+      } catch { /* keep raw response in server logs only */ }
+      console.error('Supabase request failed:', response.status, detail);
+      const error = new Error(`SUPABASE_DB_ERROR:${response.status}`);
       (error as any).status = response.status;
       throw error;
     }
     if (response.status === 204 || !body) return undefined as T;
     return JSON.parse(body) as T;
   } catch (err: any) {
-    if (err?.name === 'AbortError') throw new Error('SUPABASE_TIMEOUT: O Supabase demorou mais de 10 segundos para responder.');
-    if (err?.message?.includes('fetch failed')) throw new Error('SUPABASE_CONNECTION_ERROR: Falha de conexão com o Supabase.');
+    if (err?.name === 'AbortError') throw new Error('SUPABASE_TIMEOUT');
+    if (err?.message?.includes('fetch failed')) throw new Error('SUPABASE_CONNECTION_ERROR');
     throw err;
   } finally {
     clearTimeout(timer);
@@ -159,11 +160,7 @@ async function getQuiz(id: string): Promise<Quiz | null> {
 }
 
 async function updateQuiz(id: string, patch: Partial<Quiz>): Promise<void> {
-  await dbRequest(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify(patch),
-  });
+  await dbRequest(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
 }
 
 function getAppUrl(req: express.Request): string {
@@ -207,16 +204,9 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
           await updateQuiz(quizSessionId, { payment_status: 'paid', paid_at: new Date().toISOString(), stripe_checkout_session_id: session.id });
           if (resend && quiz.email) {
             try {
-              await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
-                to: quiz.email,
-                subject: 'Seu Mini Diagnóstico está pronto!',
-                html: `<p>Olá, ${escapeHtml(String(quiz.nome || ''))}.</p><p>Seu diagnóstico completo já está disponível.</p>`,
-              });
+              await resend.emails.send({ from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>', to: quiz.email, subject: 'Seu Mini Diagnóstico está pronto!', html: `<p>Olá, ${escapeHtml(String(quiz.nome || ''))}.</p><p>Seu diagnóstico completo já está disponível.</p>` });
               await updateQuiz(quizSessionId, { email_sent_at: new Date().toISOString() });
-            } catch (emailError) {
-              console.error('Email delivery failed:', emailError);
-            }
+            } catch (emailError) { console.error('Email delivery failed:', emailError); }
           }
         }
       }
@@ -237,18 +227,22 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const respostas = validateAnswers(req.body?.respostas);
     const scores = calculateScores(respostas);
-    const quiz: Quiz = {
-      quiz_session_id: uuidv4(), nome, email, respostas, ...scores,
-      payment_status: 'pending', created_at: new Date().toISOString(),
-    };
+    const quiz: Quiz = { quiz_session_id: uuidv4(), nome, email, respostas, ...scores, payment_status: 'pending', created_at: new Date().toISOString() };
     await insertQuiz(quiz);
     return res.status(201).json({ quiz_session_id: quiz.quiz_session_id });
   } catch (error: any) {
-    console.error('Quiz creation error:', error?.message || error);
     const message = String(error?.message || '');
-    if (message.startsWith('SUPABASE_')) {
-      const status = Number(message.split(':')[2]) || (message.startsWith('SUPABASE_DB_ERROR') ? 500 : 503);
-      return res.status(status >= 400 && status < 600 ? status : 500).json({ error: message.replace(/^SUPABASE_[A-Z_]+:?\d*:?/, '').trim() || message });
+    console.error('Quiz creation error:', message);
+    if (message === 'SUPABASE_URL_INVALID') return res.status(503).json({ error: 'Banco de dados não configurado corretamente.' });
+    if (message === 'SUPABASE_KEY_INVALID') return res.status(503).json({ error: 'Credencial do banco de dados não configurada corretamente.' });
+    if (message === 'SUPABASE_TIMEOUT') return res.status(504).json({ error: 'O banco de dados demorou para responder. Tente novamente.' });
+    if (message === 'SUPABASE_CONNECTION_ERROR') return res.status(503).json({ error: 'Não foi possível conectar ao banco de dados.' });
+    if (message.startsWith('SUPABASE_DB_ERROR:')) {
+      const code = Number(message.split(':')[1]);
+      if (code === 401 || code === 403) return res.status(503).json({ error: 'A credencial do banco de dados foi rejeitada.' });
+      if (code === 404) return res.status(503).json({ error: 'A tabela do diagnóstico não foi encontrada no banco de dados.' });
+      if (code === 409) return res.status(409).json({ error: 'O diagnóstico já existe. Tente novamente.' });
+      return res.status(503).json({ error: 'Não foi possível salvar o diagnóstico no banco de dados.' });
     }
     return res.status(400).json({ error: message || 'Dados do quiz inválidos.' });
   }
@@ -263,17 +257,7 @@ app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     if (quiz.payment_status === 'paid') return res.status(409).json({ error: 'Este resultado já foi pago.' });
     const appUrl = getAppUrl(req);
-    const session = await getStripe().checkout.sessions.create({
-      payment_method_types: ['card', 'pix'],
-      payment_method_options: { card: { installments: { enabled: true } } },
-      line_items: [{ price: stripePriceId, quantity: 1 }],
-      mode: 'payment',
-      success_url: `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`,
-      cancel_url: `${appUrl}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
-      client_reference_id: id,
-      customer_email: quiz.email,
-      metadata: { quiz_session_id: id },
-    });
+    const session = await getStripe().checkout.sessions.create({ payment_method_types: ['card', 'pix'], payment_method_options: { card: { installments: { enabled: true } } }, line_items: [{ price: stripePriceId, quantity: 1 }], mode: 'payment', success_url: `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`, cancel_url: `${appUrl}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`, client_reference_id: id, customer_email: quiz.email, metadata: { quiz_session_id: id } });
     await updateQuiz(id, { stripe_checkout_session_id: session.id });
     return res.json({ url: session.url });
   } catch (error: any) {
