@@ -1,43 +1,53 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/App.tsx', 'utf8');
 
-// 1. Remove declare global block
-code = code.replace(/declare global\s*\{[\s\S]*?\}\s*\}\s*\}/, '');
+code = code.replace(
+  "const [showPix, setShowPix] = useState(false);",
+  `const [showPix, setShowPix] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
-// 2. Add StripeBuyButton definition after imports
-code = code.replace(/import toast, \{ Toaster \} from 'react-hot-toast';/, 
-  `import toast, { Toaster } from 'react-hot-toast';\n\nconst StripeBuyButton = 'stripe-buy-button' as any;`);
+  const handleCheckout = async () => {
+    if (!quizSessionId) {
+       toast.error("Sessão inválida. Tente novamente.");
+       return;
+    }
+    setIsCheckoutLoading(true);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quiz_session_id: quizSessionId })
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || 'Erro ao iniciar o pagamento.');
+      }
+    } catch (e) {
+      toast.error('Erro de conexão ao iniciar o pagamento.');
+    } finally {
+      setIsCheckoutLoading(false);
+    }
+  };`
+);
 
-// 3. Replace component tags
-code = code.replace(/<stripe-buy-button/g, '<StripeBuyButton');
-code = code.replace(/<\/stripe-buy-button>/g, '</StripeBuyButton>');
+const buyButtonHtml = `<StripeBuyButton
+              buy-button-id="buy_btn_1UAhRXDi05Nlzxp3LUM7iKKs"
+              publishable-key="pk_live_51U8Y2oDi05Nlzxp3UkGitm1KdK7v7pIZAsZKY61BkVjmArAtt7DDDjQsL3ogLG45jfA3BDah4CUniaQjPzq5At4X00uTTvUtF1"
+              client-reference-id={quizSessionId || undefined}
+            >
+            </StripeBuyButton>`;
 
-// 4. Color replacements
-const replacements = {
-  'bg-neutral-50': 'bg-stone-50',
-  'text-neutral-900': 'text-stone-800',
-  'text-neutral-800': 'text-stone-700',
-  'text-neutral-700': 'text-stone-700',
-  'text-neutral-600': 'text-stone-600',
-  'text-neutral-500': 'text-stone-500',
-  'text-neutral-400': 'text-stone-400',
-  'border-neutral-100': 'border-stone-200',
-  'border-neutral-200': 'border-stone-200',
-  'bg-neutral-900': 'bg-teal-700',
-  'bg-neutral-100': 'bg-stone-100',
-  'bg-neutral-800': 'bg-teal-800',
-  'hover:bg-neutral-800': 'hover:bg-teal-800',
-  'hover:border-neutral-900': 'hover:border-teal-700',
-  'hover:bg-neutral-50': 'hover:bg-stone-100',
-  'hover:text-neutral-600': 'hover:text-stone-600',
-  'shadow-neutral-200': 'shadow-stone-200',
-  'shadow-neutral-100': 'shadow-stone-100',
-  'prose-neutral': 'prose-stone'
-};
+const checkoutButtonHtml = `<button 
+              onClick={handleCheckout} 
+              disabled={isCheckoutLoading}
+              className="w-full bg-teal-700 text-white font-medium py-3 rounded-lg hover:bg-teal-800 transition-colors mt-4 flex justify-center items-center shadow-sm shadow-stone-200"
+            >
+              {isCheckoutLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'PAGAR COM CARTÃO OU PIX (STRIPE)'}
+            </button>`;
 
-for (const [key, value] of Object.entries(replacements)) {
-  code = code.split(key).join(value);
-}
+code = code.replace(buyButtonHtml, checkoutButtonHtml);
 
 fs.writeFileSync('src/App.tsx', code);
-console.log('App.tsx fixed');
+console.log('App.tsx updated');

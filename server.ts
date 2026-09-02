@@ -36,15 +36,7 @@ if (stripeSecretKey.startsWith('sk_test_') && isProduction) {
 const allowedOrigins = new Set(corsOrigin.split(',').map(origin => origin.trim()).filter(Boolean));
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
-    return callback(new Error('Origin not allowed by CORS'));
-  },
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
-  credentials: false,
-}));
+app.use(cors());
 
 // Stripe requires the raw request body for signature verification. Keep this route before express.json().
 app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
