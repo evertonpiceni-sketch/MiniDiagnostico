@@ -1,7 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { randomUUID } from 'node:crypto';
+
+type VercelRequest = NodeJS.ReadableStream & { method?: string; url?: string; query: Record<string, string | string[] | undefined>; headers: Record<string, string | string[] | undefined> };
+type VercelResponse = { status: (code: number) => VercelResponse; json: (data: unknown) => unknown };
 
 export const config = { api: { bodyParser: false } };
 const DB_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
@@ -18,7 +20,7 @@ const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
 
 async function raw(req: VercelRequest) {
   const chunks: Buffer[] = [];
-  for await (const chunk of req as any) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as any));
   return Buffer.concat(chunks);
 }
 async function body(req: VercelRequest) {
