@@ -65,25 +65,15 @@ export default function App() {
           }
         }
       }
-      if (!backendPaid && window.location.pathname.includes('/resultado')) {
-         const localRes = localStorage.getItem('janaina_resultado');
-         if (localRes) {
-           setResultado(JSON.parse(localRes));
-           setCurrentStep('resultado');
-           return;
-         }
+      if (!backendPaid) {
+        if (window.location.pathname.includes('/resultado')) {
+           toast.error('Pagamento não identificado. Conclua o pagamento para ver seu resultado.');
+           setTimeout(() => { window.location.href = '/'; }, 2000);
+        }
+        setCurrentStep('paywall');
       }
-      setCurrentStep('paywall');
     } catch (e) {
-      if (window.location.pathname.includes('/resultado')) {
-         const localRes = localStorage.getItem('janaina_resultado');
-         if (localRes) {
-           setResultado(JSON.parse(localRes));
-           setCurrentStep('resultado');
-           return;
-         }
-      }
-      toast.error('Não foi possível carregar seu resultado no momento.');
+      toast.error('Não foi possível verificar seu pagamento no momento.');
       setCurrentStep('paywall');
     }
   };
@@ -157,12 +147,16 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setQuizSessionId(data.quiz_session_id);
+        setCurrentStep('paywall');
+      } else {
+        const errorData = await res.json().catch(() => null);
+        toast.error(errorData?.error || 'Erro ao salvar o quiz. Verifique as configurações do banco de dados.');
+        setCurrentStep('quiz');
       }
     } catch (e) {
       console.error(e);
-      toast.error('Modo offline: O banco de dados não está conectado. Prosseguindo...');
-    } finally {
-      setCurrentStep('paywall');
+      toast.error('Erro de conexão com o servidor.');
+      setCurrentStep('quiz');
     }
   };
 

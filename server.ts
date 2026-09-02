@@ -167,6 +167,9 @@ type Quiz = {
 };
 
 async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T> {
+  if (!supabaseUrl || !supabaseUrl.startsWith('https://') || supabaseUrl.includes('run.app') || supabaseUrl.includes('google.com') || !supabaseUrl.includes('supabase.co')) {
+    throw new Error('SUPABASE_URL_INVALID: A variável SUPABASE_URL não parece ser uma URL válida do Supabase. Verifique se você não colou acidentalmente a URL do próprio aplicativo. O formato correto é algo como https://xyz.supabase.co e deve ser configurado no painel do AI Studio (ícone de engrenagem).');
+  }
   try {
   const response = await fetch(`${supabaseUrl}/rest/v1/${pathName}`, {
     ...init,
@@ -179,6 +182,9 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
   });
   if (!response.ok) {
     const body = await response.text();
+    if (response.status === 404 || body.includes('<!DOCTYPE html>')) {
+        throw new Error('SUPABASE_URL_INVALID: O banco de dados retornou 404 (Página Não Encontrada). Isso indica que a variável SUPABASE_URL preenchida no painel de configurações (Secrets) está incorreta ou aponta para uma página web, em vez de apontar para a API do Supabase.');
+    }
     throw new Error(`Database request failed (${response.status}): ${body.slice(0, 500)}`);
   }
   if (response.status === 204) return undefined as T;
@@ -227,7 +233,9 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     return res.status(201).json({ quiz_session_id: quiz.quiz_session_id });
   } catch (error: any) {
     console.error('Quiz creation error:', error?.message || error);
-    if (error?.message?.includes('parse URL')) { return res.status(500).json({ error: 'A configuração do banco de dados (SUPABASE_URL) está inválida nas configurações do AI Studio.' }); }
+    if (error?.message?.includes('SUPABASE_URL_INVALID')) { 
+      return res.status(500).json({ error: error.message.replace('SUPABASE_URL_INVALID: ', '') }); 
+    }
     return res.status(400).json({ error: 'Dados do quiz inválidos.' });
   }
 });
