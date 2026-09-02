@@ -18,6 +18,22 @@ const RESEND_FROM = process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboard
 const send = (res: VercelResponse, status: number, data: unknown) => res.status(status).json(data);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+function rateLimit(req: VercelRequest, max: number, windowMs: number): boolean {
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : 'unknown';
+  const key = `${req.method || 'UNKNOWN'}:${String(req.url || '').split('?')[0]}:${ip}`;
+  const now = Date.now();
+  const current = rateBuckets.get(key);
+  if (!current || current.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (current.count >= max) return false;
+  current.count += 1;
+  return true;
+}
+
 async function raw(req: VercelRequest) {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as any));
@@ -61,7 +77,7 @@ function scores(a: Record<string, number>) {
   if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
-async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,email_sent_at`))[0] || null; }
+async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,email_sent_at`))[0] || null; }
 async function findDuplicate(email: string, respostas: Record<string, number>) {
   const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status,email_sent_at&limit=20`);
   return rows.find((row) => {
@@ -85,6 +101,7 @@ async function sendResultEmail(q: any) {
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
+    if (!rateLimit(req, 10, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' });
     try {
       const b = await body(req);
       const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
@@ -108,6 +125,7 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
     }
   }
   if (req.method === 'GET') {
+    if (!rateLimit(req, 30, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas consultas. Aguarde alguns minutos e tente novamente.' });
     const id = String(req.query.id || '');
     if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
     try {
@@ -122,6 +140,7 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
 
 async function checkout(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
+  if (!rateLimit(req, 10, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas tentativas de pagamento. Aguarde alguns minutos e tente novamente.' });
   try {
     const b = await body(req), id = typeof b.quiz_session_id === 'string' ? b.quiz_session_id : '';
     if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
@@ -149,7 +168,7 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
       if (confirmed && id && validId(id)) {
         const q = await findQuiz(id);
         if (q) {
-          if (q.payment_status !== 'paid') await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
+          if (q.payment_status !== 'paid') await patch(id, { payment_status: 'paid', paid_at: new Date().toISOString(), stripe_checkout_session_id: s.id });
           if (!q.email_sent_at) {
             await sendResultEmail(q);
             await patch(id, { email_sent_at: new Date().toISOString() });
@@ -171,10 +190,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try { await db<any[]>('quiz_sessions?select=quiz_session_id&limit=1'); database = 'connected'; }
       catch (e: any) { database = String(e?.message || 'error'); }
     }
-    return send(res, 200, { status: 'ok', databaseConfigured: configured, database, stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET), resendConfigured: Boolean(RESEND_KEY), resendFromConfigured: Boolean(process.env.RESEND_FROM_EMAIL) });
+    const healthy = database === 'connected';
+    return send(res, healthy ? 200 : 503, { status: healthy ? 'ok' : 'degraded', databaseConfigured: configured, database, stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET), resendConfigured: Boolean(RESEND_KEY), resendFromConfigured: Boolean(process.env.RESEND_FROM_EMAIL) });
   }
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return checkout(req, res);
   if (p.endsWith('/quiz')) return quiz(req, res);
+  const match = p.match(/\/quiz\/([^/]+)$/);
+  if (match) { req.query.id = match[1]; return quiz(req, res); }
   return send(res, 404, { error: 'Rota não encontrada.' });
 }
