@@ -62,6 +62,14 @@ function scores(a: Record<string, number>) {
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
 async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status`))[0] || null; }
+async function findDuplicate(email: string, respostas: Record<string, number>) {
+  const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status&limit=20`);
+  return rows.find((row) => {
+    if (!row?.quiz_session_id || !validId(String(row.quiz_session_id))) return false;
+    if (String(row.email || '').toLowerCase() !== email) return false;
+    try { return JSON.stringify(row.respostas || {}) === JSON.stringify(respostas); } catch { return false; }
+  }) || null;
+}
 async function patch(id: string, data: Record<string, unknown>) { await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(data) }); }
 function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim(); return `https://${host}`; }
 
@@ -74,6 +82,11 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       const respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
       if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
+
+      // Idempotência defensiva: toques duplicados/reenvios do mesmo quiz reutilizam a sessão.
+      const duplicate = await findDuplicate(email, respostas);
+      if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
+
       const row = { quiz_session_id: randomUUID(), nome, email, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
