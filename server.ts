@@ -51,7 +51,7 @@ function escapeHtml(value: string): string {
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Email inválido.');
   const email = value.trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email inválido.');
+  if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
   return email;
 }
 
@@ -107,16 +107,19 @@ type Quiz = {
 };
 
 async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T> {
-  if (!supabaseUrl || !/^https:\/\/[^/]+\.(supabase\.co|supabase\.com)$/.test(supabaseUrl)) {
+  if (!supabaseUrl || !/^https:\/\/[^/]+\.supabase\.co$/.test(supabaseUrl)) {
     throw new Error('SUPABASE_URL_INVALID: SUPABASE_URL deve ser a URL do projeto Supabase, por exemplo https://xyz.supabase.co.');
   }
-  // Accept legacy JWT service-role keys and current sb_* secret keys.
   if (!supabaseServiceRoleKey || supabaseServiceRoleKey.length < 20) {
     throw new Error('SUPABASE_KEY_INVALID: SUPABASE_SERVICE_ROLE_KEY não está configurada ou é inválida.');
   }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/${pathName}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         apikey: supabaseServiceRoleKey,
         Authorization: `Bearer ${supabaseServiceRoleKey}`,
@@ -124,18 +127,25 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
         ...(init.headers || {}),
       },
     });
+    const body = await response.text();
     if (!response.ok) {
-      const body = await response.text();
-      if (response.status === 404 || body.includes('<!DOCTYPE html>')) {
-        throw new Error('SUPABASE_URL_INVALID: A API do Supabase retornou 404. Verifique SUPABASE_URL.');
-      }
-      throw new Error(`Database request failed (${response.status}): ${body.slice(0, 500)}`);
+      let detail = body.slice(0, 500);
+      try {
+        const parsed = JSON.parse(body);
+        detail = parsed.message || parsed.hint || parsed.details || detail;
+      } catch { /* keep raw response */ }
+      const error = new Error(`SUPABASE_DB_ERROR:${response.status}:${detail}`);
+      (error as any).status = response.status;
+      throw error;
     }
-    if (response.status === 204) return undefined as T;
-    return response.json() as Promise<T>;
+    if (response.status === 204 || !body) return undefined as T;
+    return JSON.parse(body) as T;
   } catch (err: any) {
-    if (err?.message?.includes('fetch failed')) throw new Error('Falha de conexão com o Supabase.');
+    if (err?.name === 'AbortError') throw new Error('SUPABASE_TIMEOUT: O Supabase demorou mais de 10 segundos para responder.');
+    if (err?.message?.includes('fetch failed')) throw new Error('SUPABASE_CONNECTION_ERROR: Falha de conexão com o Supabase.');
     throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -182,7 +192,6 @@ function rateLimit(max: number, windowMs: number) {
   };
 }
 
-// Stripe requires the raw request body for signature verification.
 app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
   const signature = req.headers['stripe-signature'];
   if (typeof signature !== 'string') return res.status(400).json({ error: 'Assinatura Stripe ausente.' });
@@ -195,11 +204,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
       if (quizSessionId) {
         const quiz = await getQuiz(quizSessionId);
         if (quiz && quiz.payment_status !== 'paid') {
-          await updateQuiz(quizSessionId, {
-            payment_status: 'paid',
-            paid_at: new Date().toISOString(),
-            stripe_checkout_session_id: session.id,
-          });
+          await updateQuiz(quizSessionId, { payment_status: 'paid', paid_at: new Date().toISOString(), stripe_checkout_session_id: session.id });
           if (resend && quiz.email) {
             try {
               await resend.emails.send({
@@ -224,7 +229,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
 });
 
 app.use(express.json({ limit: '64kb', strict: true }));
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', databaseConfigured: Boolean(supabaseUrl && supabaseServiceRoleKey), stripeConfigured: Boolean(stripeSecretKey && stripePriceId) }));
 
 app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
@@ -240,8 +245,12 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     return res.status(201).json({ quiz_session_id: quiz.quiz_session_id });
   } catch (error: any) {
     console.error('Quiz creation error:', error?.message || error);
-    if (error?.message?.startsWith('SUPABASE_')) return res.status(500).json({ error: error.message });
-    return res.status(400).json({ error: 'Dados do quiz inválidos.' });
+    const message = String(error?.message || '');
+    if (message.startsWith('SUPABASE_')) {
+      const status = Number(message.split(':')[2]) || (message.startsWith('SUPABASE_DB_ERROR') ? 500 : 503);
+      return res.status(status >= 400 && status < 600 ? status : 500).json({ error: message.replace(/^SUPABASE_[A-Z_]+:?\d*:?/, '').trim() || message });
+    }
+    return res.status(400).json({ error: message || 'Dados do quiz inválidos.' });
   }
 });
 
@@ -281,16 +290,7 @@ app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
     const quiz = await getQuiz(id);
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     if (quiz.payment_status !== 'paid') return res.json({ quiz_session_id: quiz.quiz_session_id, nome: quiz.nome, payment_status: 'pending' });
-    return res.json({
-      quiz_session_id: quiz.quiz_session_id,
-      nome: quiz.nome,
-      resultado_dominante: quiz.resultado_dominante,
-      score_medo: quiz.score_medo,
-      score_inseguranca: quiz.score_inseguranca,
-      score_procrastinacao: quiz.score_procrastinacao,
-      payment_status: quiz.payment_status,
-      paid_at: quiz.paid_at,
-    });
+    return res.json({ quiz_session_id: quiz.quiz_session_id, nome: quiz.nome, resultado_dominante: quiz.resultado_dominante, score_medo: quiz.score_medo, score_inseguranca: quiz.score_inseguranca, score_procrastinacao: quiz.score_procrastinacao, payment_status: quiz.payment_status, paid_at: quiz.paid_at });
   } catch (error: any) {
     console.error('Result retrieval error:', error?.message || error);
     return res.status(500).json({ error: 'Não foi possível carregar o resultado.' });
@@ -313,7 +313,6 @@ async function startServer() {
 export default app;
 export { app };
 
-// Vercel imports the Express app as a serverless function. Local dev still starts the server.
 if (!process.env.VERCEL) {
   startServer().catch(error => {
     console.error('Server startup failed:', error);
