@@ -61,7 +61,7 @@ function scores(a: Record<string, number>) {
   if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
-async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status`))[0] || null; }
+async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status`))[0] || null; }
 async function findDuplicate(email: string, respostas: Record<string, number>) {
   const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status&limit=20`);
   return rows.find((row) => {
@@ -72,6 +72,15 @@ async function findDuplicate(email: string, respostas: Record<string, number>) {
 }
 async function patch(id: string, data: Record<string, unknown>) { await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(data) }); }
 function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim(); return `https://${host}`; }
+function escapeHtml(value: unknown) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' } as any)[c]); }
+function answerLabel(value: unknown) { return ({ 0: 'Nunca', 1: 'Às vezes', 2: 'Quase sempre', 3: 'Sempre' } as Record<number, string>)[Number(value)] || 'Não informado'; }
+async function sendResultEmail(q: any) {
+  if (!RESEND_KEY || !q?.email) return;
+  const respostas = q.respostas && typeof q.respostas === 'object' ? q.respostas : {};
+  const items = Array.from({ length: 12 }, (_, i) => `<li>Pergunta ${i + 1}: <strong>${escapeHtml(answerLabel(respostas[String(i + 1)] ?? respostas[i + 1]))}</strong></li>`).join('');
+  const html = `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Seu Mini Diagnóstico está pronto!</h2><p>Olá, ${escapeHtml(q.nome)}.</p><p>Seu pagamento foi confirmado e este é o resultado do seu quiz:</p><p><strong>Padrão dominante: ${escapeHtml(q.resultado_dominante)}</strong></p><ul><li>Medo: ${Number(q.score_medo) || 0} pontos</li><li>Insegurança: ${Number(q.score_inseguranca) || 0} pontos</li><li>Procrastinação: ${Number(q.score_procrastinacao) || 0} pontos</li></ul><h3>Suas respostas</h3><ol>${items}</ol><p>Guarde este e-mail para consultar seu resultado.</p></div>`;
+  await new Resend(RESEND_KEY).emails.send({ from: RESEND_FROM, to: q.email, subject: 'Seu resultado do Mini Diagnóstico', html });
+}
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
@@ -82,20 +91,17 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       const respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
       if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
-
-      // Idempotência defensiva: toques duplicados/reenvios do mesmo quiz reutilizam a sessão.
       const duplicate = await findDuplicate(email, respostas);
       if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
-
       const row = { quiz_session_id: randomUUID(), nome, email, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
     } catch (e: any) {
       const m = String(e?.message || '');
-      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente.' });
-      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Tente novamente.' });
-      if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Não foi possível conectar ao banco de dados.' });
-      if (m === 'DB_404') return send(res, 503, { error: 'A tabela do diagnóstico não foi encontrada no banco de dados.' });
+      if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente. Verifique SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY na Vercel.' });
+      if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Verifique o projeto Supabase e tente novamente.' });
+      if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Não foi possível conectar ao banco de dados. Verifique SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.' });
+      if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no banco de dados.' });
       if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.' });
       return send(res, 400, { error: m || 'Não foi possível salvar o diagnóstico.' });
     }
@@ -141,12 +147,7 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
         const q = await findQuiz(id);
         if (q && q.payment_status !== 'paid') {
           await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
-          if (RESEND_KEY && q.email) {
-            try {
-              const safeName = String(q.nome || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' } as any)[c]);
-              await new Resend(RESEND_KEY).emails.send({ from: RESEND_FROM, to: q.email, subject: 'Seu Mini Diagnóstico está pronto!', html: `<p>Olá, ${safeName}.</p><p>Seu diagnóstico completo já está disponível.</p>` });
-            } catch (e) { console.error('Email', e); }
-          }
+          try { await sendResultEmail(q); } catch (e) { console.error('Email', e); }
         }
       }
     }
@@ -157,7 +158,7 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawPath = String(req.url || '').split('?')[0].replace(/\/$/, '');
   const p = rawPath.startsWith('/api/') ? rawPath : `/api${rawPath}`;
-  if (p.endsWith('/health')) return send(res, 200, { status: 'ok', databaseConfigured: Boolean(DB_URL && DB_KEY.length >= 20), stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID) });
+  if (p.endsWith('/health')) return send(res, 200, { status: 'ok', databaseConfigured: Boolean(DB_URL && DB_KEY.length >= 20), stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID), resendConfigured: Boolean(RESEND_KEY) });
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return checkout(req, res);
   if (p.endsWith('/quiz')) return quiz(req, res);
