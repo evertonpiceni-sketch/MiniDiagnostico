@@ -72,7 +72,7 @@ async function findDuplicate(email: string, respostas: Record<string, number>) {
 }
 async function patch(id: string, data: Record<string, unknown>) { await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(data) }); }
 function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim(); return `https://${host}`; }
-function escapeHtml(value: unknown) { return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' } as any)[c]); }
+function escapeHtml(value: unknown) { return String(value ?? '').replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#039;' } as any)[c]); }
 function answerLabel(value: unknown) { return ({ 0: 'Nunca', 1: 'Às vezes', 2: 'Quase sempre', 3: 'Sempre' } as Record<number, string>)[Number(value)] || 'Não informado'; }
 async function sendResultEmail(q: any) {
   if (!RESEND_KEY || !q?.email) return;
@@ -141,9 +141,11 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
     const signature = req.headers['stripe-signature'];
     if (typeof signature !== 'string') return send(res, 400, { error: 'Assinatura Stripe ausente.' });
     const event = new Stripe(STRIPE_KEY).webhooks.constructEvent(await raw(req), signature, WEBHOOK_SECRET);
-    if (event.type === 'checkout.session.completed') {
-      const s = event.data.object as Stripe.Checkout.Session, id = s.client_reference_id || s.metadata?.quiz_session_id;
-      if (id && validId(id)) {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      const s = event.data.object as Stripe.Checkout.Session;
+      const id = s.client_reference_id || s.metadata?.quiz_session_id;
+      const confirmed = event.type === 'checkout.session.async_payment_succeeded' || s.payment_status === 'paid';
+      if (confirmed && id && validId(id)) {
         const q = await findQuiz(id);
         if (q && q.payment_status !== 'paid') {
           await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
