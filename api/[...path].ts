@@ -2,16 +2,8 @@ import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { randomUUID } from 'node:crypto';
 
-type VercelRequest = NodeJS.ReadableStream & {
-  method?: string;
-  url?: string;
-  query: Record<string, string | string[] | undefined>;
-  headers: Record<string, string | string[] | undefined>;
-};
-type VercelResponse = {
-  status: (code: number) => VercelResponse;
-  json: (data: unknown) => unknown;
-};
+type VercelRequest = NodeJS.ReadableStream & { method?: string; url?: string; query: Record<string, string | string[] | undefined>; headers: Record<string, string | string[] | undefined> };
+type VercelResponse = { status: (code: number) => VercelResponse; json: (data: unknown) => unknown };
 
 export const config = { api: { bodyParser: false } };
 const DB_URL = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
@@ -41,21 +33,9 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 10000);
   try {
-    const r = await fetch(`${DB_URL}/rest/v1/${resource}`, {
-      ...init,
-      signal: ctl.signal,
-      headers: {
-        apikey: DB_KEY,
-        Authorization: `Bearer ${DB_KEY}`,
-        'Content-Type': 'application/json',
-        ...(init.headers || {})
-      }
-    });
+    const r = await fetch(`${DB_URL}/rest/v1/${resource}`, { ...init, signal: ctl.signal, headers: { apikey: DB_KEY, Authorization: `Bearer ${DB_KEY}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
     const text = await r.text();
-    if (!r.ok) {
-      console.error('Supabase', r.status, text.slice(0, 500));
-      throw new Error(`DB_${r.status}`);
-    }
+    if (!r.ok) { console.error('Supabase', r.status, text.slice(0, 500)); throw new Error(`DB_${r.status}`); }
     return text ? JSON.parse(text) : undefined as T;
   } catch (e: any) {
     if (e?.name === 'AbortError') throw new Error('DB_TIMEOUT');
@@ -68,11 +48,7 @@ function validateAnswers(value: unknown) {
   const a = value as Record<string, unknown>, keys = Object.keys(a);
   if (keys.length !== 12 || keys.some(k => !/^([1-9]|1[0-2])$/.test(k))) throw new Error('Respostas incompletas.');
   const out: Record<string, number> = {};
-  for (let i = 1; i <= 12; i++) {
-    const v = a[String(i)];
-    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 3) throw new Error('Resposta inválida.');
-    out[String(i)] = v as number;
-  }
+  for (let i = 1; i <= 12; i++) { const v = a[String(i)]; if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 3) throw new Error('Resposta inválida.'); out[String(i)] = v as number; }
   return out;
 }
 function scores(a: Record<string, number>) {
@@ -85,30 +61,14 @@ function scores(a: Record<string, number>) {
   if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
-async function findQuiz(id: string) {
-  const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=*`);
-  return rows[0] || null;
-}
-async function patch(id: string, data: Record<string, unknown>) {
-  await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify(data)
-  });
-}
-function appUrl(req: VercelRequest) {
-  if (APP_URL) return APP_URL;
-  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
-  return `https://${host}`;
-}
+async function findQuiz(id: string) { const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=*`); return rows[0] || null; }
+async function patch(id: string, data: Record<string, unknown>) { await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(data) }); }
+function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim(); return `https://${host}`; }
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     try {
-      const b = await body(req);
-      const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
-      const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
-      const respostas = validateAnswers(b.respostas);
+      const b = await body(req), nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '', email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '', respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
       if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
       const row = { quiz_session_id: randomUUID(), nome, email, respostas, ...scores(respostas), payment_status: 'pending' };
@@ -145,17 +105,7 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
     const q = await findQuiz(id);
     if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
     if (q.payment_status === 'paid') return send(res, 409, { error: 'Este resultado já foi pago.' });
-    const s = await new Stripe(STRIPE_KEY).checkout.sessions.create({
-      payment_method_types: ['card', 'pix'],
-      payment_method_options: { card: { installments: { enabled: true } } },
-      line_items: [{ price: PRICE_ID, quantity: 1 }],
-      mode: 'payment',
-      success_url: `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`,
-      cancel_url: `${appUrl(req)}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
-      client_reference_id: id,
-      customer_email: q.email,
-      metadata: { quiz_session_id: id }
-    });
+    const s = await new Stripe(STRIPE_KEY).checkout.sessions.create({ payment_method_types: ['card', 'pix'], payment_method_options: { card: { installments: { enabled: true } } }, line_items: [{ price: PRICE_ID, quantity: 1 }], mode: 'payment', success_url: `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`, cancel_url: `${appUrl(req)}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`, client_reference_id: id, customer_email: q.email, metadata: { quiz_session_id: id } });
     await patch(id, { stripe_checkout_session_id: s.id });
     return send(res, 200, { url: s.url });
   } catch (e) { console.error('Checkout', e); return send(res, 502, { error: 'Não foi possível iniciar o pagamento.' }); }
@@ -173,12 +123,11 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
       if (id) {
         const q = await findQuiz(id);
         if (q && q.payment_status !== 'paid') {
-          await patch(id, { payment_status: 'paid', paid_at: new Date().toISOString(), stripe_checkout_session_id: s.id });
+          await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
           if (RESEND_KEY && q.email) {
             try {
               const safeName = String(q.nome || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' } as any)[c]);
               await new Resend(RESEND_KEY).emails.send({ from: RESEND_FROM, to: q.email, subject: 'Seu Mini Diagnóstico está pronto!', html: `<p>Olá, ${safeName}.</p><p>Seu diagnóstico completo já está disponível.</p>` });
-              await patch(id, { email_sent_at: new Date().toISOString() });
             } catch (e) { console.error('Email', e); }
           }
         }
