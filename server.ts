@@ -167,6 +167,7 @@ type Quiz = {
 };
 
 async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T> {
+  try {
   const response = await fetch(`${supabaseUrl}/rest/v1/${pathName}`, {
     ...init,
     headers: {
@@ -182,6 +183,10 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+  } catch (err: any) {
+    if (err.message && err.message.includes('fetch failed')) { throw new Error('Falha de conexão com o Supabase. Verifique se a variável SUPABASE_URL está correta.'); }
+    throw err;
+  }
 }
 
 async function insertQuiz(quiz: Quiz): Promise<void> {
@@ -222,6 +227,7 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     return res.status(201).json({ quiz_session_id: quiz.quiz_session_id });
   } catch (error: any) {
     console.error('Quiz creation error:', error?.message || error);
+    if (error?.message?.includes('parse URL')) { return res.status(500).json({ error: 'A configuração do banco de dados (SUPABASE_URL) está inválida nas configurações do AI Studio.' }); }
     return res.status(400).json({ error: 'Dados do quiz inválidos.' });
   }
 });

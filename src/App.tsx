@@ -160,12 +160,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-sky-50 to-emerald-50 flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
       <Toaster position="top-center" />
       
       {currentStep === 'inicio' && (
         <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 fade-in">
-          <h1 className="text-2xl font-bold mb-2 text-center text-teal-800">Mini Diagnóstico</h1>
+          <h1 className="text-2xl font-bold mb-2 text-center text-emerald-800">Mini Diagnóstico</h1>
           <p className="text-stone-500 mb-8 text-center">Descubra o que te trava</p>
           <form onSubmit={handleStart} className="space-y-4">
             <div>
@@ -176,7 +176,7 @@ export default function App() {
               <label className="block text-sm font-medium mb-1 text-stone-700">E-mail</label>
               <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="seu@email.com" />
             </div>
-            <button type="submit" className="w-full bg-teal-700 text-white font-medium py-3 rounded-lg hover:bg-teal-800 transition-colors mt-4 shadow-sm shadow-stone-200">
+            <button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 shadow-md shadow-emerald-900/10 active:scale-[0.98]">
               COMEÇAR
             </button>
           </form>
@@ -188,7 +188,7 @@ export default function App() {
           <div className="mb-8">
             <span className="text-sm font-medium text-stone-400">Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span>
             <div className="w-full bg-stone-100 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-teal-700 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex) / PERGUNTAS.length) * 100}%` }} />
+              <div className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex) / PERGUNTAS.length) * 100}%` }} />
             </div>
           </div>
           <h2 className="text-xl font-medium mb-8 leading-relaxed text-stone-800">
@@ -199,7 +199,7 @@ export default function App() {
               <button
                 key={opcao.label}
                 onClick={() => handleAnswer(opcao.valor)}
-                className="w-full text-left px-6 py-4 rounded-xl border border-stone-200 hover:border-teal-700 hover:bg-stone-50 transition-colors text-stone-700 font-medium"
+                className="w-full text-left px-6 py-4 rounded-xl border border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:shadow-sm transition-all text-stone-700 font-medium"
               >
                 {opcao.label}
               </button>
@@ -217,21 +217,21 @@ export default function App() {
 
       {currentStep === 'paywall' && (
         <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 text-center fade-in">
-          <h2 className="text-2xl font-bold mb-4 text-teal-800">Seu resultado está pronto!</h2>
+          <h2 className="text-2xl font-bold mb-4 text-emerald-800">Seu resultado está pronto!</h2>
           <p className="text-stone-600 mb-8 leading-relaxed">
             Identificamos qual dos três padrões aparece com mais força nas suas respostas.
             <br /><br />
             Desbloqueie seu diagnóstico completo para descobrir o que pode estar por trás desse padrão, como ele aparece na sua vida e qual pode ser seu primeiro movimento.
           </p>
           
-          <div className="bg-stone-50 p-6 rounded-xl border border-stone-200 mb-6 text-left shadow-sm">
+          <div className="bg-white p-6 rounded-xl border border-emerald-100 shadow-sm mb-6 text-left shadow-sm">
             <p className="font-bold text-lg text-stone-800 mb-2">Diagnóstico Completo — R$ 9,90</p>
             <p className="text-sm text-stone-500 mb-4">Pague via Cartão de Crédito ou Apple/Google Pay (Até parcelado)</p>
             
             <button 
               onClick={handleCheckout} 
               disabled={isCheckoutLoading}
-              className="w-full bg-teal-700 text-white font-medium py-3 rounded-lg hover:bg-teal-800 transition-colors mt-4 flex justify-center items-center shadow-sm shadow-stone-200"
+              className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 flex justify-center items-center shadow-md shadow-emerald-900/10 active:scale-[0.98]"
             >
               {isCheckoutLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'PAGAR COM CARTÃO OU PIX (STRIPE)'}
             </button>
@@ -269,7 +269,7 @@ export default function App() {
 
       {currentStep === 'resultado' && resultado && (
         <div className="w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200 fade-in">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6 text-teal-800 text-center border-b border-stone-100 pb-6">
+          <h2 className="text-2xl md:text-3xl font-bold mb-6 text-emerald-800 text-center border-b border-stone-100 pb-6">
             Seu Padrão Dominante: {resultado.resultado_dominante}
           </h2>
           
@@ -282,7 +282,7 @@ export default function App() {
                 <p>Ele aparece para tentar evitar que você se machuque, se decepcione ou reviva situações difíceis. Mas, muitas vezes, para tentar garantir sua segurança, ele acaba limitando o seu movimento.</p>
                 <p>A voz do medo costuma se disfarçar de "prudência" ou "cautela". Ela se manifesta no perfeccionismo, na dificuldade de dizer não, na comparação com outras pessoas, no excesso de preparação ou naquela sensação de que ainda falta alguma coisa para você estar realmente pronta.</p>
                 <p>Você pode até saber o que quer fazer — mas, antes de agir, surge a dúvida: "Será que eu consigo?" "Será que estou preparada?" "E se eu fizer errado?"</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
                 <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
                 <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procura sinais de que está fazendo a escolha certa.</p>
                 <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
@@ -296,18 +296,18 @@ export default function App() {
                 <p>Seu padrão predominante está relacionado à INSEGURANÇA.</p>
                 <p>A insegurança faz você duvidar da sua própria capacidade, mesmo quando há evidências claras de que você consegue.</p>
                 <p>Você pode até saber o que quer fazer — mas, antes de agir, surge a dúvida: "Será que eu consigo?" "Será que estou preparada?" "E se eu fizer errado?"</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
                 <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
                 <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procura sinais de que está fazendo a escolha certa.</p>
                 <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
                 <p>A segurança que você espera sentir antes de agir muitas vezes é construída depois que você começa a agir.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
                 <p>Você pode perceber esse padrão quando pensa demais antes de tomar decisões, busca opiniões mesmo quando já sabe o que gostaria de fazer, compara seu processo com o de outras pessoas ou diminui suas próprias conquistas e capacidades.</p>
                 <p>Você também pode se preparar excessivamente antes de se expor, abandonar uma ideia quando começa a duvidar da própria capacidade ou esperar sentir confiança para só então começar.</p>
                 <p>Ter dúvidas não significa não estar preparada.<br/>A dúvida pode continuar presente enquanto você aprende a confiar mais em si mesma.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">UMA PERGUNTA IMPORTANTE</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">UMA PERGUNTA IMPORTANTE</h3>
                 <p>Pense em algo que você gostaria de fazer, mas diante do qual ainda sente insegurança.<br/>"Se eu não precisasse provar que sou capaz, o que eu já me permitiria fazer?"<br/>Observe a primeira resposta que surgir antes que sua mente comece a procurar justificativas.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">SEU PRIMEIRO MOVIMENTO</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">SEU PRIMEIRO MOVIMENTO</h3>
                 <p>Escolha uma pequena decisão que você vem adiando por insegurança.<br/>Em vez de perguntar: "Tenho certeza de que consigo?", experimente perguntar:<br/>"O que eu faria agora se confiasse um pouco mais na minha própria capacidade?"<br/>Então escolha uma ação pequena e concreta para realizar nas próximas 24 horas.</p>
                 <p>Você não precisa eliminar toda a insegurança para começar. Pode começar enquanto aprende a confiar em si.</p>
               </>
@@ -320,19 +320,19 @@ export default function App() {
                 <p>A procrastinação nem sempre significa preguiça, falta de disciplina ou desorganização. Muitas vezes, você sabe exatamente o que precisa fazer — e até deseja fazer — mas existe uma distância entre saber e começar.</p>
                 <p>Você pode ocupar o tempo com outras tarefas, esperar o momento ideal, organizar mais um pouco, pesquisar mais, pensar mais ou dizer a si mesma que fará quando estiver com mais disposição.</p>
                 <p>E aquilo que realmente importa continua sendo adiado.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
                 <p>Em muitos casos, a procrastinação funciona como uma forma de evitar algum desconforto associado à ação.</p>
                 <p>Pode ser o receio de errar, de não fazer tão bem quanto gostaria, de se expor, de lidar com uma tarefa difícil ou até com as consequências de finalmente conseguir aquilo que deseja.</p>
                 <p>Por isso, procrastinar pode trazer um alívio imediato: enquanto você não começa, também não precisa enfrentar o desconforto.</p>
                 <p>O problema é que esse alívio costuma durar pouco. Depois podem surgir cobrança, culpa, ansiedade e aquela sensação incômoda de estar sempre devendo alguma coisa a si mesma.</p>
                 <p>adiamento → alívio momentâneo → cobrança → culpa → mais dificuldade para começar.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
                 <p>Você pode perceber esse padrão quando deixa tarefas importantes para depois, mesmo tendo tempo para realizá-las; começa várias coisas e encontra dificuldade para concluir; ou ocupa-se com tarefas menores para evitar justamente aquela que realmente precisa da sua atenção.</p>
                 <p>Você também pode esperar estar motivada ou inspirada para começar, pesquisar e planejar excessivamente sem entrar em ação ou precisar que o prazo e a urgência aumentem para finalmente conseguir fazer.</p>
                 <p>Você não precisa sentir vontade para começar.<br/>Muitas vezes, é justamente o movimento que produz a disposição que você estava esperando sentir antes.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">UMA PERGUNTA IMPORTANTE</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">UMA PERGUNTA IMPORTANTE</h3>
                 <p>Pense em algo importante que você vem adiando.<br/>"O que eu evito sentir, enfrentar ou descobrir quando adio essa ação?"<br/>Não procure uma resposta perfeita. Observe o que aparece primeiro.<br/>Às vezes, compreender o que está sendo evitado é mais transformador do que continuar tentando se obrigar a fazer.</p>
-                <h3 className="text-xl font-bold mt-8 mb-4 text-teal-800">SEU PRIMEIRO MOVIMENTO</h3>
+                <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">SEU PRIMEIRO MOVIMENTO</h3>
                 <p>Escolha uma única coisa que você vem adiando.<br/>Agora reduza essa tarefa até encontrar uma ação que possa ser feita em 10 minutos ou menos.<br/>Não é terminar tudo. Não é resolver o problema inteiro. É apenas romper a inércia.<br/>Pergunte a si mesma:<br/>"Qual é a menor ação concreta que posso fazer agora para sair da intenção e entrar em movimento?"<br/>Faça essa pequena ação antes de planejar o restante.</p>
                 <p>Porque, neste momento, você não precisa provar que consegue chegar até o final. Precisa apenas começar.</p>
               </>
