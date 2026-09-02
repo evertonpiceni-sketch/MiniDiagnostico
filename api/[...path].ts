@@ -16,7 +16,7 @@ const RESEND_KEY = (process.env.RESEND_API_KEY || '').trim();
 const RESEND_FROM = process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>';
 
 const send = (res: VercelResponse, status: number, data: unknown) => res.status(status).json(data);
-const validId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
+const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
 async function raw(req: VercelRequest) {
   const chunks: Buffer[] = [];
@@ -61,25 +61,29 @@ function scores(a: Record<string, number>) {
   if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
-async function findQuiz(id: string) { const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=*`); return rows[0] || null; }
+async function findQuiz(id: string) { return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,email,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status`))[0] || null; }
 async function patch(id: string, data: Record<string, unknown>) { await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(data) }); }
 function appUrl(req: VercelRequest) { if (APP_URL) return APP_URL; const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim(); return `https://${host}`; }
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     try {
-      const b = await body(req), nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '', email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '', respostas = validateAnswers(b.respostas);
+      const b = await body(req);
+      const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
+      const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+      const respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
       if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
       const row = { quiz_session_id: randomUUID(), nome, email, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
-      return send(res, 201, { quiz_session_id: row.quiz_session_id });
+      return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
     } catch (e: any) {
       const m = String(e?.message || '');
       if (m === 'DB_CONFIG') return send(res, 503, { error: 'Banco de dados não configurado corretamente.' });
       if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'O banco de dados demorou para responder. Tente novamente.' });
       if (m === 'DB_CONNECTION' || m === 'DB_401' || m === 'DB_403') return send(res, 503, { error: 'Não foi possível conectar ao banco de dados.' });
       if (m === 'DB_404') return send(res, 503, { error: 'A tabela do diagnóstico não foi encontrada no banco de dados.' });
+      if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.' });
       return send(res, 400, { error: m || 'Não foi possível salvar o diagnóstico.' });
     }
   }
@@ -90,7 +94,7 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       const q = await findQuiz(id);
       if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
       if (q.payment_status !== 'paid') return send(res, 200, { quiz_session_id: q.quiz_session_id, payment_status: q.payment_status });
-      return send(res, 200, { quiz_session_id: q.quiz_session_id, nome: q.nome, email: q.email, score_medo: q.score_medo, score_inseguranca: q.score_inseguranca, score_procrastinacao: q.score_procrastinacao, resultado_dominante: q.resultado_dominante, payment_status: q.payment_status });
+      return send(res, 200, { quiz_session_id: q.quiz_session_id, nome: q.nome, score_medo: q.score_medo, score_inseguranca: q.score_inseguranca, score_procrastinacao: q.score_procrastinacao, resultado_dominante: q.resultado_dominante, payment_status: q.payment_status });
     } catch { return send(res, 503, { error: 'Não foi possível consultar o diagnóstico.' }); }
   }
   return send(res, 405, { error: 'Método não permitido.' });
@@ -106,8 +110,8 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
     if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
     if (q.payment_status === 'paid') return send(res, 409, { error: 'Este resultado já foi pago.' });
     const s = await new Stripe(STRIPE_KEY).checkout.sessions.create({ payment_method_types: ['card', 'pix'], payment_method_options: { card: { installments: { enabled: true } } }, line_items: [{ price: PRICE_ID, quantity: 1 }], mode: 'payment', success_url: `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`, cancel_url: `${appUrl(req)}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`, client_reference_id: id, customer_email: q.email, metadata: { quiz_session_id: id } });
-    await patch(id, { stripe_checkout_session_id: s.id });
-    return send(res, 200, { url: s.url });
+    try { await patch(id, { stripe_checkout_session_id: s.id }); } catch (e) { console.error('Checkout session metadata update failed', e); }
+    return send(res, 200, { ok: true, url: s.url });
   } catch (e) { console.error('Checkout', e); return send(res, 502, { error: 'Não foi possível iniciar o pagamento.' }); }
 }
 
@@ -120,7 +124,7 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
     const event = new Stripe(STRIPE_KEY).webhooks.constructEvent(await raw(req), signature, WEBHOOK_SECRET);
     if (event.type === 'checkout.session.completed') {
       const s = event.data.object as Stripe.Checkout.Session, id = s.client_reference_id || s.metadata?.quiz_session_id;
-      if (id) {
+      if (id && validId(id)) {
         const q = await findQuiz(id);
         if (q && q.payment_status !== 'paid') {
           await patch(id, { payment_status: 'paid', stripe_checkout_session_id: s.id });
@@ -138,10 +142,13 @@ async function webhook(req: VercelRequest, res: VercelResponse) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const p = String(req.url || '').split('?')[0].replace(/\/$/, '');
+  const rawPath = String(req.url || '').split('?')[0].replace(/\/$/, '');
+  const p = rawPath.startsWith('/api/') ? rawPath : `/api${rawPath}`;
   if (p.endsWith('/health')) return send(res, 200, { status: 'ok', databaseConfigured: Boolean(DB_URL && DB_KEY.length >= 20), stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID) });
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return checkout(req, res);
   if (p.endsWith('/quiz')) return quiz(req, res);
+  const match = p.match(/\/quiz\/([^/]+)$/);
+  if (match) { req.query.id = match[1]; return quiz(req, res); }
   return send(res, 404, { error: 'API não encontrada.' });
 }
