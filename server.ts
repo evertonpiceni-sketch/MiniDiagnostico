@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import Stripe from 'stripe';
-import { Resend } from 'resend';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -23,8 +23,6 @@ const stripeSecretKey = requiredEnv('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
 const stripePriceId = requiredEnv('STRIPE_PRICE_ID');
 const stripe = new Stripe(stripeSecretKey);
-const resendApiKey = process.env.RESEND_API_KEY?.trim();
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 if (stripeSecretKey.startsWith('sk_test_') && isProduction) {
   console.warn('Stripe is using a test key while NODE_ENV=production. Configure the live key before launch.');
@@ -33,6 +31,7 @@ if (stripeSecretKey.startsWith('sk_test_') && isProduction) {
 const allowedOrigins = new Set(corsOrigin.split(',').map(origin => origin.trim()).filter(Boolean));
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.has(origin)) return callback(null, true);
@@ -42,6 +41,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type'],
   credentials: false,
 }));
+
+app.use((req, res, next) => {
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (isProduction) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 // Stripe requires the raw request body for signature verification. Keep this route before express.json().
 app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
@@ -53,29 +62,22 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const quizSessionId = session.client_reference_id;
-      if (quizSessionId) {
+      const quizSessionId = session.metadata?.quiz_session_id || session.client_reference_id;
+
+      // Never unlock a result unless Stripe reports the payment as paid and the
+      // checkout is explicitly tied to the same quiz session.
+      if (quizSessionId && session.payment_status === 'paid') {
         const quiz = await getQuiz(quizSessionId);
-        if (quiz && quiz.payment_status !== 'paid') {
+        const sessionMatches = quiz &&
+          quiz.payment_status !== 'paid' &&
+          (!quiz.stripe_checkout_session_id || quiz.stripe_checkout_session_id === session.id);
+
+        if (sessionMatches) {
           await updateQuiz(quizSessionId, {
             payment_status: 'paid',
             paid_at: new Date().toISOString(),
             stripe_checkout_session_id: session.id,
           });
-
-          if (resend && quiz.email) {
-            try {
-              await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
-                to: quiz.email,
-                subject: 'Seu Mini Diagnóstico está pronto!',
-                html: `<p>Olá, ${escapeHtml(String(quiz.nome || ''))}.</p><p>Seu diagnóstico completo já está disponível.</p>`,
-              });
-              await updateQuiz(quizSessionId, { email_sent_at: new Date().toISOString() });
-            } catch (emailError) {
-              console.error('Email delivery failed:', emailError);
-            }
-          }
         }
       }
     }
@@ -89,6 +91,8 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
 
 app.use(express.json({ limit: '64kb', strict: true }));
 
+// Per-process limiter. This is defense-in-depth; production deployments should
+// also use the hosting/provider edge rate limits for distributed enforcement.
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 function rateLimit(max: number, windowMs: number) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -97,11 +101,17 @@ function rateLimit(max: number, windowMs: number) {
     const key = `${req.path}:${ip}`;
     const now = Date.now();
     const current = rateBuckets.get(key);
+
     if (!current || current.resetAt <= now) {
       rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
       return next();
     }
-    if (current.count >= max) return res.status(429).json({ error: 'Muitas requisições. Tente novamente mais tarde.' });
+
+    if (current.count >= max) {
+      res.setHeader('Retry-After', Math.max(1, Math.ceil((current.resetAt - now) / 1000)));
+      return res.status(429).json({ error: 'Muitas requisições. Tente novamente mais tarde.' });
+    }
+
     current.count += 1;
     return next();
   };
@@ -130,6 +140,7 @@ function validateAnswers(value: unknown): Record<string, number> {
   const answers = value as Record<string, unknown>;
   const keys = Object.keys(answers);
   if (keys.length !== 12 || keys.some(key => !/^([1-9]|1[0-2])$/.test(key))) throw new Error('Respostas incompletas.');
+
   const normalized: Record<string, number> = {};
   for (let id = 1; id <= 12; id += 1) {
     const raw = answers[String(id)];
@@ -143,6 +154,7 @@ function calculateScores(answers: Record<string, number>) {
   let medo = 0;
   let inseguranca = 0;
   let procrastinacao = 0;
+
   for (let id = 1; id <= 4; id += 1) medo += answers[String(id)];
   for (let id = 5; id <= 8; id += 1) inseguranca += answers[String(id)];
   for (let id = 9; id <= 12; id += 1) procrastinacao += answers[String(id)];
@@ -151,8 +163,14 @@ function calculateScores(answers: Record<string, number>) {
   let dominante = 'MEDO';
   let max = medo;
   if (inseguranca > max) { dominante = 'INSEGURANÇA'; max = inseguranca; }
-  if (procrastinacao > max) { dominante = 'PROCRASTINAÇÃO'; }
-  return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante: dominante };
+  if (procrastinacao > max) dominante = 'PROCRASTINAÇÃO';
+
+  return {
+    score_medo: medo,
+    score_inseguranca: inseguranca,
+    score_procrastinacao: procrastinacao,
+    resultado_dominante: dominante,
+  };
 }
 
 type Quiz = {
@@ -181,16 +199,22 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
       ...(init.headers || {}),
     },
   });
+
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`Database request failed (${response.status}): ${body.slice(0, 500)}`);
   }
+
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
 async function insertQuiz(quiz: Quiz): Promise<void> {
-  await dbRequest('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(quiz) });
+  await dbRequest('quiz_sessions', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(quiz),
+  });
 }
 
 async function getQuiz(id: string): Promise<Quiz | null> {
@@ -214,6 +238,7 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const respostas = validateAnswers(req.body?.respostas);
     const scores = calculateScores(respostas);
+
     const quiz: Quiz = {
       quiz_session_id: uuidv4(),
       nome,
@@ -223,6 +248,7 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
       payment_status: 'pending',
       created_at: new Date().toISOString(),
     };
+
     await insertQuiz(quiz);
     return res.status(201).json({ quiz_session_id: quiz.quiz_session_id });
   } catch (error: any) {
@@ -235,6 +261,7 @@ app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = typeof req.body?.quiz_session_id === 'string' ? req.body.quiz_session_id : '';
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+
     const quiz = await getQuiz(id);
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     if (quiz.payment_status === 'paid') return res.status(409).json({ error: 'Este resultado já foi pago.' });
@@ -251,6 +278,8 @@ app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
       metadata: { quiz_session_id: id },
     });
 
+    if (!session.url) return res.status(502).json({ error: 'Stripe não retornou uma URL de pagamento.' });
+
     await updateQuiz(id, { stripe_checkout_session_id: session.id });
     return res.json({ url: session.url });
   } catch (error: any) {
@@ -263,14 +292,19 @@ app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+
     const quiz = await getQuiz(id);
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
 
     if (quiz.payment_status !== 'paid') {
-      return res.json({ quiz_session_id: quiz.quiz_session_id, nome: quiz.nome, payment_status: 'pending' });
+      return res.json({
+        quiz_session_id: quiz.quiz_session_id,
+        nome: quiz.nome,
+        payment_status: 'pending',
+      });
     }
 
-    // Only expose the minimum data needed by the result screen. Raw email and answers are not returned.
+    // Only expose the minimum data needed by the result screen.
     return res.json({
       quiz_session_id: quiz.quiz_session_id,
       nome: quiz.nome,
@@ -294,7 +328,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { maxAge: '1h' }));
     app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
 
