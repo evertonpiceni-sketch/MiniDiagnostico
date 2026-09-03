@@ -19,7 +19,7 @@ function requiredEnv(name: string): string {
 }
 
 const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/\/$/, '');
-const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
+const supabaseServiceRoleKey = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const appUrl = requiredEnv('APP_URL').replace(/\/$/, '');
 const corsOrigin = process.env.CORS_ORIGIN?.trim() || appUrl;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
