@@ -65,9 +65,7 @@ export default function App() {
     setIsVerifyingPix(true);
     try {
       const res = await fetch(`/api/quiz/${currentId}/verify-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm_pix: true })
+        method: 'POST'
       });
       if (res.ok) {
         const data = await res.json();
