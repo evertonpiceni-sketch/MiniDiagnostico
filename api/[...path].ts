@@ -269,9 +269,15 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
     if (!s.url) return send(res, 502, { error: 'Stripe não retornou uma URL de pagamento.' });
     await patch(id, { stripe_checkout_session_id: s.id });
     return send(res, 200, { ok: true, url: s.url });
-  } catch (e) {
-    console.error('Checkout', e);
-    return send(res, 502, { error: 'Não foi possível iniciar o pagamento.' });
+  } catch (e: any) {
+    const stripeCode = typeof e?.code === 'string' ? e.code.slice(0, 80) : 'STRIPE_CHECKOUT_ERROR';
+    const stripeParam = typeof e?.param === 'string' ? e.param.slice(0, 80) : undefined;
+    console.error('Checkout', { type: e?.type, code: stripeCode, param: stripeParam, message: e?.message });
+    return send(res, 502, {
+      error: 'Não foi possível iniciar o pagamento.',
+      code: stripeCode,
+      ...(stripeParam ? { param: stripeParam } : {})
+    });
   }
 }
 
