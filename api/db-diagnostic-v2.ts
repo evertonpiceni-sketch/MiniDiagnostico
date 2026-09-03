@@ -27,9 +27,9 @@ function classify(error: any) {
 
 function config() {
   const url = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const key = ((process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) || '').trim();
   if (!url) return { ok: false, code: 'DB_CONFIG_URL_MISSING', detail: 'SUPABASE_URL ausente.' };
-  if (!key || key.length < 20) return { ok: false, code: 'DB_CONFIG_KEY_MISSING', detail: 'SUPABASE_SERVICE_ROLE_KEY ausente ou inválida.' };
+  if (!key || key.length < 20) return { ok: false, code: 'DB_CONFIG_KEY_MISSING', detail: 'SUPABASE_SECRET_KEY ou SUPABASE_SERVICE_ROLE_KEY ausente ou inválida.' };
   try {
     const u = new URL(url);
     if (u.protocol !== 'https:' || !u.hostname.endsWith('.supabase.co')) return { ok: false, code: 'DB_URL_INVALID', detail: 'SUPABASE_URL deve apontar para https://*.supabase.co.' };
@@ -67,7 +67,7 @@ export default async function handler(req: Req, res: Res) {
   const cfg = config();
   if (!cfg.ok) return fail(res, cfg.code, 'configuration', cfg.detail, cfg);
   const url = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const key = ((process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) || '').trim();
   const hostname = cfg.hostname;
 
   const dnsResult = await lookup(hostname);
