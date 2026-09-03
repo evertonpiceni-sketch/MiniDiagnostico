@@ -255,7 +255,7 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
     if (q.payment_status === 'paid') return send(res, 409, { error: 'Este resultado já foi pago.' });
 
     const s = await new Stripe(STRIPE_KEY).checkout.sessions.create({
-      payment_method_types: ['card', 'pix'],
+      payment_method_types: ['card'],
       payment_method_options: { card: { installments: { enabled: true } } },
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: 'payment',
