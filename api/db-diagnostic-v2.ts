@@ -2,6 +2,9 @@ import { promises as dns } from 'node:dns';
 
 type Req = NodeJS.ReadableStream & { method?: string };
 type Res = { status: (code: number) => Res; json: (data: unknown) => unknown };
+type DnsResult =
+  | { ok: true; latencyMs: number; addresses: string[]; families: number[] }
+  | { ok: false; code: string; detail: string };
 
 const fail = (res: Res, code: string, stage: string, detail: string, extra: Record<string, unknown> = {}) =>
   res.status(code === 'DB_TIMEOUT' || code === 'DB_CONNECT_TIMEOUT' ? 504 : 503).json({ status: 'error', code, stage, detail, checkedAt: new Date().toISOString(), ...extra });
@@ -36,12 +39,15 @@ function config() {
   } catch { return { ok: false, code: 'DB_URL_INVALID', detail: 'SUPABASE_URL não é uma URL válida.' }; }
 }
 
-async function lookup(hostname: string) {
+async function lookup(hostname: string): Promise<DnsResult> {
   try {
     const started = Date.now();
     const records = await dns.lookup(hostname, { all: true });
     return { ok: true, latencyMs: Date.now() - started, addresses: records.map((r) => r.address), families: [...new Set(records.map((r) => r.family))] };
-  } catch (e: any) { return { ok: false, ...classify(e) }; }
+  } catch (e: any) {
+    const d = classify(e);
+    return { ok: false, code: d.code, detail: d.detail };
+  }
 }
 
 async function http(url: string, key: string) {
