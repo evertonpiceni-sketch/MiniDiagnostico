@@ -13,7 +13,7 @@ const PIX_KEY = 'contato.janainaaraujo@gmail.com';
 export default function App() {
   const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>(() => { if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/resultado') return 'resultado'; if (path === '/paywall') return 'paywall'; } return 'inicio'; });
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
   const [quizSessionId, setQuizSessionId] = useState<string | null>(() => { return new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'); });
@@ -200,7 +200,7 @@ export default function App() {
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nome && email) {
+    if (nome && whatsapp.replace(/\D/g, '').length >= 10) {
       setCurrentStep('quiz');
     }
   };
@@ -246,7 +246,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nome, email, respostas: finalRespostas,
+          nome, whatsapp, respostas: finalRespostas,
           score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao,
           resultado_dominante: dominante
         })
@@ -289,8 +289,8 @@ export default function App() {
               <input required type="text" value={nome} onChange={e => setNome(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="Seu nome" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-stone-700">E-mail</label>
-              <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="seu@email.com" />
+              <label className="block text-sm font-medium mb-1 text-stone-700">WhatsApp</label>
+              <input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="(21) 99999-9999" />
             </div>
             <button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 shadow-md shadow-emerald-900/10 active:scale-[0.98]">
               COMEÇAR
