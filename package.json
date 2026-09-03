@@ -12,7 +12,6 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
@@ -26,8 +25,7 @@
     "react-hot-toast": "^2.6.0",
     "resend": "^6.24.0",
     "stripe": "^22.6.0",
-    "tailwind-merge": "^3.6.0",
-    "uuid": "^14.0.2"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -35,7 +33,6 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@types/uuid": "^11.0.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
