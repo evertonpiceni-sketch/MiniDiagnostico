@@ -11,8 +11,6 @@ type Res = { status: (code: number) => Res; json: (data: unknown) => unknown };
 
 export const config = { api: { bodyParser: false } };
 
-// Supabase project hostnames can publish IPv6 and IPv4 records. Prefer IPv4 in
-// Vercel's serverless runtime to avoid intermittent IPv6 connection failures.
 try { dns.setDefaultResultOrder('ipv4first'); } catch {}
 
 const send = (res: Res, status: number, data: unknown) => res.status(status).json(data);
@@ -33,20 +31,21 @@ function dbConfig() {
 function classify(e: any) {
   const cause = e?.cause || {};
   const code = String(cause.code || e?.code || '').toUpperCase();
-  const message = String(e?.message || '').toLowerCase();
+  const message = String(e?.message || '');
+  const lower = message.toLowerCase();
+  if (/^DB_\d{3}$/.test(message)) return [message, Number(message.slice(3)), message] as const;
   if (e?.name === 'AbortError') return ['DB_TIMEOUT', 504, 'Supabase não respondeu dentro do limite de 10 segundos.'] as const;
   if (code === 'ENOTFOUND') return ['DB_DNS_ENOTFOUND', 503, 'O hostname do Supabase não foi encontrado no DNS.'] as const;
   if (code === 'EAI_AGAIN') return ['DB_DNS_TEMPORARY', 503, 'A resolução DNS do Supabase falhou temporariamente.'] as const;
   if (code === 'ECONNREFUSED') return ['DB_CONNECTION_REFUSED', 503, 'A conexão com o Supabase foi recusada.'] as const;
   if (code === 'ECONNRESET') return ['DB_CONNECTION_RESET', 503, 'A conexão com o Supabase foi encerrada durante a tentativa.'] as const;
   if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return ['DB_CONNECT_TIMEOUT', 504, 'A conexão com o Supabase expirou antes de estabelecer comunicação.'] as const;
-  if (code.includes('CERT') || message.includes('certificate')) return ['DB_TLS_ERROR', 503, 'A validação TLS/HTTPS do Supabase falhou.'] as const;
+  if (code.includes('CERT') || lower.includes('certificate')) return ['DB_TLS_ERROR', 503, 'A validação TLS/HTTPS do Supabase falhou.'] as const;
   return ['DB_CONNECTION', 503, 'A Vercel não conseguiu estabelecer conexão HTTP com o Supabase.'] as const;
 }
 
 async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   const { url, key } = dbConfig();
-  let last: any;
   for (let attempt = 1; attempt <= 2; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
@@ -68,16 +67,16 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
       }
       return text ? JSON.parse(text) as T : undefined as T;
     } catch (e: any) {
-      last = e;
       const [code] = classify(e);
+      if (code.startsWith('DB_') && /^DB_\d{3}$/.test(code)) throw e;
       if (attempt === 1 && (code === 'DB_CONNECTION' || code === 'DB_CONNECTION_REFUSED' || code === 'DB_CONNECTION_RESET' || code === 'DB_DNS_TEMPORARY')) {
         await new Promise(r => setTimeout(r, 250));
         continue;
       }
-      if (code !== 'DB_CONNECTION' || attempt === 2) throw Object.assign(new Error(code), { cause: e });
+      throw Object.assign(new Error(code), { cause: e });
     } finally { clearTimeout(timer); }
   }
-  throw last || new Error('DB_CONNECTION');
+  throw new Error('DB_CONNECTION');
 }
 
 async function raw(req: Req) {
