@@ -114,6 +114,22 @@ export default function App() {
     }
   };
 
+  const whatsappResultUrl = () => {
+    if (!resultado || resultado.payment_status !== 'paid') return '#';
+    const message = [
+      `*Mini Diagnóstico de ${resultado.nome || 'Cliente'}*`,
+      '',
+      `*Padrão dominante:* ${resultado.resultado_dominante}`,
+      `Medo: ${resultado.score_medo}/12`,
+      `Insegurança: ${resultado.score_inseguranca}/12`,
+      `Procrastinação: ${resultado.score_procrastinacao}/12`,
+      '',
+      'Seu diagnóstico completo foi liberado após a confirmação do pagamento.',
+      window.location.href
+    ].join('\n');
+    return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  };
+
   const fetchResult = async (sessionId: string | null) => {
     try {
       if (sessionId) {
@@ -637,6 +653,23 @@ export default function App() {
             )}
           </div>
           
+          <div className="mt-8 p-5 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
+            <MessageCircle className="w-8 h-8 text-[#25D366] mx-auto mb-2" />
+            <h3 className="text-lg font-bold text-emerald-900 mb-1">Receba seu resultado no WhatsApp</h3>
+            <p className="text-sm text-stone-600 mb-4">
+              O WhatsApp abrirá com seu resultado preenchido. Escolha uma conversa — inclusive a conversa com você mesma — e toque em enviar.
+            </p>
+            <a
+              href={whatsappResultUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-bold py-4 px-5 rounded-xl transition-colors shadow-md"
+            >
+              <MessageCircle className="w-5 h-5" />
+              RECEBER RESULTADO PELO WHATSAPP
+            </a>
+          </div>
+
           <div className="mt-12 p-6 md:p-8 bg-stone-100 rounded-2xl border border-stone-200 text-center">
             <h3 className="text-xl font-bold mb-2 text-stone-800">E SE VOCÊ QUISER IR ALÉM DESTE PRIMEIRO PASSO?</h3>
             <p className="text-stone-700 mb-6">
