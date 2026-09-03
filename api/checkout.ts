@@ -200,11 +200,12 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
     try {
       const b = await body(req);
       const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
-      const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+      const phoneDigits = typeof b.whatsapp === 'string' ? b.whatsapp.replace(/\D/g, '') : '';
+    const whatsapp = phoneDigits.length >= 10 && phoneDigits.length <= 11 ? `55${phoneDigits}` : phoneDigits;
       const respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
-      if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
-      const duplicate = await findDuplicate(email, respostas);
+      if (!/^55[1-9][0-9]{9,10}$/.test(whatsapp)) throw new Error('WhatsApp inválido.');
+      const duplicate = await findDuplicate(whatsapp, respostas);
       if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
       const row = { quiz_session_id: randomUUID(), nome, email, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
@@ -262,7 +263,6 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
       success_url: `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`,
       cancel_url: `${appUrl(req)}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
       client_reference_id: id,
-      customer_email: q.email,
       metadata: { quiz_session_id: id },
     });
 
