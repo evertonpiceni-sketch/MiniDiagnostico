@@ -13,17 +13,26 @@ export const config = { api: { bodyParser: false } };
 
 try { dns.setDefaultResultOrder('ipv4first'); } catch {}
 
+const cleanEnv = (value: string | undefined) => {
+  const trimmed = (value || '').trim();
+  return trimmed.replace(/^(["'])(.*)\1$/, '$2').trim();
+};
+
 const send = (res: Res, status: number, data: unknown) => res.status(status).json(data);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
 function dbConfig() {
-  const url = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-  if (!url) throw new Error('DB_CONFIG_URL_MISSING');
+  const rawUrl = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
+  const key = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!rawUrl) throw new Error('DB_CONFIG_URL_MISSING');
   if (!key || key.length < 20) throw new Error('DB_CONFIG_KEY_MISSING');
+
   let parsed: URL;
-  try { parsed = new URL(url); } catch { throw new Error('DB_URL_INVALID'); }
+  try { parsed = new URL(rawUrl); } catch { throw new Error('DB_URL_INVALID'); }
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) throw new Error('DB_URL_INVALID');
+
+  // Accept accidental /rest/v1 or other path suffixes by using only the project origin.
+  const url = parsed.origin;
   if (key.startsWith('sb_publishable_')) throw new Error('DB_KEY_WRONG_TYPE');
   return { url, key, hostname: parsed.hostname };
 }
