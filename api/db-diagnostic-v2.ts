@@ -55,7 +55,7 @@ async function http(url: string, key: string) {
   const timer = setTimeout(() => controller.abort(), 8000);
   const started = Date.now();
   try {
-    const response = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: controller.signal });
+    const response = await fetch(url, { headers: { apikey: key, ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}) }, signal: controller.signal });
     const text = await response.text();
     return { ok: response.ok, status: response.status, latencyMs: Date.now() - started, text };
   } finally { clearTimeout(timer); }
