@@ -23,7 +23,7 @@ const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab
 
 function dbConfig() {
   const rawUrl = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
-  const key = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const key = cleanEnv(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!rawUrl) throw new Error('DB_CONFIG_URL_MISSING');
   if (!key || key.length < 20) throw new Error('DB_CONFIG_KEY_MISSING');
 
@@ -64,7 +64,7 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
         signal: controller.signal,
         headers: {
           apikey: key,
-          Authorization: `Bearer ${key}`,
+          ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}),
           'Content-Type': 'application/json',
           ...(init.headers || {})
         }
