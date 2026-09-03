@@ -3,7 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 const app = express();
 const PORT = 3000;
@@ -280,7 +280,7 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     const respostas = validateAnswers(req.body?.respostas);
     const scores = calculateScores(respostas);
     const quiz: Quiz = {
-      quiz_session_id: uuidv4(),
+      quiz_session_id: randomUUID(),
       nome,
       email,
       respostas,
