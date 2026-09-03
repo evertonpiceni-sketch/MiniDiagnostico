@@ -7,7 +7,6 @@
     }
   },
   "rewrites": [
-    { "source": "/api/quiz/:id", "destination": "/api/quiz?id=:id" },
     { "source": "/resultado", "destination": "/index.html" },
     { "source": "/paywall", "destination": "/index.html" }
   ]
