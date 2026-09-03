@@ -19,7 +19,7 @@ const WEBHOOK_SECRET = cleanEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const PRICE_ID = cleanEnv(process.env.STRIPE_PRICE_ID);
 const APP_URL = cleanEnv(process.env.APP_URL).replace(/\/$/, '');
 const RESEND_KEY = cleanEnv(process.env.RESEND_API_KEY);
-const RESEND_FROM = cleanEnv(process.env.RESEND_FROM_EMAIL) || 'Mini Diagnóstico <onboarding@resend.dev>';
+const RESEND_FROM = cleanEnv(process.env.RESEND_FROM_EMAIL);
 
 const send = (res: VercelResponse, status: number, data: unknown) => res.status(status).json(data);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -154,7 +154,7 @@ function answerLabel(value: unknown) {
 }
 
 async function sendResultEmail(q: any) {
-  if (!RESEND_KEY || !q?.email) throw new Error('EMAIL_CONFIG');
+  if (!RESEND_KEY || !RESEND_FROM || !q?.email) throw new Error('EMAIL_CONFIG');
   const respostas = q.respostas && typeof q.respostas === 'object' ? q.respostas : {};
   const items = Array.from({ length: 12 }, (_, i) => `<li>Pergunta ${i + 1}: <strong>${escapeHtml(answerLabel(respostas[String(i + 1)] ?? respostas[i + 1]))}</strong></li>`).join('');
   const html = `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>Seu Mini Diagnóstico está pronto!</h2><p>Olá, ${escapeHtml(q.nome)}.</p><p>Seu pagamento foi confirmado e este é o resultado do seu quiz:</p><p><strong>Padrão dominante: ${escapeHtml(q.resultado_dominante)}</strong></p><ul><li>Medo: ${Number(q.score_medo) || 0} pontos</li><li>Insegurança: ${Number(q.score_inseguranca) || 0} pontos</li><li>Procrastinação: ${Number(q.score_procrastinacao) || 0} pontos</li></ul><h3>Suas respostas</h3><ol>${items}</ol><p>Guarde este e-mail para consultar seu resultado.</p></div>`;
@@ -179,7 +179,7 @@ async function confirmStripeSession(q: any, s: Stripe.Checkout.Session) {
     q.stripe_checkout_session_id = s.id;
   }
 
-  if (!q.email_sent_at && RESEND_KEY) {
+  if (!q.email_sent_at && RESEND_KEY && RESEND_FROM) {
     try {
       await sendResultEmail(q);
       const sentAt = new Date().toISOString();
@@ -344,7 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       databaseConfigured: configured,
       database,
       stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET),
-      resendConfigured: Boolean(RESEND_KEY),
+      resendConfigured: Boolean(RESEND_KEY && RESEND_FROM),
       resendFromConfigured: Boolean(cleanEnv(process.env.RESEND_FROM_EMAIL)),
     });
   }
