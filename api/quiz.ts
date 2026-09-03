@@ -9,6 +9,8 @@ type Req = NodeJS.ReadableStream & {
 };
 type Res = { status: (code: number) => Res; json: (data: unknown) => unknown };
 
+export const config = { api: { bodyParser: false } };
+
 // Supabase project hostnames can publish IPv6 and IPv4 records. Prefer IPv4 in
 // Vercel's serverless runtime to avoid intermittent IPv6 connection failures.
 try { dns.setDefaultResultOrder('ipv4first'); } catch {}
@@ -128,7 +130,6 @@ async function findDuplicate(email: string, respostas: Record<string, number>) {
 
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
-  res.status(200);
   try {
     const b = await body(req);
     const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
