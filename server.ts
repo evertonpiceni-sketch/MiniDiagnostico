@@ -225,15 +225,15 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
   if (!supabaseUrl || !supabaseUrl.startsWith('https://') || supabaseUrl.includes('run.app') || supabaseUrl.includes('google.com') || (!supabaseUrl.includes('supabase.co') && !supabaseUrl.includes('supabase.com'))) {
     throw new Error('SUPABASE_URL_INVALID: A variável SUPABASE_URL não parece ser uma URL válida do Supabase. O formato correto é algo como https://xyz.supabase.co.');
   }
-  if (!supabaseServiceRoleKey || supabaseServiceRoleKey.length < 50) {
-    throw new Error('SUPABASE_URL_INVALID: A chave SUPABASE_SERVICE_ROLE_KEY parece estar incorreta. Ela deve ser um token longo (geralmente começando com eyJ) e não uma senha curta. Vá em Project Settings -> API no Supabase e copie a chave service_role secret.');
+  if (!supabaseServiceRoleKey || supabaseServiceRoleKey.length < 20) {
+    throw new Error('SUPABASE_URL_INVALID: A chave SUPABASE_SERVICE_ROLE_KEY parece estar incorreta. Use uma SUPABASE_SECRET_KEY iniciada por sb_secret_ ou a service_role legada do mesmo projeto.');
   }
   try {
   const response = await fetch(`${supabaseUrl}/rest/v1/${pathName}`, {
     ...init,
     headers: {
       apikey: supabaseServiceRoleKey,
-      Authorization: `Bearer ${supabaseServiceRoleKey}`,
+      ...(supabaseServiceRoleKey.startsWith('eyJ') ? { Authorization: `Bearer ${supabaseServiceRoleKey}` } : {}),
       'Content-Type': 'application/json',
       ...(init.headers || {}),
     },
