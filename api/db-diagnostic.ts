@@ -17,9 +17,9 @@ function classify(error: any): { code: string; detail: string } {
 
 function configCheck() {
   const url = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const key = ((process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) || '').trim();
   if (!url) return { ok: false, code: 'DB_CONFIG_URL_MISSING', detail: 'SUPABASE_URL não está configurada.' };
-  if (!key || key.length < 20) return { ok: false, code: 'DB_CONFIG_KEY_MISSING', detail: 'SUPABASE_SERVICE_ROLE_KEY não está configurada ou parece inválida.' };
+  if (!key || key.length < 20) return { ok: false, code: 'DB_CONFIG_KEY_MISSING', detail: 'SUPABASE_SECRET_KEY ou SUPABASE_SERVICE_ROLE_KEY não está configurada ou parece inválida.' };
   try {
     const u = new URL(url);
     if (u.protocol !== 'https:') return { ok: false, code: 'DB_URL_INVALID', detail: 'SUPABASE_URL precisa usar HTTPS.' };
@@ -37,7 +37,7 @@ export default async function handler(req: Req, res: Res) {
   if (!cfg.ok) return res.status(503).json({ status: 'error', checkedAt, ...cfg });
 
   const url = (process.env.SUPABASE_URL || '').trim().replace(/\/$/, '');
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  const key = ((process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) || '').trim();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
