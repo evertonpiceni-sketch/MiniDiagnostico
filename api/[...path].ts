@@ -1,3 +1,4 @@
+// Final deployment sync: email delivery requires a verified sender domain.
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import { randomUUID } from 'node:crypto';
