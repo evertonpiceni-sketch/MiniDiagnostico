@@ -4,6 +4,10 @@
 
 Registrar o procedimento oficial para diagnosticar falhas de persistência entre a função serverless da Vercel e o Supabase, sem expor credenciais.
 
+## Sintoma observado
+
+O fluxo do quiz chega à pergunta 12/12, mas o `POST /api/quiz` pode retornar `503` com `DB_CONNECTION` quando a função serverless não consegue estabelecer conexão HTTP com o Supabase.
+
 ## Endpoint de diagnóstico
 
 Depois de um deploy de produção, consultar:
@@ -39,7 +43,7 @@ O endpoint verifica:
 
 ## Segurança
 
-O endpoint **não deve retornar nem registrar a Service Role Key**. O diagnóstico pode informar apenas hostname, código de erro, status HTTP e uma descrição segura.
+O endpoint não deve retornar nem registrar a Service Role Key. O diagnóstico pode informar apenas hostname, código de erro, status HTTP e uma descrição segura.
 
 Nunca coloque `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY` ou outras credenciais neste arquivo, em commits ou em mensagens de diagnóstico.
 
@@ -55,3 +59,4 @@ Nunca coloque `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY` ou outras credenc
 ## Histórico
 
 - `f5b219d97ac4cda7c5d85f8a9ba5c60f2be1b9da` — adiciona diagnóstico preciso de conexão Supabase.
+- Este documento passa a ser o registro operacional do diagnóstico e da resolução de falhas de conexão do banco.
