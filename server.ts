@@ -161,11 +161,12 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] || char));
 }
 
-function normalizeEmail(value: unknown): string {
-  if (typeof value !== 'string') throw new Error('Email inválido.');
-  const email = value.trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email inválido.');
-  return email;
+function normalizeWhatsapp(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('WhatsApp inválido.');
+  const digits = value.replace(/\D/g, '');
+  const whatsapp = digits.length >= 10 && digits.length <= 11 ? `55${digits}` : digits;
+  if (!/^55[1-9][0-9]{9,10}$/.test(whatsapp)) throw new Error('WhatsApp inválido.');
+  return whatsapp;
 }
 
 function normalizeName(value: unknown): string {
@@ -208,7 +209,8 @@ function calculateScores(answers: Record<string, number>) {
 type Quiz = {
   quiz_session_id: string;
   nome: string;
-  email: string;
+  email?: string | null;
+  whatsapp: string;
   respostas: Record<string, number>;
   score_medo: number;
   score_inseguranca: number;
@@ -276,14 +278,14 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
     const nome = normalizeName(req.body?.nome);
-    const email = normalizeEmail(req.body?.email);
+    const whatsapp = normalizeWhatsapp(req.body?.whatsapp);
     const respostas = validateAnswers(req.body?.respostas);
     const scores = calculateScores(respostas);
     const quiz: Quiz = {
       quiz_session_id: randomUUID(),
       nome,
-      email,
-      respostas,
+      whatsapp,
+      respostas:
       ...scores,
       payment_status: 'pending',
       created_at: new Date().toISOString(),
