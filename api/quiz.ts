@@ -127,11 +127,11 @@ function scores(a: Record<string, number>) {
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
 
-async function findDuplicate(email: string, respostas: Record<string, number>) {
-  const rows = await db<any[]>(`quiz_sessions?email=eq.${encodeURIComponent(email)}&select=quiz_session_id,email,respostas,payment_status,email_sent_at&limit=20`);
+async function findDuplicate(whatsapp: string, respostas: Record<string, number>) {
+  const rows = await db<any[]>(`quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&select=quiz_session_id,whatsapp,respostas,payment_status&limit=20`);
   return rows.find(row => {
     if (!row?.quiz_session_id || !validId(String(row.quiz_session_id))) return false;
-    if (String(row.email || '').toLowerCase() !== email) return false;
+    if (String(row.whatsapp || '') !== whatsapp) return false;
     try { return JSON.stringify(row.respostas || {}) === JSON.stringify(respostas); } catch { return false; }
   }) || null;
 }
@@ -141,18 +141,19 @@ export default async function handler(req: Req, res: Res) {
   try {
     const b = await body(req);
     const nome = typeof b.nome === 'string' ? b.nome.trim().replace(/\s+/g, ' ') : '';
-    const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+    const phoneDigits = typeof b.whatsapp === 'string' ? b.whatsapp.replace(/\D/g, '') : '';
+    const whatsapp = phoneDigits.length >= 10 && phoneDigits.length <= 11 ? `55${phoneDigits}` : phoneDigits;
     const respostas = validateAnswers(b.respostas);
     if (!nome || nome.length > 120) throw new Error('Nome inválido.');
-    if (email.length > 254 || !/^\S+@\S+\.\S+$/.test(email)) throw new Error('Email inválido.');
+    if (!/^55[1-9][0-9]{9,10}$/.test(whatsapp)) throw new Error('WhatsApp inválido.');
 
-    const duplicate = await findDuplicate(email, respostas);
+    const duplicate = await findDuplicate(whatsapp, respostas);
     if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
 
     const row = {
       quiz_session_id: randomUUID(),
       nome,
-      email,
+      whatsapp,
       respostas,
       ...scores(respostas),
       payment_status: 'pending'
