@@ -1,6 +1,6 @@
 export type QuizState = {
     nome: string;
-    email: string;
+    whatsapp: string;
     respostas: Record<number, number>;
 };
 
