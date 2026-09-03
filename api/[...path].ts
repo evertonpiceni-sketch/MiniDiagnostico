@@ -13,7 +13,7 @@ const cleanEnv = (value: string | undefined) => {
 };
 
 const RAW_DB_URL = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
-const DB_KEY = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const DB_KEY = cleanEnv(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
 const STRIPE_KEY = cleanEnv(process.env.STRIPE_SECRET_KEY);
 const WEBHOOK_SECRET = cleanEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const PRICE_ID = cleanEnv(process.env.STRIPE_PRICE_ID);
@@ -74,7 +74,7 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
       signal: ctl.signal,
       headers: {
         apikey: key,
-        Authorization: `Bearer ${key}`,
+        ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}),
         'Content-Type': 'application/json',
         ...(init.headers || {}),
       },
@@ -215,8 +215,8 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       if (m === 'DB_URL_INVALID') return send(res, 503, { error: 'SUPABASE_URL inválida. Use a URL do projeto no formato https://SEU-PROJETO.supabase.co.', code: m });
       if (m === 'DB_TIMEOUT') return send(res, 504, { error: 'Supabase demorou para responder. Verifique o projeto Supabase.', code: m });
       if (m === 'DB_CONNECTION') return send(res, 503, { error: 'Não foi possível conectar ao Supabase. Verifique SUPABASE_URL e se o projeto está acessível.', code: m });
-      if (m === 'DB_401') return send(res, 503, { error: 'Supabase recusou a chave. Verifique SUPABASE_SERVICE_ROLE_KEY.', code: m });
-      if (m === 'DB_403') return send(res, 503, { error: 'Supabase recusou a permissão da chave. Use a service_role key no backend.', code: m });
+      if (m === 'DB_401') return send(res, 503, { error: 'Supabase recusou a chave. Confirme SUPABASE_SECRET_KEY (recomendada) ou SUPABASE_SERVICE_ROLE_KEY e SUPABASE_URL.', code: m });
+      if (m === 'DB_403') return send(res, 503, { error: 'Supabase recusou a permissão da chave. Use SUPABASE_SECRET_KEY ou a service_role legada somente no backend.', code: m });
       if (m === 'DB_404') return send(res, 503, { error: 'A tabela quiz_sessions não foi encontrada no projeto Supabase informado.', code: m });
       if (m === 'DB_409') return send(res, 409, { error: 'Não foi possível criar uma nova sessão. Tente novamente.', code: m });
       if (m === 'DB_400') return send(res, 503, { error: 'Supabase rejeitou os dados da sessão. Verifique se o schema quiz_sessions está atualizado.', code: m });
