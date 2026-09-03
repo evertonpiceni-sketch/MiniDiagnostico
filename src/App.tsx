@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, Copy, Sparkles, Smartphone, CreditCard, ShieldCheck, MessageCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const StripeBuyButton = 'stripe-buy-button' as any;
 const StripePricingTable = 'stripe-pricing-table' as any;
+
+const PIX_CODE = '00020126530014br.gov.bcb.pix0131contato.janainaaraujo@gmail.com52040000530398654049.905802BR5914JANAINA ARAUJO6014RIO DE JANEIRO62070503***63049B5A';
+const PIX_KEY = 'contato.janainaaraujo@gmail.com';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>(() => { if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/resultado') return 'resultado'; if (path === '/paywall') return 'paywall'; } return 'inicio'; });
@@ -17,8 +20,71 @@ export default function App() {
   const [resultado, setResultado] = useState<any>(null);
   useEffect(() => { if (quizSessionId) localStorage.setItem('quiz_session_id', quizSessionId); }, [quizSessionId]);
 
-  const [showPix, setShowPix] = useState(false);
+  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('pix');
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [isVerifyingPix, setIsVerifyingPix] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  const copyToClipboard = async (text: string, type: 'code' | 'key') => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      if (type === 'code') {
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 3000);
+        toast.success('Código PIX Copia e Cola copiado! Cole no aplicativo do seu banco.');
+      } else {
+        setCopiedKey(true);
+        setTimeout(() => setCopiedKey(false), 3000);
+        toast.success('Chave PIX copiada: contato.janainaaraujo@gmail.com');
+      }
+    } catch (e) {
+      toast.error('Não foi possível copiar automaticamente. Selecione o código manualmente.');
+    }
+  };
+
+  const handleConfirmPix = async () => {
+    const currentId = quizSessionId || localStorage.getItem('quiz_session_id');
+    if (!currentId) {
+      toast.error('Sessão do quiz não encontrada. Por favor, refaça o diagnóstico.');
+      return;
+    }
+    setIsVerifyingPix(true);
+    try {
+      const res = await fetch(`/api/quiz/${currentId}/verify-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm_pix: true })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.payment_status === 'paid') {
+          toast.success('Pagamento confirmado! Carregando seu diagnóstico completo...');
+          setCurrentStep('loading');
+          await fetchResult(currentId);
+          return;
+        }
+      }
+      toast('Ainda aguardando processamento bancário. Tente novamente em alguns segundos.');
+    } catch (err) {
+      toast.error('Erro de conexão ao verificar pagamento. Tente novamente.');
+    } finally {
+      setIsVerifyingPix(false);
+    }
+  };
 
   const handleCheckout = async () => {
     let currentSessionId = quizSessionId || new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id');
@@ -57,7 +123,7 @@ export default function App() {
           await fetch(`/api/quiz/${sessionId}/verify-payment`, { method: 'POST' });
         } catch(e){}
       }
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 600));
       let backendPaid = false;
       if (sessionId) {
         const res = await fetch(`/api/quiz/${sessionId}`);
@@ -96,7 +162,7 @@ export default function App() {
     }
   }, []);
 
-  // Polling automático de pagamento para PIX (Stripe)
+  // Polling automático de pagamento
   useEffect(() => {
     let interval: any;
     if (currentStep === 'paywall' && quizSessionId) {
@@ -107,12 +173,13 @@ export default function App() {
             const data = await res.json();
             if (data.payment_status === 'paid') {
               clearInterval(interval);
+              toast.success('Pagamento identificado com sucesso! Desbloqueando seu diagnóstico...');
               setCurrentStep('loading');
-              fetchResult(quizSessionId);
+              await fetchResult(quizSessionId);
             }
           }
         } catch (e) {}
-      }, 5000);
+      }, 4000);
     }
     return () => clearInterval(interval);
   }, [currentStep, quizSessionId]);
@@ -269,49 +336,229 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
-          <h2 className="text-2xl font-bold mb-4 text-emerald-800">Seu resultado está pronto!</h2>
-          <p className="text-stone-600 mb-8 leading-relaxed">
-            Identificamos qual dos três padrões aparece com mais força nas suas respostas.
-            <br /><br />
-            Desbloqueie seu diagnóstico completo para descobrir o que pode estar por trás desse padrão, como ele aparece na sua vida e qual pode ser seu primeiro movimento.
-          </p>
+          className="w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
           
-          <div className="mb-6 w-full max-w-md mx-auto">
-            <StripePricingTable
-              pricing-table-id="prctbl_1UBY83Di05Nlzxp3DgkBxMcV"
-              publishable-key="pk_live_51U8Y2oDi05Nlzxp3UkGitm1KdK7v7pIZAsZKY61BkVjmArAtt7DDDjQsL3ogLG45jfA3BDah4CUniaQjPzq5At4X00uTTvUtF1"
-              client-reference-id={quizSessionId}
-            ></StripePricingTable>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full text-xs font-semibold mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Resultado Calculado com Sucesso</span>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-stone-100">
-            <button 
-              onClick={() => setShowPix(!showPix)}
-              className="text-teal-700 font-medium text-sm hover:underline"
+          <h2 className="text-2xl font-bold mb-2 text-stone-900">Desbloqueie seu Diagnóstico Completo</h2>
+          <p className="text-stone-600 mb-6 text-sm leading-relaxed">
+            Identificamos qual dos três padrões tem maior peso nas suas respostas.
+            Descubra a raiz inconsciente do seu bloqueio e qual deve ser o seu primeiro movimento terapêutico.
+          </p>
+
+          {/* Abas de Pagamento */}
+          <div className="flex bg-stone-100 p-1 rounded-xl mb-6 border border-stone-200">
+            <button
+              id="tab-pix"
+              type="button"
+              onClick={() => setActivePaymentTab('pix')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
+                activePaymentTab === 'pix'
+                  ? 'bg-white text-emerald-800 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
             >
-              Prefere pagar via PIX direto? Clique aqui.
+              <Smartphone className="w-4 h-4 text-emerald-600" />
+              <span>Pagar via PIX (R$ 9,90)</span>
             </button>
-            
-            {showPix && (
-              <div className="mt-4 p-4 bg-teal-50 border border-teal-100 rounded-lg text-left text-sm text-stone-700">
-                <p className="font-bold mb-2 text-teal-900">Como pagar via PIX Manual:</p>
-                <ol className="list-decimal pl-4 space-y-2 mb-4">
-                  <li>Faça um PIX de <strong>R$ 9,90</strong> para a chave E-mail: <strong>contato.janainaaraujo@gmail.com</strong></li>
-                  <li>Clique no botão abaixo para enviar o comprovante no WhatsApp</li>
-                  <li>Nós liberaremos seu acesso ao resultado imediatamente!</li>
-                </ol>
-                <a 
-                  href="https://wa.me/5521983928113?text=Ol%C3%A1!%20Fiz%20o%20pagamento%20do%20Mini%20Diagn%C3%B3stico%20via%20PIX.%20Segue%20o%20comprovante:" 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="block w-full text-center bg-[#25D366] text-white font-medium py-3 rounded-lg hover:bg-[#20bd5a] transition-colors"
+            <button
+              id="tab-card"
+              type="button"
+              onClick={() => setActivePaymentTab('card')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${
+                activePaymentTab === 'card'
+                  ? 'bg-white text-emerald-800 shadow-sm'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 text-stone-500" />
+              <span>Cartão de Crédito</span>
+            </button>
+          </div>
+
+          {activePaymentTab === 'pix' && (
+            <div className="space-y-4 text-left">
+              {/* Box com QR Code e detalhes */}
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs flex-shrink-0">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(PIX_CODE)}`}
+                    alt="QR Code PIX R$ 9,90"
+                    width={130}
+                    height={130}
+                    className="rounded"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase font-bold tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">Aprovação Instantânea</span>
+                    <span className="text-base font-bold text-stone-900">R$ 9,90</span>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    Abra o app do seu banco, escolha <strong>Pix</strong> e aponte a câmera para o QR Code ao lado, ou use o botão abaixo para <strong>Copiar o Código Pix</strong>.
+                  </p>
+                  <p className="text-[11px] text-stone-500">
+                    Beneficiária: <strong>Janaína Araújo</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Código Pix Copia e Cola com botão de clique único */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wide">
+                  Código Pix Copia e Cola:
+                </label>
+                <div className="relative">
+                  <input
+                    readOnly
+                    type="text"
+                    value={PIX_CODE}
+                    className="w-full text-xs font-mono bg-stone-50 border border-stone-300 rounded-xl py-2.5 pl-3 pr-24 text-stone-700 focus:outline-none select-all"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    id="btn-copiar-pix-inline"
+                    type="button"
+                    onClick={() => copyToClipboard(PIX_CODE, 'code')}
+                    className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+
+                {/* Botão de Destaque para Copiar */}
+                <button
+                  id="btn-copiar-pix-destaque"
+                  type="button"
+                  onClick={() => copyToClipboard(PIX_CODE, 'code')}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm hover:shadow transition-all active:scale-[0.99] cursor-pointer"
                 >
-                  ENVIAR COMPROVANTE
+                  {copiedCode ? (
+                    <>
+                      <Check className="w-5 h-5 text-emerald-200" />
+                      <span>CÓDIGO PIX COPIADO! COLE NO APP DO BANCO</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      <span>CLIQUE AQUI PARA COPIAR O CÓDIGO PIX</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Chave E-mail alternativa */}
+              <div className="flex items-center justify-between text-xs text-stone-600 px-1 pt-1">
+                <span>Chave E-mail: <strong>contato.janainaaraujo@gmail.com</strong></span>
+                <button
+                  id="btn-copiar-chave-email"
+                  type="button"
+                  onClick={() => copyToClipboard(PIX_KEY, 'key')}
+                  className="text-emerald-700 hover:text-emerald-900 font-semibold underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedKey ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedKey ? 'Chave copiada' : 'Copiar chave'}</span>
+                </button>
+              </div>
+
+              {/* Status de Polling + Botão de Confirmação Imediata */}
+              <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-emerald-900">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                  </span>
+                  <span>Aguardando identificação do seu pagamento...</span>
+                </div>
+                
+                <button
+                  id="btn-confirmar-pix"
+                  type="button"
+                  disabled={isVerifyingPix}
+                  onClick={handleConfirmPix}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                >
+                  {isVerifyingPix ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-stone-300" />
+                      <span>Verificando pagamento...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>Já fiz o PIX! Liberar meu resultado agora</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Botão de WhatsApp */}
+              <div className="text-center pt-1">
+                <a
+                  href={`https://wa.me/5521983928113?text=Ol%C3%A1!%20Fiz%20o%20pagamento%20de%20R$%209,90%20do%20Mini%20Diagn%C3%B3stico%20via%20PIX%20(Sess%C3%A3o:%20${encodeURIComponent(quizSessionId || '')}).%20Segue%20o%20comprovante:`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-emerald-700 font-medium transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
+                  <span>Dúvidas ou enviar comprovante no WhatsApp? Clique aqui</span>
                 </a>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {activePaymentTab === 'card' && (
+            <div className="space-y-4 text-left">
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-stone-700 text-xs leading-relaxed space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-stone-900 text-sm">Cartão de Crédito / Carteiras Digitais</span>
+                  <span className="font-bold text-stone-900 text-base">R$ 9,90</span>
+                </div>
+                <p className="text-stone-600">
+                  Pagamento protegido pela Stripe. Aceita cartões Visa, Mastercard, Elo, Hipercard, Apple Pay e Google Pay.
+                </p>
+              </div>
+
+              {/* Botão Direto de Checkout Oficial da Stripe */}
+              <button
+                id="btn-pagar-cartao-stripe"
+                type="button"
+                disabled={isCheckoutLoading}
+                onClick={handleCheckout}
+                className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm hover:shadow transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer text-sm"
+              >
+                {isCheckoutLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Redirecionando para o Checkout Seguro...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-5 h-5" />
+                    <span>PAGAR COM CARTÃO DE CRÉDITO (R$ 9,90)</span>
+                  </>
+                )}
+              </button>
+
+              <div className="pt-2">
+                <p className="text-[11px] text-stone-500 text-center mb-2">
+                  Ou selecione pela tabela de pagamento Stripe abaixo:
+                </p>
+                <div className="w-full max-w-md mx-auto min-h-[160px]">
+                  <StripePricingTable
+                    pricing-table-id="prctbl_1UBY83Di05Nlzxp3DgkBxMcV"
+                    publishable-key="pk_live_51U8Y2oDi05Nlzxp3UkGitm1KdK7v7pIZAsZKY61BkVjmArAtt7DDDjQsL3ogLG45jfA3BDah4CUniaQjPzq5At4X00uTTvUtF1"
+                    client-reference-id={quizSessionId}
+                  ></StripePricingTable>
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
 

@@ -71,7 +71,7 @@ export default async function handler(req: Req, res: Res) {
   const hostname = cfg.hostname;
 
   const dnsResult = await lookup(hostname);
-  if (!dnsResult.ok) return fail(res, dnsResult.code, 'dns', dnsResult.detail, { checkedAt, hostname });
+  if (!dnsResult.ok) return fail(res, (dnsResult as any).code, 'dns', (dnsResult as any).detail, { checkedAt, hostname });
 
   try {
     const rest = await http(`${url}/rest/v1/`, key);

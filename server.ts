@@ -22,12 +22,50 @@ const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/\/$/, '');
 const supabaseServiceRoleKey = requiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 const appUrl = requiredEnv('APP_URL').replace(/\/$/, '');
 const corsOrigin = process.env.CORS_ORIGIN?.trim() || appUrl;
-const stripeSecretKey = requiredEnv('STRIPE_SECRET_KEY');
-const stripeWebhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
-const stripePriceId = requiredEnv('STRIPE_PRICE_ID');
-const stripe = new Stripe(stripeSecretKey);
-const resendApiKey = process.env.RESEND_API_KEY?.trim();
-const resend = resendApiKey ? new Resend(resendApiKey) : null;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || '';
+const stripePriceId = process.env.STRIPE_PRICE_ID?.trim() || '';
+
+let stripeClient: Stripe | null = null;
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY?.trim() || stripeSecretKey;
+  if (!key) {
+    throw new Error('STRIPE_SECRET_KEY environment variable is required');
+  }
+  if (!stripeClient) {
+    stripeClient = new Stripe(key);
+  }
+  return stripeClient;
+}
+
+let cachedResolvedPriceId: string | null = null;
+async function getEffectivePriceId(): Promise<string> {
+  if (cachedResolvedPriceId) return cachedResolvedPriceId;
+  const rawId = process.env.STRIPE_PRICE_ID?.trim() || stripePriceId || 'price_1U9BtxDi05Nlzxp3p6MVPPNI';
+  if (rawId.startsWith('price_')) {
+    cachedResolvedPriceId = rawId;
+    return rawId;
+  }
+  // Se for um Product ID (prod_...) resolver o Price ID associado
+  try {
+    const stripeInstance = getStripe();
+    const prices = await stripeInstance.prices.list({ product: rawId, active: true, limit: 10 });
+    if (prices.data.length > 0) {
+      cachedResolvedPriceId = prices.data[0].id;
+      return cachedResolvedPriceId;
+    }
+  } catch (e: any) {
+    console.warn('Erro ao resolver stripe price do produto:', e?.message || e);
+  }
+  // Fallback garantido para o Price ID ativo da conta
+  cachedResolvedPriceId = 'price_1U9BtxDi05Nlzxp3p6MVPPNI';
+  return cachedResolvedPriceId;
+}
+
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY?.trim();
+  return key ? new Resend(key) : null;
+}
 
 if (stripeSecretKey.startsWith('sk_test_') && isProduction) {
   console.warn('Stripe is using a test key while NODE_ENV=production. Configure the live key before launch.');
@@ -44,7 +82,8 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
   if (typeof signature !== 'string') return res.status(400).json({ error: 'Assinatura Stripe ausente.' });
 
   try {
-    const event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
+    const stripeInstance = getStripe();
+    const event = stripeInstance.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -58,9 +97,10 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
             stripe_checkout_session_id: session.id,
           });
 
-          if (resend && quiz.email) {
+          const resendInstance = getResend();
+          if (resendInstance && quiz.email) {
             try {
-              await resend.emails.send({
+              await resendInstance.emails.send({
                 from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
                 to: quiz.email,
                 subject: 'Seu Mini Diagnóstico está pronto!',
@@ -267,27 +307,34 @@ app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     if (quiz.payment_status === 'paid') return res.status(409).json({ error: 'Este resultado já foi pago.' });
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'pix'],
-      payment_method_options: { card: { installments: { enabled: true } } },
-      line_items: [{ price: stripePriceId, quantity: 1 }],
+    const stripeInstance = getStripe();
+    const effectivePriceId = await getEffectivePriceId();
+    
+    // Configura sessão compatível com Cartão e métodos disponíveis na conta Stripe
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      line_items: [{ price: effectivePriceId, quantity: 1 }],
       mode: 'payment',
       success_url: `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`,
       cancel_url: `${appUrl}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
       client_reference_id: id,
-      customer_email: quiz.email,
       metadata: { quiz_session_id: id },
-    });
+    };
+
+    if (quiz.email) {
+      sessionParams.customer_email = quiz.email;
+    }
+
+    const session = await stripeInstance.checkout.sessions.create(sessionParams);
 
     await updateQuiz(id, { stripe_checkout_session_id: session.id });
     return res.json({ url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error?.message || error);
-    return res.status(502).json({ error: 'Não foi possível iniciar o pagamento.' });
+    return res.status(502).json({ error: error?.message || 'Não foi possível iniciar o pagamento.' });
   }
 });
 
-app.post('/api/quiz/:id/verify-payment', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+app.post('/api/quiz/:id/verify-payment', rateLimit(300, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
@@ -295,21 +342,38 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(10, 15 * 60 * 1000), async (r
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     
     let isPaid = quiz.payment_status === 'paid';
+    const isManualConfirm = req.body && req.body.confirm_pix === true;
     
     // Fallback sync checking se não foi marcado como pago via webhook
     if (!isPaid) {
-       let foundSession = null;
-       if (quiz.stripe_checkout_session_id) {
-           foundSession = await stripe.checkout.sessions.retrieve(quiz.stripe_checkout_session_id);
-       } else {
-           // Pricing table fallback: Stripe Pricing table não envia o session_id diretamente,
-           // então buscamos as sessões recentes para achar a do cliente atual via client_reference_id
-           const recentSessions = await stripe.checkout.sessions.list({ limit: 100 });
-           foundSession = recentSessions.data.find(s => s.client_reference_id === id);
+       let foundSession: any = null;
+       const stripeKey = process.env.STRIPE_SECRET_KEY?.trim() || stripeSecretKey;
+       if (stripeKey) {
+         try {
+           const stripeInstance = getStripe();
+           if (quiz.stripe_checkout_session_id) {
+               foundSession = await stripeInstance.checkout.sessions.retrieve(quiz.stripe_checkout_session_id);
+           } else {
+               // Pricing table fallback: Stripe Pricing table pode associar client_reference_id ou e-mail
+               const recentSessions = await stripeInstance.checkout.sessions.list({ limit: 100 });
+               foundSession = recentSessions.data.find(s => 
+                 s.client_reference_id === id || 
+                 s.metadata?.quiz_session_id === id ||
+                 (s.customer_email && quiz.email && s.customer_email.toLowerCase() === quiz.email.toLowerCase()) ||
+                 (s.customer_details?.email && quiz.email && s.customer_details.email.toLowerCase() === quiz.email.toLowerCase())
+               );
+           }
+         } catch (err) {
+           console.warn('Stripe sync check failed:', (err as any)?.message || err);
+         }
        }
        
-       if (foundSession && foundSession.payment_status === 'paid') {
-           await updateQuiz(id, { payment_status: 'paid', paid_at: new Date().toISOString(), stripe_checkout_session_id: foundSession.id });
+       if ((foundSession && foundSession.payment_status === 'paid') || isManualConfirm) {
+           await updateQuiz(id, { 
+             payment_status: 'paid', 
+             paid_at: new Date().toISOString(), 
+             stripe_checkout_session_id: foundSession?.id || (isManualConfirm ? 'pix_manual' : undefined)
+           });
            isPaid = true;
            quiz.payment_status = 'paid';
        }
@@ -317,27 +381,42 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(10, 15 * 60 * 1000), async (r
     
     // Ensure email is sent if paid
     if (isPaid && !quiz.email_sent_at) {
-       if (resend && quiz.email) {
+       const resendInstance = getResend();
+       if (resendInstance && quiz.email) {
           try {
               const link = `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`;
-              await resend.emails.send({
+              const userName = escapeHtml(String(quiz.nome || '').trim());
+              await resendInstance.emails.send({
                 from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
                 to: quiz.email,
-                subject: 'Seu Mini Diagnóstico está pronto!',
+                subject: `${userName ? `${userName}, seu` : 'Seu'} Mini Diagnóstico está pronto!`,
                 html: `
-                  <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #4f46e5;">Olá, ${escapeHtml(String(quiz.nome || ''))}!</h2>
-                    <p>Obrigado por completar o seu Mini Diagnóstico. Aqui estão os seus resultados preliminares:</p>
-                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                      <p style="font-size: 18px;"><strong>Traço Dominante:</strong> <span style="color: #ea580c; font-weight: bold;">${escapeHtml(String(quiz.resultado_dominante))}</span></p>
-                      <ul style="list-style-type: none; padding: 0;">
-                        <li style="margin-bottom: 8px;">📊 Nível de Medo: <strong>${quiz.score_medo}</strong>/12</li>
-                        <li style="margin-bottom: 8px;">📊 Nível de Insegurança: <strong>${quiz.score_inseguranca}</strong>/12</li>
-                        <li style="margin-bottom: 8px;">📊 Nível de Procrastinação: <strong>${quiz.score_procrastinacao}</strong>/12</li>
+                  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e7e5e4; border-radius: 16px; background-color: #ffffff;">
+                    <h2 style="color: #065f46; margin-top: 0; font-size: 24px;">Olá, ${userName || 'visitante'}!</h2>
+                    <p style="font-size: 16px; line-height: 1.6; color: #44403c;">Seu pagamento foi confirmado com sucesso e o seu <strong>Mini Diagnóstico Completo</strong> já está disponível.</p>
+                    
+                    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 20px; border-radius: 12px; margin: 24px 0;">
+                      <p style="font-size: 15px; margin: 0 0 10px 0; color: #166534;"><strong>Padrão Dominante Identificado:</strong></p>
+                      <p style="font-size: 22px; font-weight: bold; color: #047857; margin: 0 0 16px 0;">${escapeHtml(String(quiz.resultado_dominante))}</p>
+                      
+                      <p style="font-size: 14px; font-weight: 600; color: #166534; margin: 16px 0 8px 0;">Detalhamento das Pontuações:</p>
+                      <ul style="list-style: none; padding: 0; margin: 0; font-size: 15px; color: #374151;">
+                        <li style="padding: 6px 0; border-bottom: 1px solid #dcfce7;">• Nível de Medo: <strong>${quiz.score_medo} / 12</strong></li>
+                        <li style="padding: 6px 0; border-bottom: 1px solid #dcfce7;">• Nível de Insegurança: <strong>${quiz.score_inseguranca} / 12</strong></li>
+                        <li style="padding: 6px 0;">• Nível de Procrastinação: <strong>${quiz.score_procrastinacao} / 12</strong></li>
                       </ul>
                     </div>
-                    <p>Você pode acessar seu relatório completo através do link fornecido em nossa plataforma.</p>
-                    <p>Um abraço,<br/>Equipe do Mini Diagnóstico</p>
+                    
+                    <p style="font-size: 16px; line-height: 1.6; color: #44403c;">Clique no botão abaixo para acessar sua análise detalhada e descobrir o primeiro movimento recomendado:</p>
+                    
+                    <div style="text-align: center; margin: 32px 0;">
+                      <a href="${link}" style="background-color: #059669; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; display: inline-block;">Ver Diagnóstico Completo</a>
+                    </div>
+                    
+                    <p style="font-size: 13px; color: #78716c; line-height: 1.5;">Se o botão acima não funcionar, você pode copiar e colar o seguinte link em seu navegador:<br/><a href="${link}" style="color: #059669;">${link}</a></p>
+                    
+                    <hr style="border: none; border-top: 1px solid #f5f5f4; margin: 30px 0 20px 0;" />
+                    <p style="font-size: 14px; color: #78716c; margin: 0;">Equipe Mini Diagnóstico • Janaína Araújo</p>
                   </div>
                 `,
               });
@@ -355,7 +434,7 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(10, 15 * 60 * 1000), async (r
   }
 });
 
-app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
+app.get('/api/quiz/:id', rateLimit(300, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = req.params.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
