@@ -343,6 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: healthy ? 'ok' : 'degraded',
       databaseConfigured: configured,
       database,
+      supabaseUrl: RAW_DB_URL || null,
       stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET),
       resendConfigured: Boolean(RESEND_KEY),
       resendFromConfigured: Boolean(cleanEnv(process.env.RESEND_FROM_EMAIL)),
