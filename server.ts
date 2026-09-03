@@ -18,9 +18,9 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/\/$/, '');
+const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),/$/, '');
 const supabaseServiceRoleKey = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-const appUrl = requiredEnv('APP_URL').replace(/\/$/, '');
+const appUrl = requiredEnv('APP_URL').replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),/$/, '');
 const corsOrigin = process.env.CORS_ORIGIN?.trim() || appUrl;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || '';
@@ -164,13 +164,13 @@ function escapeHtml(value: string): string {
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Email inválido.');
   const email = value.trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email inválido.');
+  if (email.length > 254 || !/^[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+@[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+from: process.env.RESEND_FROM_EMAIL!.trim(),.[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+$/.test(email)) throw new Error('Email inválido.');
   return email;
 }
 
 function normalizeName(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Nome inválido.');
-  const name = value.trim().replace(/\s+/g, ' ');
+  const name = value.trim().replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),s+/g, ' ');
   if (name.length < 1 || name.length > 120) throw new Error('Nome inválido.');
   return name;
 }
