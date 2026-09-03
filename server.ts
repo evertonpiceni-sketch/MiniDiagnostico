@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import cors from 'cors';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -23,21 +24,28 @@ const stripeSecretKey = requiredEnv('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
 const stripePriceId = requiredEnv('STRIPE_PRICE_ID');
 const stripe = new Stripe(stripeSecretKey);
+const resend = process.env.RESEND_API_KEY?.trim() ? new Resend(process.env.RESEND_API_KEY.trim()) : null;
 
 if (stripeSecretKey.startsWith('sk_test_') && isProduction) {
   console.warn('Stripe is using a test key while NODE_ENV=production. Configure the live key before launch.');
 }
 
-const allowedOrigins = new Set(corsOrigin.split(',').map(origin => origin.trim()).filter(Boolean));
+const allowedOrigins = new Set(
+  corsOrigin
+    .split(',')
+    .map(origin => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean),
+);
+
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) return callback(null, true);
     return callback(new Error('Origin not allowed by CORS'));
   },
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
   credentials: false,
 }));
@@ -52,70 +60,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Stripe requires the raw request body for signature verification. Keep this route before express.json().
-app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
-  const signature = req.headers['stripe-signature'];
-  if (typeof signature !== 'string') return res.status(400).json({ error: 'Assinatura Stripe ausente.' });
+type Quiz = {
+  quiz_session_id: string;
+  nome: string;
+  email: string;
+  respostas: Record<string, number>;
+  score_medo: number;
+  score_inseguranca: number;
+  score_procrastinacao: number;
+  resultado_dominante: string;
+  payment_status: 'pending' | 'paid';
+  created_at: string;
+  paid_at?: string | null;
+  stripe_checkout_session_id?: string | null;
+  email_sent_at?: string | null;
+};
 
-  try {
-    const event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const quizSessionId = session.metadata?.quiz_session_id || session.client_reference_id;
-
-      // Never unlock a result unless Stripe reports the payment as paid and the
-      // checkout is explicitly tied to the same quiz session.
-      if (quizSessionId && session.payment_status === 'paid') {
-        const quiz = await getQuiz(quizSessionId);
-        const sessionMatches = quiz &&
-          quiz.payment_status !== 'paid' &&
-          (!quiz.stripe_checkout_session_id || quiz.stripe_checkout_session_id === session.id);
-
-        if (sessionMatches) {
-          await updateQuiz(quizSessionId, {
-            payment_status: 'paid',
-            paid_at: new Date().toISOString(),
-            stripe_checkout_session_id: session.id,
-          });
-        }
-      }
-    }
-
-    return res.json({ received: true });
-  } catch (error: any) {
-    console.error('Stripe webhook verification failed:', error?.message || error);
-    return res.status(400).json({ error: 'Webhook inválido.' });
-  }
-});
-
-app.use(express.json({ limit: '64kb', strict: true }));
-
-// Per-process limiter. This is defense-in-depth; production deployments should
-// also use the hosting/provider edge rate limits for distributed enforcement.
-const rateBuckets = new Map<string, { count: number; resetAt: number }>();
-function rateLimit(max: number, windowMs: number) {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip || 'unknown';
-    const key = `${req.path}:${ip}`;
-    const now = Date.now();
-    const current = rateBuckets.get(key);
-
-    if (!current || current.resetAt <= now) {
-      rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
-      return next();
-    }
-
-    if (current.count >= max) {
-      res.setHeader('Retry-After', Math.max(1, Math.ceil((current.resetAt - now) / 1000)));
-      return res.status(429).json({ error: 'Muitas requisições. Tente novamente mais tarde.' });
-    }
-
-    current.count += 1;
-    return next();
-  };
-}
+const quizIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] || char));
@@ -159,7 +120,6 @@ function calculateScores(answers: Record<string, number>) {
   for (let id = 5; id <= 8; id += 1) inseguranca += answers[String(id)];
   for (let id = 9; id <= 12; id += 1) procrastinacao += answers[String(id)];
 
-  // Deterministic tie-breaker: MEDO > INSEGURANÇA > PROCRASTINAÇÃO.
   let dominante = 'MEDO';
   let max = medo;
   if (inseguranca > max) { dominante = 'INSEGURANÇA'; max = inseguranca; }
@@ -172,22 +132,6 @@ function calculateScores(answers: Record<string, number>) {
     resultado_dominante: dominante,
   };
 }
-
-type Quiz = {
-  quiz_session_id: string;
-  nome: string;
-  email: string;
-  respostas: Record<string, number>;
-  score_medo: number;
-  score_inseguranca: number;
-  score_procrastinacao: number;
-  resultado_dominante: string;
-  payment_status: 'pending' | 'paid';
-  created_at: string;
-  paid_at?: string | null;
-  stripe_checkout_session_id?: string | null;
-  email_sent_at?: string | null;
-};
 
 async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${supabaseUrl}/rest/v1/${pathName}`, {
@@ -205,8 +149,9 @@ async function dbRequest<T>(pathName: string, init: RequestInit = {}): Promise<T
     throw new Error(`Database request failed (${response.status}): ${body.slice(0, 500)}`);
   }
 
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const text = (await response.text()).trim();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 async function insertQuiz(quiz: Quiz): Promise<void> {
@@ -219,7 +164,7 @@ async function insertQuiz(quiz: Quiz): Promise<void> {
 
 async function getQuiz(id: string): Promise<Quiz | null> {
   const rows = await dbRequest<Quiz[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=*`);
-  return rows[0] || null;
+  return rows?.[0] || null;
 }
 
 async function updateQuiz(id: string, patch: Partial<Quiz>): Promise<void> {
@@ -228,6 +173,121 @@ async function updateQuiz(id: string, patch: Partial<Quiz>): Promise<void> {
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify(patch),
   });
+}
+
+async function sendResultEmail(quiz: Quiz): Promise<void> {
+  if (!resend || quiz.payment_status !== 'paid' || quiz.email_sent_at || !quiz.email) return;
+
+  const link = `${appUrl}/resultado?session_id=${encodeURIComponent(quiz.quiz_session_id)}`;
+  const safeName = escapeHtml(quiz.nome || 'visitante');
+  const safeDominant = escapeHtml(quiz.resultado_dominante);
+
+  try {
+    await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL?.trim() || 'Mini Diagnóstico <onboarding@resend.dev>',
+      to: quiz.email,
+      subject: `${quiz.nome ? `${quiz.nome}, seu` : 'Seu'} Mini Diagnóstico está pronto!`,
+      html: `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1c1917;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e7e5e4;border-radius:16px;background:#fff">
+          <h2 style="color:#065f46;margin-top:0">Olá, ${safeName}!</h2>
+          <p>Seu pagamento foi confirmado e o seu <strong>Mini Diagnóstico Completo</strong> já está disponível.</p>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:20px;border-radius:12px;margin:24px 0">
+            <p><strong>Padrão Dominante Identificado:</strong></p>
+            <p style="font-size:22px;font-weight:bold;color:#047857">${safeDominant}</p>
+            <ul style="list-style:none;padding:0">
+              <li>• Nível de Medo: <strong>${quiz.score_medo} / 12</strong></li>
+              <li>• Nível de Insegurança: <strong>${quiz.score_inseguranca} / 12</strong></li>
+              <li>• Nível de Procrastinação: <strong>${quiz.score_procrastinacao} / 12</strong></li>
+            </ul>
+          </div>
+          <div style="text-align:center;margin:32px 0">
+            <a href="${link}" style="background:#059669;color:#fff;padding:14px 32px;text-decoration:none;border-radius:10px;font-weight:bold">Ver Diagnóstico Completo</a>
+          </div>
+          <p style="font-size:13px;color:#78716c">Se o botão não funcionar, copie este link:<br><a href="${link}">${link}</a></p>
+          <p style="font-size:14px;color:#78716c">Equipe Mini Diagnóstico • Janaína Araújo</p>
+        </div>
+      `,
+    });
+
+    const sentAt = new Date().toISOString();
+    await updateQuiz(quiz.quiz_session_id, { email_sent_at: sentAt });
+    quiz.email_sent_at = sentAt;
+  } catch (error) {
+    console.error('Email delivery failed:', error);
+  }
+}
+
+async function confirmStripeSession(quiz: Quiz, session: Stripe.Checkout.Session): Promise<boolean> {
+  const linkedQuizId = session.metadata?.quiz_session_id || session.client_reference_id;
+
+  if (linkedQuizId !== quiz.quiz_session_id || session.payment_status !== 'paid') return false;
+  if (quiz.stripe_checkout_session_id && quiz.stripe_checkout_session_id !== session.id) return false;
+
+  if (quiz.payment_status !== 'paid') {
+    const paidAt = new Date().toISOString();
+    await updateQuiz(quiz.quiz_session_id, {
+      payment_status: 'paid',
+      paid_at: paidAt,
+      stripe_checkout_session_id: session.id,
+    });
+    quiz.payment_status = 'paid';
+    quiz.paid_at = paidAt;
+    quiz.stripe_checkout_session_id = session.id;
+  }
+
+  await sendResultEmail(quiz);
+  return true;
+}
+
+// Stripe requires the raw request body for signature verification. Keep this route before express.json().
+app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  if (typeof signature !== 'string') return res.status(400).json({ error: 'Assinatura Stripe ausente.' });
+
+  try {
+    const event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret);
+
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const quizSessionId = session.metadata?.quiz_session_id || session.client_reference_id;
+
+      if (quizSessionId && quizIdPattern.test(quizSessionId)) {
+        const quiz = await getQuiz(quizSessionId);
+        if (quiz) await confirmStripeSession(quiz, session);
+      }
+    }
+
+    return res.json({ received: true });
+  } catch (error: any) {
+    console.error('Stripe webhook verification failed:', error?.message || error);
+    return res.status(400).json({ error: 'Webhook inválido.' });
+  }
+});
+
+app.use(express.json({ limit: '64kb', strict: true }));
+
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+function rateLimit(max: number, windowMs: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip || 'unknown';
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+    const current = rateBuckets.get(key);
+
+    if (!current || current.resetAt <= now) {
+      rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    if (current.count >= max) {
+      res.setHeader('Retry-After', Math.max(1, Math.ceil((current.resetAt - now) / 1000)));
+      return res.status(429).json({ error: 'Muitas requisições. Tente novamente mais tarde.' });
+    }
+
+    current.count += 1;
+    return next();
+  };
 }
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
@@ -260,7 +320,7 @@ app.post('/api/quiz', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
 app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = typeof req.body?.quiz_session_id === 'string' ? req.body.quiz_session_id : '';
-    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+    if (!quizIdPattern.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
 
     const quiz = await getQuiz(id);
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
@@ -288,10 +348,38 @@ app.post('/api/checkout', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
   }
 });
 
-app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
+// Safe fallback for the short delay between Stripe redirect and webhook delivery.
+// This endpoint never accepts manual PIX confirmation and never searches payments by email.
+app.post('/api/quiz/:id/verify-payment', rateLimit(60, 15 * 60 * 1000), async (req, res) => {
   try {
     const id = req.params.id;
-    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+    if (!quizIdPattern.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+
+    const quiz = await getQuiz(id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
+
+    if (quiz.payment_status === 'paid') {
+      await sendResultEmail(quiz);
+      return res.json({ payment_status: 'paid' });
+    }
+
+    if (!quiz.stripe_checkout_session_id || !quiz.stripe_checkout_session_id.startsWith('cs_')) {
+      return res.json({ payment_status: 'pending' });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(quiz.stripe_checkout_session_id);
+    const confirmed = await confirmStripeSession(quiz, session);
+    return res.json({ payment_status: confirmed ? 'paid' : 'pending' });
+  } catch (error: any) {
+    console.error('Verify payment error:', error?.message || error);
+    return res.status(500).json({ error: 'Erro ao verificar pagamento.' });
+  }
+});
+
+app.get('/api/quiz/:id', rateLimit(60, 15 * 60 * 1000), async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!quizIdPattern.test(id)) return res.status(400).json({ error: 'Sessão inválida.' });
 
     const quiz = await getQuiz(id);
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
@@ -304,7 +392,6 @@ app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
       });
     }
 
-    // Only expose the minimum data needed by the result screen.
     return res.json({
       quiz_session_id: quiz.quiz_session_id,
       nome: quiz.nome,
@@ -322,7 +409,7 @@ app.get('/api/quiz/:id', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
 });
 
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
