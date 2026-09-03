@@ -18,9 +18,9 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),/$/, '');
+const supabaseUrl = requiredEnv('SUPABASE_URL').replace(/\/$/, '');
 const supabaseServiceRoleKey = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-const appUrl = requiredEnv('APP_URL').replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),/$/, '');
+const appUrl = requiredEnv('APP_URL').replace(/\/$/, '');
 const corsOrigin = process.env.CORS_ORIGIN?.trim() || appUrl;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() || '';
@@ -101,7 +101,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
           if (resendInstance && quiz.email) {
             try {
               await resendInstance.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
+                from: process.env.RESEND_FROM_EMAIL!.trim(),
                 to: quiz.email,
                 subject: 'Seu Mini Diagnóstico está pronto!',
                 html: `
@@ -164,13 +164,13 @@ function escapeHtml(value: string): string {
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Email inválido.');
   const email = value.trim().toLowerCase();
-  if (email.length > 254 || !/^[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+@[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+from: process.env.RESEND_FROM_EMAIL!.trim(),.[^from: process.env.RESEND_FROM_EMAIL!.trim(),s@]+$/.test(email)) throw new Error('Email inválido.');
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Email inválido.');
   return email;
 }
 
 function normalizeName(value: unknown): string {
   if (typeof value !== 'string') throw new Error('Nome inválido.');
-  const name = value.trim().replace(/from: process.env.RESEND_FROM_EMAIL!.trim(),s+/g, ' ');
+  const name = value.trim().replace(/\s+/g, ' ');
   if (name.length < 1 || name.length > 120) throw new Error('Nome inválido.');
   return name;
 }
@@ -371,14 +371,14 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(300, 15 * 60 * 1000), async (
     }
     
     // Ensure email is sent if paid
-    if (isPaid && !quiz.email_sent_at) {
+    if (isPaid && !quiz.email_sent_at && process.env.RESEND_FROM_EMAIL?.trim()) {
        const resendInstance = getResend();
        if (resendInstance && quiz.email) {
           try {
               const link = `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`;
               const userName = escapeHtml(String(quiz.nome || '').trim());
               await resendInstance.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'Mini Diagnóstico <onboarding@resend.dev>',
+                from: process.env.RESEND_FROM_EMAIL!.trim(),
                 to: quiz.email,
                 subject: `${userName ? `${userName}, seu` : 'Seu'} Mini Diagnóstico está pronto!`,
                 html: `
