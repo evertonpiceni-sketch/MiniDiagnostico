@@ -23,6 +23,12 @@ const WEBHOOK_SECRET = cleanEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const PRICE_ID = cleanEnv(process.env.STRIPE_PRICE_ID);
 const APP_URL = cleanEnv(process.env.APP_URL).replace(/\/$/, '');
 
+const WHATSAPP_PHONE_NUMBER_ID = cleanEnv(process.env.WHATSAPP_PHONE_NUMBER_ID);
+const WHATSAPP_ACCESS_TOKEN = cleanEnv(process.env.WHATSAPP_ACCESS_TOKEN);
+const WHATSAPP_API_VERSION = cleanEnv(process.env.WHATSAPP_API_VERSION) || 'v23.0';
+const WHATSAPP_TEMPLATE_NAME = cleanEnv(process.env.WHATSAPP_TEMPLATE_NAME);
+const WHATSAPP_TEMPLATE_LANGUAGE = cleanEnv(process.env.WHATSAPP_TEMPLATE_LANGUAGE) || 'pt_BR';
+
 const send = (res: VercelResponse, status: number, data: unknown) => res.status(status).json(data);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
@@ -34,12 +40,11 @@ function dbConfig() {
   let parsed: URL;
   try { parsed = new URL(RAW_DB_URL); } catch { throw new Error('DB_URL_INVALID'); }
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) throw new Error('DB_URL_INVALID');
-
   return { url: parsed.origin, key: DB_KEY };
 }
 
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
-function rateLimit(req: VercelRequest, max: number, windowMs: number): boolean {
+function rateLimit(req: VercelRequest, max: number, windowMs: number) {
   const forwarded = req.headers['x-forwarded-for'];
   const ip = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : 'unknown';
   const key = `${req.method || 'UNKNOWN'}:${String(req.url || '').split('?')[0]}:${ip}`;
@@ -136,11 +141,7 @@ async function findQuiz(id: string) {
 
 async function findDuplicate(whatsapp: string, respostas: Record<string, number>) {
   const rows = await db<any[]>(`quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&select=quiz_session_id,whatsapp,respostas,payment_status&limit=20`);
-  return rows.find(row => {
-    if (!row?.quiz_session_id || !validId(String(row.quiz_session_id))) return false;
-    if (String(row.whatsapp || '') !== whatsapp) return false;
-    try { return JSON.stringify(row.respostas || {}) === JSON.stringify(respostas); } catch { return false; }
-  }) || null;
+  return rows.find(row => row?.quiz_session_id && validId(String(row.quiz_session_id)) && String(row.whatsapp || '') === whatsapp && JSON.stringify(row.respostas || {}) === JSON.stringify(respostas)) || null;
 }
 
 async function patch(id: string, data: Record<string, unknown>) {
@@ -157,21 +158,88 @@ function appUrl(req: VercelRequest) {
   return `https://${host}`;
 }
 
-async function confirmStripeSession(q: any, s: Stripe.Checkout.Session) {
+function whatsappConfigured() {
+  return Boolean(WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN);
+}
+
+async function sendWhatsappResult(q: any, resultUrl: string) {
+  if (!whatsappConfigured()) {
+    console.warn('WhatsApp Cloud API não configurada; resultado não enviado.');
+    return false;
+  }
+
+  const to = normalizeWhatsapp(String(q.whatsapp || ''));
+  const endpoint = `https://graph.facebook.com/${encodeURIComponent(WHATSAPP_API_VERSION)}/${encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)}/messages`;
+  const common = { messaging_product: 'whatsapp', to };
+
+  const payload = WHATSAPP_TEMPLATE_NAME
+    ? {
+        ...common,
+        type: 'template',
+        template: {
+          name: WHATSAPP_TEMPLATE_NAME,
+          language: { code: WHATSAPP_TEMPLATE_LANGUAGE },
+          components: [{
+            type: 'body',
+            parameters: [
+              { type: 'text', text: String(q.nome || 'Cliente') },
+              { type: 'text', text: String(q.resultado_dominante || '') },
+              { type: 'text', text: String(q.score_medo ?? '') },
+              { type: 'text', text: String(q.score_inseguranca ?? '') },
+              { type: 'text', text: String(q.score_procrastinacao ?? '') },
+              { type: 'text', text: resultUrl },
+            ],
+          }],
+        },
+      }
+    : {
+        ...common,
+        type: 'text',
+        text: {
+          preview_url: true,
+          body: `Olá, ${q.nome || 'Cliente'}! Seu pagamento foi confirmado.\n\n*Mini Diagnóstico*\nPadrão dominante: *${q.resultado_dominante}*\nMedo: ${q.score_medo}/12\nInsegurança: ${q.score_inseguranca}/12\nProcrastinação: ${q.score_procrastinacao}/12\n\nAcesse seu resultado completo: ${resultUrl}`,
+        },
+      };
+
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      signal: ctl.signal,
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      console.error('WhatsApp API', response.status, text.slice(0, 700));
+      return false;
+    }
+    console.log('Resultado enviado por WhatsApp para', to.slice(0, 4) + '********');
+    return true;
+  } catch (error) {
+    console.error('WhatsApp API request failed', error);
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function confirmStripeSession(q: any, s: Stripe.Checkout.Session, resultUrl: string) {
   const linkedQuizId = s.metadata?.quiz_session_id || s.client_reference_id;
   if (linkedQuizId !== q.quiz_session_id || s.payment_status !== 'paid') return false;
   if (q.stripe_checkout_session_id && q.stripe_checkout_session_id !== s.id) return false;
 
   if (q.payment_status !== 'paid') {
     const paidAt = new Date().toISOString();
-    await patch(q.quiz_session_id, {
-      payment_status: 'paid',
-      paid_at: paidAt,
-      stripe_checkout_session_id: s.id,
-    });
+    await patch(q.quiz_session_id, { payment_status: 'paid', paid_at: paidAt, stripe_checkout_session_id: s.id });
     q.payment_status = 'paid';
     q.paid_at = paidAt;
     q.stripe_checkout_session_id = s.id;
+    await sendWhatsappResult(q, resultUrl);
   }
   return true;
 }
@@ -185,10 +253,8 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       const whatsapp = normalizeWhatsapp(b.whatsapp);
       const respostas = validateAnswers(b.respostas);
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
-
       const duplicate = await findDuplicate(whatsapp, respostas);
       if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
-
       const row = { quiz_session_id: randomUUID(), nome, whatsapp, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
@@ -224,7 +290,6 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       return send(res, m === 'DB_TIMEOUT' ? 504 : 503, { error: 'Não foi possível consultar o diagnóstico.', code: m || 'DB_UNKNOWN' });
     }
   }
-
   return send(res, 405, { error: 'Método não permitido.' });
 }
 
@@ -250,7 +315,6 @@ async function checkout(req: VercelRequest, res: VercelResponse) {
       client_reference_id: id,
       metadata: { quiz_session_id: id },
     });
-
     if (!s.url) return send(res, 502, { error: 'Stripe não retornou uma URL de pagamento.' });
     await patch(id, { stripe_checkout_session_id: s.id });
     return send(res, 200, { ok: true, url: s.url });
@@ -264,17 +328,15 @@ async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
   if (!rateLimit(req, 60, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas verificações. Aguarde alguns minutos e tente novamente.' });
   if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
-
   try {
     const q = await findQuiz(id);
     if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
     if (q.payment_status === 'paid') return send(res, 200, { payment_status: 'paid' });
-
     const checkoutId = String(q.stripe_checkout_session_id || '');
     if (!checkoutId.startsWith('cs_') || !STRIPE_KEY) return send(res, 200, { payment_status: 'pending' });
-
     const s = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(checkoutId);
-    const confirmed = await confirmStripeSession(q, s);
+    const url = `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`;
+    const confirmed = await confirmStripeSession(q, s, url);
     return send(res, 200, { payment_status: confirmed ? 'paid' : 'pending' });
   } catch (e) {
     console.error('Verify payment', e);
@@ -285,21 +347,18 @@ async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string
 async function webhook(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
   if (!STRIPE_KEY || !WEBHOOK_SECRET) return send(res, 500, { error: 'Webhook Stripe não configurado.' });
-
   try {
     const signature = req.headers['stripe-signature'];
     if (typeof signature !== 'string') return send(res, 400, { error: 'Assinatura Stripe ausente.' });
     const event = new Stripe(STRIPE_KEY).webhooks.constructEvent(await raw(req), signature, WEBHOOK_SECRET);
-
     if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const s = event.data.object as Stripe.Checkout.Session;
       const id = s.metadata?.quiz_session_id || s.client_reference_id;
       if (id && validId(id)) {
         const q = await findQuiz(id);
-        if (q) await confirmStripeSession(q, s);
+        if (q) await confirmStripeSession(q, s, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
       }
     }
-
     return send(res, 200, { received: true });
   } catch (e) {
     console.error('Webhook', e);
@@ -328,6 +387,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       databaseConfigured: configured,
       database,
       stripeConfigured: Boolean(STRIPE_KEY && PRICE_ID && WEBHOOK_SECRET),
+      whatsappConfigured: whatsappConfigured(),
+      whatsappTemplateConfigured: Boolean(WHATSAPP_TEMPLATE_NAME),
       contactField: 'whatsapp',
       emailDelivery: false,
     });
