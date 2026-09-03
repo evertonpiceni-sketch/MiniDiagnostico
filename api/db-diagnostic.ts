@@ -44,7 +44,7 @@ export default async function handler(req: Req, res: Res) {
     const response = await fetch(`${url}/rest/v1/quiz_sessions?select=quiz_session_id&limit=1`, {
       method: 'GET',
       signal: controller.signal,
-      headers: { apikey: key, Authorization: `Bearer ${key}` }
+      headers: { apikey: key, ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}) }
     });
     const text = await response.text();
     if (!response.ok) {
