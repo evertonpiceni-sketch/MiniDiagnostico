@@ -98,7 +98,7 @@ app.post('/api/webhook', express.raw({ type: 'application/json', limit: '256kb' 
           });
 
           const resendInstance = getResend();
-          if (resendInstance && quiz.email) {
+          if (resendInstance && quiz.email && process.env.RESEND_FROM_EMAIL?.trim()) {
             try {
               await resendInstance.emails.send({
                 from: process.env.RESEND_FROM_EMAIL!.trim(),
@@ -373,7 +373,7 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(300, 15 * 60 * 1000), async (
     // Ensure email is sent if paid
     if (isPaid && !quiz.email_sent_at && process.env.RESEND_FROM_EMAIL?.trim()) {
        const resendInstance = getResend();
-       if (resendInstance && quiz.email) {
+       if (resendInstance && quiz.email && process.env.RESEND_FROM_EMAIL?.trim()) {
           try {
               const link = `${appUrl}/resultado?session_id=${encodeURIComponent(id)}`;
               const userName = escapeHtml(String(quiz.nome || '').trim());
