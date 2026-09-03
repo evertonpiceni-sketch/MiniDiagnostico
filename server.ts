@@ -342,7 +342,6 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(300, 15 * 60 * 1000), async (
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     
     let isPaid = quiz.payment_status === 'paid';
-    const isManualConfirm = req.body && req.body.confirm_pix === true;
     
     // Fallback sync checking se não foi marcado como pago via webhook
     if (!isPaid) {
@@ -353,26 +352,18 @@ app.post('/api/quiz/:id/verify-payment', rateLimit(300, 15 * 60 * 1000), async (
            const stripeInstance = getStripe();
            if (quiz.stripe_checkout_session_id) {
                foundSession = await stripeInstance.checkout.sessions.retrieve(quiz.stripe_checkout_session_id);
-           } else {
-               // Pricing table fallback: Stripe Pricing table pode associar client_reference_id ou e-mail
-               const recentSessions = await stripeInstance.checkout.sessions.list({ limit: 100 });
-               foundSession = recentSessions.data.find(s => 
-                 s.client_reference_id === id || 
-                 s.metadata?.quiz_session_id === id ||
-                 (s.customer_email && quiz.email && s.customer_email.toLowerCase() === quiz.email.toLowerCase()) ||
-                 (s.customer_details?.email && quiz.email && s.customer_details.email.toLowerCase() === quiz.email.toLowerCase())
-               );
            }
          } catch (err) {
            console.warn('Stripe sync check failed:', (err as any)?.message || err);
          }
        }
        
-       if ((foundSession && foundSession.payment_status === 'paid') || isManualConfirm) {
+       const linkedQuizId = foundSession?.metadata?.quiz_session_id || foundSession?.client_reference_id;
+       if (foundSession && foundSession.payment_status === 'paid' && linkedQuizId === id) {
            await updateQuiz(id, { 
              payment_status: 'paid', 
              paid_at: new Date().toISOString(), 
-             stripe_checkout_session_id: foundSession?.id || (isManualConfirm ? 'pix_manual' : undefined)
+             stripe_checkout_session_id: foundSession.id
            });
            isPaid = true;
            quiz.payment_status = 'paid';
