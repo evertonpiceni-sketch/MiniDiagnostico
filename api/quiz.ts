@@ -167,7 +167,7 @@ export default async function handler(req: Req, res: Res) {
     const m = String(e?.message || '');
     const statusMap: Record<string, [number, string]> = {
       DB_CONFIG_URL_MISSING: [503, 'Supabase não configurado: SUPABASE_URL ausente.'],
-      DB_CONFIG_KEY_MISSING: [503, 'Supabase não configurado: SUPABASE_SERVICE_ROLE_KEY ausente ou inválida.'],
+      DB_CONFIG_KEY_MISSING: [503, 'Supabase não configurado: SUPABASE_SECRET_KEY ou SUPABASE_SERVICE_ROLE_KEY ausente ou inválida.'],
       DB_URL_INVALID: [503, 'SUPABASE_URL inválida. Use a URL do projeto no formato https://SEU-PROJETO.supabase.co.'],
       DB_KEY_WRONG_TYPE: [503, 'A chave configurada parece publishable/anon. O backend precisa de uma chave server-side.'],
       DB_TIMEOUT: [504, 'Supabase demorou para responder.'],
@@ -178,7 +178,7 @@ export default async function handler(req: Req, res: Res) {
       DB_CONNECT_TIMEOUT: [504, 'A conexão com o Supabase expirou antes de estabelecer comunicação.'],
       DB_TLS_ERROR: [503, 'A conexão HTTPS/TLS com o Supabase falhou.'],
       DB_CONNECTION: [503, 'Não foi possível conectar ao Supabase.'],
-      DB_401: [503, 'Supabase recusou a chave. Verifique SUPABASE_SERVICE_ROLE_KEY.'],
+      DB_401: [503, 'Supabase recusou a chave. Confira SUPABASE_SECRET_KEY (recomendada) ou SUPABASE_SERVICE_ROLE_KEY e SUPABASE_URL.'],
       DB_403: [503, 'Supabase recusou a permissão da chave. Use uma chave server-side.'],
       DB_404: [503, 'A tabela quiz_sessions não foi encontrada no projeto Supabase informado.'],
       DB_400: [503, 'Supabase rejeitou os dados da sessão. Verifique o schema quiz_sessions.'],
