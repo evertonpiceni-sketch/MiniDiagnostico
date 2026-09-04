@@ -1,3 +1,18 @@
+import toast from 'react-hot-toast';
+
+let lastErrorToast = '';
+let lastErrorToastAt = 0;
+
+const originalToastError = toast.error.bind(toast);
+toast.error = ((message: Parameters<typeof originalToastError>[0], options?: Parameters<typeof originalToastError>[1]) => {
+  const key = typeof message === 'string' ? message : '';
+  const now = Date.now();
+  if (key && key === lastErrorToast && now - lastErrorToastAt < 2000) return '';
+  lastErrorToast = key;
+  lastErrorToastAt = now;
+  return originalToastError(message, options);
+}) as typeof toast.error;
+
 const getSessionId = () => {
   try {
     return new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id');
