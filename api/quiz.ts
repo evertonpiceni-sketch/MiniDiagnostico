@@ -18,12 +18,14 @@ const cleanEnv = (value: string | undefined) => {
 
 function dbConfig() {
   const url = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
-  // Prefer the current Supabase secret key; keep legacy service_role compatibility.
-  const key = cleanEnv(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+  // Prefer the server-side service-role key. Ignore an accidental publishable
+  // key in SUPABASE_SECRET_KEY instead of letting it override the valid key.
+  const key = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
+    .map(cleanEnv)
+    .find((candidate) => Boolean(candidate) && !candidate.startsWith('sb_publishable_')) || '';
 
   if (!url) throw new Error('DB_CONFIG_URL_MISSING');
   if (!key || key.length < 20) throw new Error('DB_CONFIG_KEY_MISSING');
-  if (key.startsWith('sb_publishable_')) throw new Error('DB_KEY_WRONG_TYPE');
 
   let parsed: URL;
   try {
@@ -135,7 +137,6 @@ function calculateScores(answers: Record<string, number>) {
 function deterministicSessionId(whatsapp: string, answers: Record<string, number>) {
   const canonical = `${whatsapp}:${JSON.stringify(answers)}`;
   const hex = createHash('sha256').update(canonical).digest('hex').slice(0, 32).split('');
-  // UUID-shaped deterministic ID, stable for the same WhatsApp + answers.
   hex[12] = '5';
   hex[16] = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4];
   const value = hex.join('');
@@ -154,7 +155,7 @@ async function findDuplicate(whatsapp: string, answers: Record<string, number>) 
 const errorResponse = (res: VercelResponse, error: unknown) => {
   const message = String((error as any)?.message || '');
 
-  if (['DB_CONFIG_URL_MISSING', 'DB_CONFIG_KEY_MISSING', 'DB_KEY_WRONG_TYPE', 'DB_URL_INVALID', 'DB_CONNECTION'].includes(message)) {
+  if (['DB_CONFIG_URL_MISSING', 'DB_CONFIG_KEY_MISSING', 'DB_URL_INVALID', 'DB_CONNECTION'].includes(message)) {
     return res.status(503).json({
       error: `Supabase não configurado ou indisponível. [${message}]`,
       code: message,
@@ -191,7 +192,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!nome || nome.length > 120) throw new Error('Nome inválido.');
 
-    // Existing matching sessions are reused instead of creating another record.
     const duplicate = await findDuplicate(whatsapp, respostas);
     if (duplicate?.quiz_session_id) {
       return res.status(200).json({
@@ -201,7 +201,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Deterministic ID prevents double taps / concurrent requests from creating two sessions.
     const quiz_session_id = deterministicSessionId(whatsapp, respostas);
     const row = {
       quiz_session_id,
@@ -219,7 +218,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify(row),
       });
     } catch (error: any) {
-      // A concurrent request may have inserted the deterministic ID first.
       if (error?.message === 'DB_409') {
         return res.status(200).json({ ok: true, quiz_session_id, reused: true });
       }
