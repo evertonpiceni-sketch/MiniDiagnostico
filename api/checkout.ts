@@ -19,10 +19,31 @@ function appUrl(req: Req) {
 
 async function findQuiz(id: string) {
   if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
-  const r = await fetch(`${DB_URL}/rest/v1/quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,payment_status` , { headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}), Accept: 'application/json' } });
+  const r = await fetch(`${DB_URL}/rest/v1/quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,payment_status`, {
+    headers: {
+      apikey: DB_KEY,
+      ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}),
+      Accept: 'application/json',
+    },
+  });
   if (!r.ok) throw new Error(`DB_${r.status}`);
   const rows = await r.json() as any[];
   return rows[0] || null;
+}
+
+async function markCheckoutSession(id: string, stripeSessionId: string) {
+  if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
+  const r = await fetch(`${DB_URL}/rest/v1/quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      apikey: DB_KEY,
+      ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}),
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ stripe_checkout_session_id: stripeSessionId }),
+  });
+  if (!r.ok) throw new Error(`DB_${r.status}`);
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -46,6 +67,18 @@ export default async function handler(req: Req, res: Res) {
       cancel_url: `${base}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
     });
     if (!session.url) return res.status(502).json({ error: 'Stripe não retornou o endereço do pagamento.' });
+
+    // Persist the Checkout Session ID so polling/verification can confirm payment
+    // even if the Stripe webhook is delayed.
+    try {
+      await markCheckoutSession(id, session.id);
+    } catch (dbError) {
+      console.error('Checkout session persistence error', dbError);
+      // Do not expose the Stripe URL without its local correlation when persistence
+      // is unavailable; this prevents a successful payment from becoming orphaned.
+      return res.status(503).json({ error: 'Não foi possível registrar a sessão de pagamento. Tente novamente.' });
+    }
+
     return res.status(200).json({ ok: true, url: session.url });
   } catch (e: any) {
     console.error('Stripe checkout error', e?.message || e);
