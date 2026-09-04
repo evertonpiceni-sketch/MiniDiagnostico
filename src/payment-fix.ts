@@ -51,8 +51,6 @@ const installQuizRequestGuard = () => {
       return originalFetch(input, init);
     }
 
-    // The quiz submit is JSON in App.tsx. Identical concurrent submissions share
-    // one network request, while each caller receives its own readable Response.
     const body = typeof init?.body === 'string' ? init.body : '';
     const key = `${method}:${url.href}:${body}`;
     const existing = quizRequestCache.get(key);
@@ -73,9 +71,6 @@ const installQuizRequestGuard = () => {
     }));
 
     quizRequestCache.set(key, shared);
-
-    // Keep the completed result briefly so two rapid taps cannot create a second
-    // POST even if the first response has already arrived.
     window.setTimeout(() => {
       if (quizRequestCache.get(key) === shared) quizRequestCache.delete(key);
     }, 2000);
@@ -94,6 +89,32 @@ const installQuizRequestGuard = () => {
   };
 
   (window as Window & { [marker]?: boolean })[marker] = true;
+};
+
+const installBrandLogo = () => {
+  if (typeof document === 'undefined') return;
+  const marker = 'mini-diagnostico-brand-logo';
+  if (document.getElementById(marker)) return;
+
+  const logo = document.createElement('img');
+  logo.id = marker;
+  logo.src = '/logo.svg';
+  logo.alt = 'Janaína Araújo';
+  logo.setAttribute('aria-hidden', 'true');
+  logo.style.cssText = [
+    'position:fixed',
+    'top:12px',
+    'left:50%',
+    'transform:translateX(-50%)',
+    'width:76px',
+    'height:76px',
+    'object-fit:cover',
+    'border-radius:50%',
+    'z-index:40',
+    'pointer-events:none',
+    'box-shadow:0 8px 24px rgba(0,0,0,.12)',
+  ].join(';');
+  document.body.appendChild(logo);
 };
 
 let checkoutInFlight = false;
@@ -200,7 +221,11 @@ const replaceManualPix = () => {
 
 const bootPaymentFix = () => {
   installQuizRequestGuard();
-  const observer = new MutationObserver(() => replaceManualPix());
+  installBrandLogo();
+  const observer = new MutationObserver(() => {
+    installBrandLogo();
+    replaceManualPix();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   replaceManualPix();
 };
