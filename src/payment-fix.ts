@@ -98,21 +98,22 @@ const installBrandLogo = () => {
 
   const logo = document.createElement('img');
   logo.id = marker;
-  logo.src = '/logo.svg';
+  logo.src = '/ja-logo.webp';
   logo.alt = 'Janaína Araújo';
-  logo.setAttribute('aria-hidden', 'true');
   logo.style.cssText = [
     'position:fixed',
     'top:12px',
     'left:50%',
     'transform:translateX(-50%)',
-    'width:76px',
-    'height:76px',
-    'object-fit:contain',
+    'width:92px',
+    'height:92px',
+    'object-fit:cover',
     'border-radius:50%',
     'z-index:40',
     'pointer-events:none',
-    'box-shadow:0 8px 24px rgba(81,72,88,.12)',
+    'background:#050505',
+    'border:1px solid rgba(242,201,120,.5)',
+    'box-shadow:0 12px 38px rgba(0,0,0,.5),0 0 30px rgba(217,170,85,.08)',
   ].join(';');
   document.body.appendChild(logo);
 };
