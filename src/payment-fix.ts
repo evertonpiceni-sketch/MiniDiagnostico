@@ -6,6 +6,81 @@ const getSessionId = () => {
   }
 };
 
+type FetchSnapshot = {
+  body: string;
+  status: number;
+  statusText: string;
+  headers: [string, string][];
+};
+
+const quizRequestCache = new Map<string, Promise<FetchSnapshot>>();
+
+const shouldDeduplicateQuizRequest = (url: URL, method: string) => {
+  if (method !== 'POST') return false;
+  return /^\/api\/quiz(?:\/[^/]+)?(?:\/verify-payment)?$/.test(url.pathname);
+};
+
+const installQuizRequestGuard = () => {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+  const marker = '__miniDiagnosticoQuizFetchGuard';
+  if ((window as Window & { [marker]?: boolean })[marker]) return;
+
+  const originalFetch = window.fetch.bind(window);
+
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const request = new Request(input, init);
+    const url = new URL(request.url, window.location.href);
+    const method = request.method.toUpperCase();
+
+    if (!shouldDeduplicateQuizRequest(url, method)) {
+      return originalFetch(input, init);
+    }
+
+    // The quiz submit is JSON in App.tsx. Identical concurrent submissions share
+    // one network request, while each caller receives its own readable Response.
+    const body = typeof init?.body === 'string' ? init.body : '';
+    const key = `${method}:${url.href}:${body}`;
+    const existing = quizRequestCache.get(key);
+    if (existing) {
+      const snapshot = await existing;
+      return new Response(snapshot.body, {
+        status: snapshot.status,
+        statusText: snapshot.statusText,
+        headers: snapshot.headers,
+      });
+    }
+
+    const shared = originalFetch(input, init).then(async (response) => ({
+      body: await response.text(),
+      status: response.status,
+      statusText: response.statusText,
+      headers: Array.from(response.headers.entries()),
+    }));
+
+    quizRequestCache.set(key, shared);
+
+    // Keep the completed result briefly so two rapid taps cannot create a second
+    // POST even if the first response has already arrived.
+    window.setTimeout(() => {
+      if (quizRequestCache.get(key) === shared) quizRequestCache.delete(key);
+    }, 2000);
+
+    try {
+      const snapshot = await shared;
+      return new Response(snapshot.body, {
+        status: snapshot.status,
+        statusText: snapshot.statusText,
+        headers: snapshot.headers,
+      });
+    } catch (error) {
+      quizRequestCache.delete(key);
+      throw error;
+    }
+  };
+
+  (window as Window & { [marker]?: boolean })[marker] = true;
+};
+
 let checkoutInFlight = false;
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -27,8 +102,6 @@ const requestCheckout = async (sessionId: string) => {
       const message = typeof data?.error === 'string' ? data.error : `Não foi possível iniciar o pagamento (HTTP ${response.status}).`;
       lastError = new Error(message);
 
-      // Vercel/serverless or upstream failures can be transient. Retry once before
-      // showing an error to the customer; validation/409/4xx errors are not retried.
       if (attempt === 1 && [408, 429, 500, 502, 503, 504].includes(response.status)) {
         await wait(500);
         continue;
@@ -62,8 +135,6 @@ const startStripeCheckout = async (button: HTMLButtonElement) => {
 
   try {
     const checkoutUrl = await requestCheckout(sessionId);
-    // Keep the loading state while the browser leaves this page. This avoids
-    // duplicate requests and misleading error/reset states during navigation.
     window.location.assign(checkoutUrl);
   } catch (error) {
     checkoutInFlight = false;
@@ -113,6 +184,7 @@ const replaceManualPix = () => {
 };
 
 const bootPaymentFix = () => {
+  installQuizRequestGuard();
   const observer = new MutationObserver(() => replaceManualPix());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   replaceManualPix();
