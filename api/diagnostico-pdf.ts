@@ -5,8 +5,6 @@ type Res = { status: (code: number) => Res; setHeader: (name: string, value: str
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
-// Prefer the server-side service-role key. Ignore an accidental publishable key
-// in SUPABASE_SECRET_KEY instead of letting it override the valid server key.
 const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
   .map(clean)
   .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
@@ -35,7 +33,28 @@ function pdfText(value: unknown) {
 
 function makePdf(lines: string[]) {
   const safeLines = lines.map(pdfText);
-  const stream = ['BT', '/F1 20 Tf', '50 760 Td', `(${safeLines[0]}) Tj`, '/F1 11 Tf', ...safeLines.slice(1).flatMap(line => ['0 -24 Td', `(${line}) Tj`]), 'ET'].join('\n');
+  const stream = [
+    'q',
+    '0.82 0.62 0.25 RG',
+    '2.5 w',
+    '58 748 m 58 775 80 797 107 797 c 134 797 156 775 156 748 c 156 721 134 699 107 699 c 80 699 58 721 58 748 c S',
+    'Q',
+    'BT',
+    '/F1 18 Tf',
+    '175 770 Td',
+    '(JANAINA ARAUJO) Tj',
+    '/F1 10 Tf',
+    '0 -18 Td',
+    '(MINI DIAGNOSTICO) Tj',
+    'ET',
+    'BT',
+    '/F1 16 Tf',
+    '50 650 Td',
+    `(${safeLines[0]}) Tj`,
+    '/F1 11 Tf',
+    ...safeLines.slice(1).flatMap(line => ['0 -24 Td', `(${line}) Tj`]),
+    'ET',
+  ].join('\n');
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
