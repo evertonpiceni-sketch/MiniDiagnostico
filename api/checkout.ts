@@ -8,7 +8,11 @@ const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
 const PRICE_ID = clean(process.env.STRIPE_PRICE_ID);
 const APP_URL = clean(process.env.APP_URL).replace(/\/$/, '');
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
-const DB_KEY = clean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Prefer the server-side service-role key. Ignore an accidental publishable key
+// in SUPABASE_SECRET_KEY instead of letting it override the valid server key.
+const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
+  .map(clean)
+  .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
 function appUrl(req: Req) {
@@ -68,14 +72,10 @@ export default async function handler(req: Req, res: Res) {
     });
     if (!session.url) return res.status(502).json({ error: 'Stripe não retornou o endereço do pagamento.' });
 
-    // Persist the Checkout Session ID so polling/verification can confirm payment
-    // even if the Stripe webhook is delayed.
     try {
       await markCheckoutSession(id, session.id);
     } catch (dbError) {
       console.error('Checkout session persistence error', dbError);
-      // Do not expose the Stripe URL without its local correlation when persistence
-      // is unavailable; this prevents a successful payment from becoming orphaned.
       return res.status(503).json({ error: 'Não foi possível registrar a sessão de pagamento. Tente novamente.' });
     }
 
