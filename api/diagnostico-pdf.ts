@@ -5,7 +5,11 @@ type Res = { status: (code: number) => Res; setHeader: (name: string, value: str
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
-const DB_KEY = clean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+// Prefer the server-side service-role key. Ignore an accidental publishable key
+// in SUPABASE_SECRET_KEY instead of letting it override the valid server key.
+const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
+  .map(clean)
+  .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
@@ -83,9 +87,6 @@ export default async function handler(req: Req, res: Res) {
       const linked = stripeSession.metadata?.quiz_session_id || stripeSession.client_reference_id;
       if (stripeSession.payment_status !== 'paid' || linked !== id) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
-      // Stripe is the payment authority. If the redirect reaches this endpoint
-      // before the webhook, persist the confirmed payment so the result is not
-      // left pending when the customer downloads the PDF.
       const paidAt = new Date().toISOString();
       await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
         method: 'PATCH',
