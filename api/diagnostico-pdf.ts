@@ -5,9 +5,7 @@ type Res = { status: (code: number) => Res; setHeader: (name: string, value: str
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
-const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
-  .map(clean)
-  .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
+const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY).map(clean).find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
@@ -15,12 +13,7 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
   const r = await fetch(`${DB_URL}/rest/v1/${resource}`, {
     ...init,
-    headers: {
-      apikey: DB_KEY,
-      ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}),
-      Accept: 'application/json',
-      ...(init.headers || {}),
-    },
+    headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}), Accept: 'application/json', ...(init.headers || {}) },
   });
   if (!r.ok) throw new Error(`DB_${r.status}`);
   const text = await r.text();
@@ -31,17 +24,20 @@ function pdfText(value: unknown) {
   return String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
 }
 
+// Compact copy of the supplied Janaína Araújo logo, used so the paid PDF is self-contained.
+const LOGO_JPEG_BASE64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABIMDRANCxIQDhAUExIVGywdGxgYGzYnKSAsQDlEQz85Pj1HUGZXR0thTT0+WXlaYWltcnNyRVV9hnxvhWZwcm7/2wBDARMUFBsXGzQdHTRuST5Jbm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm7/wAARCACAAIADASIAAhEBAxEB/8QAGgABAQEBAQEBAAAAAAAAAAAAAQACBQMEBv/EADMQAAICAQEFBQYFBQAAAAAAAAABAgMRBBITITFBBSJRcYEUQlJhocEyM3KRsRUjJOHw/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAIB/8QAHBEBAAICAwEAAAAAAAAAAAAAAAERAiESMVFB/9oADAMBAAIRAxEAPwD8QIIQISFAQkIAOCEAwBoADAGgAyBoAABBgKEBARQI0BCQoCISAANAAAaYAZA0ZYAAgBCAgaQoEKAUKA1CLnJRim5N4SXNgRHS3Gk7OS9tT1GoazuISxGP6n9gfbeqisaeNGmj0VVaX1J5X02q7c4j7n2xq58LnVevC2tMw1p9V+VH2e74G8wl5N8n5i/SnxsDUouMnGSaaeGn0MspgMs0DAyAgBCCEBRpGRQGjpaX/A0HtmE7rW4U591dZfY5meB0+2sQt01Mfw1UQXq1lk5bqFR65+W223lvi2z3p0s7IbyTjXW3hTl1fglzb8jwWMrPBdTrzzpoyvniNj7tKfKmHxL5vp+4ymiIt8Goor0+Yytk7VzhscvPiedGnnqJ7MFw6t8kfXKpXXpKK9neIwsS7z8OPVnpqYPS0blrYsmsNLnx91fd+hPL4cXybC1OohVCTm9pQ3mMbS6HjTS7puO1GGIuWZvHTJ2OwdVpKLGraFt8u9JvH/YPg7Vt01upnKiE4+HeTX8ZNid0TGrfCzLFsC0hgxZkCECA0KMoQNHU7VhK+WjurW1vqUvVcGco6vZ1vtOis0Lw7VmVO0+fjH1Iy1tWPjyoq09cHde3ZCPDhwUpeC8fmeU9ddZZOctjvrEljmvAxvJu3FmypR7qhJYjH5fI9NzqMcNMmujjHK/dCvsl+MVau6m1WVyUXFYSS4L0PJycm5SbbfVnu67ItOyNNeF7z+3MzKaWXB1S8Uk1/JumPOubhPaWeCf8GXsbtcXt54rHDHmetqdVfeWLLFlr4Y/7PnyaJgQGsQEQAIEBogIDQxk4yUotprimuhkcgdRajSdopLXSdGp5b+KzGX6l9wfYerfHTunUQ6SqsXH0eGcwk2uTa8mTUx0277dH+i6yPG6FdEesrLIpL6mHLS6P8qS1N65Sx/bj5J/if0Pibb5tvzYCp+ltTnKc3KbcpSeW31MkBTERABARARAIEIEAkAgJZAgEsgQERAAgRAQCAEREBERAJEQEREBERAREAEQgBGrK51TcLIuMlzTKucqrIzg8Si8pntrdZZrbt5bjlhJdAP/Z';
+
 function makePdf(lines: string[]) {
   const safeLines = lines.map(pdfText);
-  const stream = [
+  const image = Buffer.from(LOGO_JPEG_BASE64, 'base64');
+  const content = [
     'q',
-    '0.82 0.62 0.25 RG',
-    '2.5 w',
-    '58 748 m 58 775 80 797 107 797 c 134 797 156 775 156 748 c 156 721 134 699 107 699 c 80 699 58 721 58 748 c S',
+    '90 0 0 90 50 735 cm',
+    '/Im1 Do',
     'Q',
     'BT',
     '/F1 18 Tf',
-    '175 770 Td',
+    '165 770 Td',
     '(JANAINA ARAUJO) Tj',
     '/F1 10 Tf',
     '0 -18 Td',
@@ -55,21 +51,34 @@ function makePdf(lines: string[]) {
     ...safeLines.slice(1).flatMap(line => ['0 -24 Td', `(${line}) Tj`]),
     'ET',
   ].join('\n');
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-    `<< /Length ${Buffer.byteLength(stream, 'latin1')} >>\nstream\n${stream}\nendstream`,
+
+  const imageHeader = Buffer.from(`<< /Type /XObject /Subtype /Image /Width 128 /Height 128 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.length} >>\nstream\n`, 'latin1');
+  const imageFooter = Buffer.from('\nendstream', 'latin1');
+  const objects: Buffer[] = [
+    Buffer.from('<< /Type /Catalog /Pages 2 0 R >>', 'latin1'),
+    Buffer.from('<< /Type /Pages /Kids [3 0 R] /Count 1 >>', 'latin1'),
+    Buffer.from('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> /XObject << /Im1 5 0 R >> >> /Contents 6 0 R >>', 'latin1'),
+    Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', 'latin1'),
+    Buffer.concat([imageHeader, image, imageFooter]),
+    Buffer.from(`<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`, 'latin1'),
   ];
-  let pdf = '%PDF-1.4\n';
+
+  const chunks: Buffer[] = [Buffer.from('%PDF-1.4\n', 'latin1')];
   const offsets: number[] = [0];
-  objects.forEach((object, index) => { offsets[index + 1] = Buffer.byteLength(pdf, 'latin1'); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
-  const xref = Buffer.byteLength(pdf, 'latin1');
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (let i = 1; i <= objects.length; i++) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-  return Buffer.from(pdf, 'latin1');
+  let position = chunks[0].length;
+  objects.forEach((object, index) => {
+    const prefix = Buffer.from(`${index + 1} 0 obj\n`, 'latin1');
+    const suffix = Buffer.from('\nendobj\n', 'latin1');
+    offsets[index + 1] = position;
+    chunks.push(prefix, object, suffix);
+    position += prefix.length + object.length + suffix.length;
+  });
+  const xrefOffset = position;
+  let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i++) xref += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  xref += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  chunks.push(Buffer.from(xref, 'latin1'));
+  return Buffer.concat(chunks);
 }
 
 function summary(dominant: string) {
@@ -107,11 +116,7 @@ export default async function handler(req: Req, res: Res) {
       if (stripeSession.payment_status !== 'paid' || linked !== id) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
       const paidAt = new Date().toISOString();
-      await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ payment_status: 'paid', paid_at: paidAt, stripe_checkout_session_id: stripeSession.id }),
-      });
+      await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ payment_status: 'paid', paid_at: paidAt, stripe_checkout_session_id: stripeSession.id }) });
       q.payment_status = 'paid';
       q.paid_at = paidAt;
       q.stripe_checkout_session_id = stripeSession.id;
