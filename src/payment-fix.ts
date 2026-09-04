@@ -6,30 +6,70 @@ const getSessionId = () => {
   }
 };
 
+let checkoutInFlight = false;
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const requestCheckout = async (sessionId: string) => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quiz_session_id: sessionId }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && typeof data.url === 'string' && data.url) return data.url;
+
+      const message = typeof data?.error === 'string' ? data.error : `Não foi possível iniciar o pagamento (HTTP ${response.status}).`;
+      lastError = new Error(message);
+
+      // Vercel/serverless or upstream failures can be transient. Retry once before
+      // showing an error to the customer; validation/409/4xx errors are not retried.
+      if (attempt === 1 && [408, 429, 500, 502, 503, 504].includes(response.status)) {
+        await wait(500);
+        continue;
+      }
+      break;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Não foi possível iniciar o pagamento.');
+      if (attempt === 1) {
+        await wait(500);
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error('Não foi possível iniciar o pagamento.');
+};
+
 const startStripeCheckout = async (button: HTMLButtonElement) => {
+  if (checkoutInFlight) return;
+
   const sessionId = getSessionId();
   if (!sessionId) {
     alert('Sessão do diagnóstico não encontrada. Volte ao início e refaça o diagnóstico.');
     return;
   }
 
+  checkoutInFlight = true;
   button.disabled = true;
   const original = button.textContent || 'Pagar via PIX';
   button.textContent = 'Abrindo pagamento seguro...';
 
   try {
-    const response = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quiz_session_id: sessionId }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.url) throw new Error(data.error || 'Não foi possível iniciar o pagamento.');
-    window.location.href = data.url;
+    const checkoutUrl = await requestCheckout(sessionId);
+    // Keep the loading state while the browser leaves this page. This avoids
+    // duplicate requests and misleading error/reset states during navigation.
+    window.location.assign(checkoutUrl);
   } catch (error) {
-    alert(error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.');
+    checkoutInFlight = false;
     button.disabled = false;
     button.textContent = original;
+    alert(error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.');
   }
 };
 
