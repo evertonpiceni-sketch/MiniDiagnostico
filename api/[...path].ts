@@ -1,5 +1,4 @@
 import Stripe from 'stripe';
-import { randomUUID } from 'node:crypto';
 
 type VercelRequest = NodeJS.ReadableStream & {
   method?: string;
@@ -13,11 +12,13 @@ export const config = { api: { bodyParser: false } };
 
 const cleanEnv = (value: string | undefined) => {
   const trimmed = (value || '').trim();
-  return trimmed.replace(/^(["'])(.*)\1$/, '$2').trim();
+  return trimmed.replace(/^([\"'])(.*)\1$/, '$2').trim();
 };
 
 const RAW_DB_URL = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
-const DB_KEY = cleanEnv(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
+  .map(cleanEnv)
+  .find((candidate) => Boolean(candidate) && !candidate.startsWith('sb_publishable_')) || '';
 const STRIPE_KEY = cleanEnv(process.env.STRIPE_SECRET_KEY);
 const WEBHOOK_SECRET = cleanEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const PRICE_ID = cleanEnv(process.env.STRIPE_PRICE_ID);
@@ -36,7 +37,6 @@ function dbConfig() {
   if (!RAW_DB_URL) throw new Error('DB_CONFIG_URL_MISSING');
   if (!DB_KEY || DB_KEY.length < 20) throw new Error('DB_CONFIG_KEY_MISSING');
   if (DB_KEY.startsWith('sb_publishable_')) throw new Error('DB_KEY_WRONG_TYPE');
-
   let parsed: URL;
   try { parsed = new URL(RAW_DB_URL); } catch { throw new Error('DB_URL_INVALID'); }
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) throw new Error('DB_URL_INVALID');
@@ -131,12 +131,12 @@ function scores(a: Record<string, number>) {
   for (let i = 9; i <= 12; i++) procrastinacao += a[String(i)];
   let resultado_dominante = 'MEDO', max = medo;
   if (inseguranca > max) { resultado_dominante = 'INSEGURANÇA'; max = inseguranca; }
-  if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
+  if (procrastinacao > max) { resultado_dominante = 'PROCRASTINAÇÃO'; }
   return { score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao, resultado_dominante };
 }
 
 async function findQuiz(id: string) {
-  return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id`))[0] || null;
+  return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id,whatsapp_sent_at`))[0] || null;
 }
 
 async function findDuplicate(whatsapp: string, respostas: Record<string, number>) {
@@ -171,7 +171,6 @@ async function sendWhatsappResult(q: any, resultUrl: string) {
   const to = normalizeWhatsapp(String(q.whatsapp || ''));
   const endpoint = `https://graph.facebook.com/${encodeURIComponent(WHATSAPP_API_VERSION)}/${encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)}/messages`;
   const common = { messaging_product: 'whatsapp', to };
-
   const payload = WHATSAPP_TEMPLATE_NAME
     ? {
         ...common,
@@ -207,10 +206,7 @@ async function sendWhatsappResult(q: any, resultUrl: string) {
     const response = await fetch(endpoint, {
       method: 'POST',
       signal: ctl.signal,
-      headers: {
-        Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const text = await response.text();
@@ -228,6 +224,30 @@ async function sendWhatsappResult(q: any, resultUrl: string) {
   }
 }
 
+async function deliverWhatsappOnce(q: any, resultUrl: string) {
+  if (q.whatsapp_sent_at) return true;
+  const claimedAt = new Date().toISOString();
+  const claimed = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(q.quiz_session_id)}&whatsapp_sent_at=is.null&select=quiz_session_id`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ whatsapp_sent_at: claimedAt }),
+  });
+  if (!claimed?.length) return Boolean(q.whatsapp_sent_at);
+
+  const sent = await sendWhatsappResult(q, resultUrl);
+  if (sent) {
+    q.whatsapp_sent_at = claimedAt;
+    return true;
+  }
+
+  try {
+    await patch(q.quiz_session_id, { whatsapp_sent_at: null });
+  } catch (resetError) {
+    console.error('WhatsApp retry marker reset failed', resetError);
+  }
+  return false;
+}
+
 async function confirmStripeSession(q: any, s: Stripe.Checkout.Session, resultUrl: string) {
   const linkedQuizId = s.metadata?.quiz_session_id || s.client_reference_id;
   if (linkedQuizId !== q.quiz_session_id || s.payment_status !== 'paid') return false;
@@ -239,8 +259,10 @@ async function confirmStripeSession(q: any, s: Stripe.Checkout.Session, resultUr
     q.payment_status = 'paid';
     q.paid_at = paidAt;
     q.stripe_checkout_session_id = s.id;
-    await sendWhatsappResult(q, resultUrl);
   }
+
+  // Retry delivery when a previous WhatsApp attempt failed. The DB marker prevents duplicates.
+  await deliverWhatsappOnce(q, resultUrl);
   return true;
 }
 
@@ -255,7 +277,7 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       if (!nome || nome.length > 120) throw new Error('Nome inválido.');
       const duplicate = await findDuplicate(whatsapp, respostas);
       if (duplicate) return send(res, 200, { ok: true, quiz_session_id: duplicate.quiz_session_id, reused: true });
-      const row = { quiz_session_id: randomUUID(), nome, whatsapp, respostas, ...scores(respostas), payment_status: 'pending' };
+      const row = { quiz_session_id: crypto.randomUUID(), nome, whatsapp, respostas, ...scores(respostas), payment_status: 'pending' };
       await db('quiz_sessions', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
       return send(res, 201, { ok: true, quiz_session_id: row.quiz_session_id });
     } catch (e: any) {
@@ -275,53 +297,13 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
       const q = await findQuiz(id);
       if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
       if (q.payment_status !== 'paid') return send(res, 200, { quiz_session_id: q.quiz_session_id, payment_status: q.payment_status });
-      return send(res, 200, {
-        quiz_session_id: q.quiz_session_id,
-        nome: q.nome,
-        score_medo: q.score_medo,
-        score_inseguranca: q.score_inseguranca,
-        score_procrastinacao: q.score_procrastinacao,
-        resultado_dominante: q.resultado_dominante,
-        payment_status: q.payment_status,
-        paid_at: q.paid_at,
-      });
+      return send(res, 200, { quiz_session_id: q.quiz_session_id, nome: q.nome, score_medo: q.score_medo, score_inseguranca: q.score_inseguranca, score_procrastinacao: q.score_procrastinacao, resultado_dominante: q.resultado_dominante, payment_status: q.payment_status, paid_at: q.paid_at });
     } catch (e: any) {
       const m = String(e?.message || '');
       return send(res, m === 'DB_TIMEOUT' ? 504 : 503, { error: 'Não foi possível consultar o diagnóstico.', code: m || 'DB_UNKNOWN' });
     }
   }
   return send(res, 405, { error: 'Método não permitido.' });
-}
-
-async function checkout(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
-  if (!rateLimit(req, 10, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas tentativas de pagamento. Aguarde alguns minutos e tente novamente.' });
-  try {
-    const b = await body(req);
-    const id = typeof b.quiz_session_id === 'string' ? b.quiz_session_id : '';
-    if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
-    if (!STRIPE_KEY || !PRICE_ID) return send(res, 503, { error: 'Pagamento ainda não está configurado.' });
-    const q = await findQuiz(id);
-    if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
-    if (q.payment_status === 'paid') return send(res, 409, { error: 'Este resultado já foi pago.' });
-
-    const s = await new Stripe(STRIPE_KEY).checkout.sessions.create({
-      payment_method_types: ['card'],
-      payment_method_options: { card: { installments: { enabled: true } } },
-      line_items: [{ price: PRICE_ID, quantity: 1 }],
-      mode: 'payment',
-      success_url: `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`,
-      cancel_url: `${appUrl(req)}/paywall?session_id=${encodeURIComponent(id)}&canceled=true`,
-      client_reference_id: id,
-      metadata: { quiz_session_id: id },
-    });
-    if (!s.url) return send(res, 502, { error: 'Stripe não retornou uma URL de pagamento.' });
-    await patch(id, { stripe_checkout_session_id: s.id });
-    return send(res, 200, { ok: true, url: s.url });
-  } catch (e: any) {
-    console.error('Checkout', e?.message || e);
-    return send(res, 502, { error: 'Não foi possível iniciar o pagamento.' });
-  }
 }
 
 async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string) {
@@ -331,12 +313,14 @@ async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string
   try {
     const q = await findQuiz(id);
     if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
-    if (q.payment_status === 'paid') return send(res, 200, { payment_status: 'paid' });
+    if (q.payment_status === 'paid') {
+      await deliverWhatsappOnce(q, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
+      return send(res, 200, { payment_status: 'paid' });
+    }
     const checkoutId = String(q.stripe_checkout_session_id || '');
     if (!checkoutId.startsWith('cs_') || !STRIPE_KEY) return send(res, 200, { payment_status: 'pending' });
     const s = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(checkoutId);
-    const url = `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`;
-    const confirmed = await confirmStripeSession(q, s, url);
+    const confirmed = await confirmStripeSession(q, s, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
     return send(res, 200, { payment_status: confirmed ? 'paid' : 'pending' });
   } catch (e) {
     console.error('Verify payment', e);
@@ -395,7 +379,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (p.endsWith('/webhook')) return webhook(req, res);
-  if (p.endsWith('/checkout')) return checkout(req, res);
+  if (p.endsWith('/checkout')) return send(res, 404, { error: 'Rota de checkout dedicada não encontrada.' });
   if (p.endsWith('/quiz')) return quiz(req, res);
 
   const verifyMatch = p.match(/\/quiz\/([^/]+)\/verify-payment$/);
