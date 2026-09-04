@@ -14,6 +14,10 @@
     {
       "source": "/paywall",
       "destination": "/index.html"
+    },
+    {
+      "source": "/politica-de-privacidade",
+      "destination": "/politica-de-privacidade.html"
     }
   ],
   "headers": [
