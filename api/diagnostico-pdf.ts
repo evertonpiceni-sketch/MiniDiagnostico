@@ -9,11 +9,20 @@ const DB_KEY = clean(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SER
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
-async function db<T>(resource: string): Promise<T> {
+async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
-  const r = await fetch(`${DB_URL}/rest/v1/${resource}`, { headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}), Accept: 'application/json' } });
+  const r = await fetch(`${DB_URL}/rest/v1/${resource}`, {
+    ...init,
+    headers: {
+      apikey: DB_KEY,
+      ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}),
+      Accept: 'application/json',
+      ...(init.headers || {}),
+    },
+  });
   if (!r.ok) throw new Error(`DB_${r.status}`);
-  return await r.json() as T;
+  const text = await r.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 function pdfText(value: unknown) {
@@ -51,25 +60,43 @@ export default async function handler(req: Req, res: Res) {
   try {
     let id = String(req.query.id || '');
     const stripeSessionId = String(req.query.session_id || '');
+    let stripeSession: Stripe.Checkout.Session | null = null;
+
     if (!validId(id) && stripeSessionId && STRIPE_KEY) {
-      const stripe = new Stripe(STRIPE_KEY);
-      const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
-      if (session.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-      const linked = session.metadata?.quiz_session_id || session.client_reference_id || '';
+      stripeSession = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(stripeSessionId);
+      if (stripeSession.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
+      const linked = stripeSession.metadata?.quiz_session_id || stripeSession.client_reference_id || '';
       if (!validId(linked)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
       id = linked;
     }
+
     if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
-    const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at`);
+    const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id`);
     const q = rows[0];
     if (!q) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
+
     if (q.payment_status !== 'paid') {
-      if (!stripeSessionId || !STRIPE_KEY) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-      const stripe = new Stripe(STRIPE_KEY);
-      const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
-      const linked = session.metadata?.quiz_session_id || session.client_reference_id;
-      if (session.payment_status !== 'paid' || linked !== id) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
+      if (!stripeSession) {
+        if (!stripeSessionId || !STRIPE_KEY) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
+        stripeSession = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(stripeSessionId);
+      }
+      const linked = stripeSession.metadata?.quiz_session_id || stripeSession.client_reference_id;
+      if (stripeSession.payment_status !== 'paid' || linked !== id) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
+
+      // Stripe is the payment authority. If the redirect reaches this endpoint
+      // before the webhook, persist the confirmed payment so the result is not
+      // left pending when the customer downloads the PDF.
+      const paidAt = new Date().toISOString();
+      await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ payment_status: 'paid', paid_at: paidAt, stripe_checkout_session_id: stripeSession.id }),
+      });
+      q.payment_status = 'paid';
+      q.paid_at = paidAt;
+      q.stripe_checkout_session_id = stripeSession.id;
     }
+
     const nome = String(q.nome || 'Cliente');
     const dominant = String(q.resultado_dominante || 'MEDO');
     const pdf = makePdf([
