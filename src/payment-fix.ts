@@ -98,7 +98,7 @@ const installBrandLogo = () => {
 
   const logo = document.createElement('img');
   logo.id = marker;
-  logo.src = '/logo.jpg';
+  logo.src = '/logo.svg';
   logo.alt = 'Janaína Araújo';
   logo.setAttribute('aria-hidden', 'true');
   logo.style.cssText = [
@@ -108,11 +108,11 @@ const installBrandLogo = () => {
     'transform:translateX(-50%)',
     'width:76px',
     'height:76px',
-    'object-fit:cover',
+    'object-fit:contain',
     'border-radius:50%',
     'z-index:40',
     'pointer-events:none',
-    'box-shadow:0 8px 24px rgba(0,0,0,.12)',
+    'box-shadow:0 8px 24px rgba(81,72,88,.12)',
   ].join(';');
   document.body.appendChild(logo);
 };
