@@ -41,7 +41,7 @@ export default function App() {
   const [resultado, setResultado] = useState<any>(null);
   useEffect(() => { if (quizSessionId) localStorage.setItem('quiz_session_id', quizSessionId); }, [quizSessionId]);
 
-  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('card');
+  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('pix');
   const [copiedCode, setCopiedCode] = useState(false);
   const [isVerifyingPix, setIsVerifyingPix] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
@@ -92,7 +92,7 @@ export default function App() {
           return;
         }
       }
-      toast('Ainda aguardando processamento bancário. Tente novamente em alguns segundos.');
+      toast('Este PIX é conferido por comprovante. Use o botão de WhatsApp abaixo após o pagamento.');
     } catch (err) {
       toast.error('Erro de conexão ao verificar pagamento. Tente novamente.');
     } finally {
@@ -293,9 +293,12 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <h1 className="text-2xl font-bold mb-2 text-center text-emerald-800">Mini Diagnóstico</h1>
-          <p className="text-stone-500 mb-8 text-center">Descubra o que te trava</p>
+          className="brand-start-card w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+          <div className="brand-hero-art" aria-hidden="true" />
+          <div className="brand-start-content">
+          <h1 className="text-3xl md:text-5xl font-bold mb-3 text-emerald-800">Descubra o que está bloqueando a sua evolução</h1>
+          <p className="text-stone-500 mb-5">Um mini diagnóstico rápido, profundo e transformador para entender seus principais desafios emocionais.</p>
+          <div className="brand-benefits"><span>✦ 12 perguntas (5 minutos)</span><span>✦ Resultado personalizado</span><span>✦ Relatório completo em PDF</span></div>
           <form onSubmit={handleStart} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-stone-700">Nome</label>
@@ -309,6 +312,7 @@ export default function App() {
               COMEÇAR
             </button>
           </form>
+          </div>
         </motion.div>
       )}
 
@@ -382,7 +386,7 @@ export default function App() {
               id="tab-pix"
               type="button"
               onClick={() => setActivePaymentTab('pix')}
-              className="hidden"
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer border border-stone-200"
             >
               <Smartphone className="w-4 h-4 text-emerald-600" />
               <span>Pagar via PIX (R$ 9,90)</span>
@@ -402,7 +406,7 @@ export default function App() {
             </button>
           </div>
 
-          {false && activePaymentTab === 'pix' && (
+          {activePaymentTab === 'pix' && (
             <div className="space-y-4 text-left">
               {/* Box com QR Code e detalhes */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -418,7 +422,7 @@ export default function App() {
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase font-bold tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">Aprovação Instantânea</span>
+                    <span className="text-xs uppercase font-bold tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">PIX Copia e Cola</span>
                     <span className="text-base font-bold text-stone-900">R$ 9,90</span>
                   </div>
                   <p className="text-xs text-stone-600 leading-relaxed">
