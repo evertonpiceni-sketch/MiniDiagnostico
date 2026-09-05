@@ -21,6 +21,14 @@ code = code.replace(
 );
 code = code.replace('placeholder="seu@email.com"', 'placeholder="(11) 99999-9999"');
 
+// Keep both payment choices visible in production. Pix remains the existing
+// manual/QR flow; card payments continue through the official Stripe Checkout.
+code = code.replace(
+  'className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${',
+  'className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${',
+);
+code = code.replace("{false && activePaymentTab === 'pix' && (", "{activePaymentTab === 'pix' && (");
+
 // Fail the build instead of silently publishing a frontend/backend contract mismatch.
 const requiredFragments = [
   "const [whatsapp, setWhatsapp] = useState('');",
@@ -28,11 +36,13 @@ const requiredFragments = [
   'nome, whatsapp, respostas: finalRespostas,',
   '>WhatsApp</label>',
   'type="tel" inputMode="tel" autoComplete="tel" value={whatsapp}',
+  "{activePaymentTab === 'pix' && (",
+  'id="btn-pagar-cartao-stripe"',
 ];
 
 for (const fragment of requiredFragments) {
   if (!code.includes(fragment)) {
-    throw new Error(`Cadastro WhatsApp guard failed: missing fragment: ${fragment}`);
+    throw new Error(`Production guard failed: missing fragment: ${fragment}`);
   }
 }
 
@@ -40,5 +50,9 @@ if (code.includes("const [email, setEmail] = useState('');") || code.includes('n
   throw new Error('Cadastro WhatsApp guard failed: legacy email flow is still active.');
 }
 
+if (code.includes("{false && activePaymentTab === 'pix' && (")) {
+  throw new Error('Payment guard failed: Pix is still disabled.');
+}
+
 fs.writeFileSync(appPath, code);
-console.log('Brand, price and WhatsApp guards applied: R$ 9,90 / cadastro aligned with /api/quiz');
+console.log('Production guards applied: R$ 9,90 / WhatsApp cadastro / Pix + card visible');
