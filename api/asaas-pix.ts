@@ -45,16 +45,20 @@ async function asaas<T>(path: string, init: RequestInit = {}): Promise<T> {
       signal: ctl.signal,
       headers: {
         access_token: ASAAS_API_KEY,
+        'User-Agent': 'MiniDiagnostico/1.0',
         'Content-Type': 'application/json',
         Accept: 'application/json',
         ...(init.headers || {}),
       },
     });
     const text = await r.text();
-    const data = text ? JSON.parse(text) : {};
+    let data: any = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = {}; }
     if (!r.ok) {
-      const detail = Array.isArray(data?.errors) ? data.errors.map((e: any) => e?.description).filter(Boolean).join(' | ') : '';
-      throw new Error(`ASAAS_${r.status}:${detail || text.slice(0, 300)}`);
+      const detail = Array.isArray(data?.errors)
+        ? data.errors.map((e: any) => e?.description || e?.code).filter(Boolean).join(' | ')
+        : (data?.message || data?.error || '');
+      throw new Error(`ASAAS_${r.status}:${String(detail || 'Falha na API do Asaas').slice(0, 300)}`);
     }
     return data as T;
   } finally {
@@ -117,6 +121,19 @@ async function savePayment(quizId: string, paymentId: string, token: string) {
   });
 }
 
+function publicAsaasError(message: string) {
+  const match = message.match(/^ASAAS_(\d{3}):(.*)$/s);
+  if (!match) return null;
+  const status = Number(match[1]);
+  const detail = String(match[2] || '').trim().replace(/\s+/g, ' ').slice(0, 220);
+  if (status === 401) return { status: 503, error: 'A chave da API do Asaas não foi aceita.' };
+  if (status === 403) return { status: 503, error: `Asaas recusou a operação: ${detail || 'permissão insuficiente.'}` };
+  if (status === 400 || status === 422) return { status: 400, error: `Asaas recusou os dados do PIX: ${detail || 'verifique os dados da cobrança.'}` };
+  if (status === 404) return { status: 502, error: `Recurso do Asaas não encontrado: ${detail || 'verifique a configuração da conta.'}` };
+  if (status === 429) return { status: 503, error: 'O Asaas limitou temporariamente as requisições. Tente novamente em instantes.' };
+  return { status: 502, error: `Asaas retornou erro ${status}: ${detail || 'falha temporária.'}` };
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
 
@@ -132,9 +149,7 @@ export default async function handler(req: Req, res: Res) {
     if (!quiz) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
 
     const token = resultToken(id);
-    if (quiz.payment_status === 'paid') {
-      return res.status(200).json({ ok: true, paid: true, token });
-    }
+    if (quiz.payment_status === 'paid') return res.status(200).json({ ok: true, paid: true, token });
 
     let payment: any = null;
     if (quiz.asaas_payment_id) {
@@ -178,7 +193,11 @@ export default async function handler(req: Req, res: Res) {
     console.error('Asaas PIX error', message);
     if (message === 'DB_CONFIG' || message.startsWith('DB_')) return res.status(503).json({ error: 'Banco de dados indisponível para o PIX.' });
     if (message === 'ASAAS_NOT_CONFIGURED') return res.status(503).json({ error: 'PIX Asaas não está configurado.' });
-    if (message.includes('ASAAS_401')) return res.status(503).json({ error: 'A chave da API do Asaas não foi aceita.' });
+    if (message === 'ASAAS_CUSTOMER_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou o cadastro do cliente.' });
+    if (message === 'ASAAS_PAYMENT_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou a identificação da cobrança PIX.' });
+    if (message === 'ASAAS_PAYMENT_MISMATCH') return res.status(409).json({ error: 'A cobrança PIX encontrada não corresponde a este diagnóstico.' });
+    const asaasError = publicAsaasError(message);
+    if (asaasError) return res.status(asaasError.status).json({ error: asaasError.error });
     return res.status(500).json({ error: 'Não foi possível gerar o PIX. Tente novamente.' });
   }
 }
