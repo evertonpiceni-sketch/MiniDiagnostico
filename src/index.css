@@ -63,7 +63,7 @@ a[href*="whatsapp.com"] { display:none !important; }
 /* Visual do modelo aprovado */
 .brand-start-card{position:relative;overflow:hidden;min-height:620px;padding-right:min(48%,430px)!important;display:flex;align-items:center}
 .brand-start-content{position:relative;z-index:2;width:100%}
-.brand-hero-art{position:absolute;inset:0 0 0 43%;background:url('/hero-golden-woman.png') center right/cover no-repeat;opacity:.92;mask-image:linear-gradient(90deg,transparent 0%,#000 32%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 32%)}
+.brand-hero-art{position:absolute;inset:0 0 0 43%;background:url('/hero-golden-woman.webp') center right/cover no-repeat;opacity:.92;mask-image:linear-gradient(90deg,transparent 0%,#000 32%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 32%)}
 .brand-benefits{display:grid;gap:.65rem;margin:0 0 1.25rem;color:var(--brand-cream);font-size:.92rem}
 .brand-start-card form{max-width:430px}
 #tab-pix,#tab-card{display:flex!important}
