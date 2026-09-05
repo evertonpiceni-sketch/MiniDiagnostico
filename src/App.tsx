@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Variants } from 'motion/react';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
-import { Loader2, Check, Copy, Sparkles, Smartphone, CreditCard, ShieldCheck, MessageCircle } from 'lucide-react';
+import { Loader2, Check, Copy, Sparkles, Smartphone, CreditCard, ShieldCheck, MessageCircle, ArrowLeft, ArrowRight, LockKeyhole, Clock3, MonitorSmartphone } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const PIX_CODE = '00020126530014br.gov.bcb.pix0131contato.janainaaraujo@gmail.com52040000530398654049.905802BR5914JANAINA ARAUJO6014RIO DE JANEIRO62070503***63049B5A';
@@ -45,6 +45,10 @@ export default function App() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [isVerifyingPix, setIsVerifyingPix] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const previewResult = (() => {
+    try { return JSON.parse(localStorage.getItem('janaina_resultado') || 'null'); }
+    catch { return null; }
+  })();
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -282,7 +286,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-sky-50 to-emerald-50 flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
+    <div className="brand-shell min-h-screen flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
       <Toaster position="top-center" />
       
       <AnimatePresence mode="wait">
@@ -296,9 +300,11 @@ export default function App() {
           className="brand-start-card w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
           <div className="brand-hero-art" aria-hidden="true" />
           <div className="brand-start-content">
-          <h1 className="text-3xl md:text-5xl font-bold mb-3 text-emerald-800">Descubra o que está bloqueando a sua evolução</h1>
-          <p className="text-stone-500 mb-5">Um mini diagnóstico rápido, profundo e transformador para entender seus principais desafios emocionais.</p>
-          <div className="brand-benefits"><span>✦ 12 perguntas (5 minutos)</span><span>✦ Resultado personalizado</span><span>✦ Relatório completo em PDF</span></div>
+          <img id="mini-diagnostico-brand-logo" src="/ja-logo.webp" alt="Janaina Araújo — Terapeuta Integrativa" />
+          <p className="brand-eyebrow">MINI DIAGNÓSTICO</p>
+          <h1 className="text-3xl md:text-5xl font-bold mb-3 text-emerald-800">Descubra o que está bloqueando o seu bem-estar emocional</h1>
+          <p className="text-stone-500 mb-5">Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p>
+          <div className="brand-benefits"><span><Clock3 /> <b>Rápido</b><small>5 minutos</small></span><span><ShieldCheck /> <b>Seguro</b><small>e confidencial</small></span><span><MonitorSmartphone /> <b>100%</b><small>online</small></span></div>
           <form onSubmit={handleStart} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-stone-700">Nome</label>
@@ -309,7 +315,7 @@ export default function App() {
               <input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="(51) 99999-9999" />
             </div>
             <button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 shadow-md shadow-emerald-900/10 active:scale-[0.98]">
-              COMEÇAR
+              Iniciar meu diagnóstico <ArrowRight className="inline w-4 h-4 ml-1" />
             </button>
           </form>
           </div>
@@ -323,13 +329,14 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+          className="brand-page-card quiz-card w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+          <div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaina Araújo" /><span>Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span></div>
           <div className="mb-8">
-            <span className="text-sm font-medium text-stone-400">Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span>
             <div className="w-full bg-stone-100 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex) / PERGUNTAS.length) * 100}%` }} />
+              <div className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / PERGUNTAS.length) * 100}%` }} />
             </div>
           </div>
+          <p className="brand-eyebrow">AUTOCONHECIMENTO</p>
           <h2 className="text-xl font-medium mb-8 leading-relaxed text-stone-800">
             {PERGUNTAS[currentQuestionIndex]?.texto}
           </h2>
@@ -344,6 +351,8 @@ export default function App() {
               </button>
             ))}
           </div>
+          {currentQuestionIndex > 0 && <button type="button" onClick={() => setCurrentQuestionIndex(i => i - 1)} className="brand-back"><ArrowLeft /> Voltar</button>}
+          <p className="brand-card-quote">Cada resposta te aproxima da sua verdade.</p>
         </motion.div>
       )}
 
@@ -367,17 +376,19 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
+          className="brand-page-card payment-card w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
+          <div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaina Araújo" /><LockKeyhole /></div>
           
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full text-xs font-semibold mb-3">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span>Resultado Calculado com Sucesso</span>
           </div>
 
-          <h2 className="text-2xl font-bold mb-2 text-stone-900">Desbloqueie seu Diagnóstico Completo</h2>
+          <h2 className="text-2xl font-bold mb-2 text-stone-900">Seu resultado</h2>
+          {previewResult?.resultado_dominante && <div className="result-preview"><span>✦</span><small>Sua principal área de atenção é</small><strong>{previewResult.resultado_dominante}</strong></div>}
+          <h3 className="payment-title">Finalizar pagamento</h3>
           <p className="text-stone-600 mb-6 text-sm leading-relaxed">
-            Identificamos qual dos três padrões tem maior peso nas suas respostas.
-            Descubra a raiz inconsciente do seu bloqueio e qual deve ser o seu primeiro movimento terapêutico.
+            Seu relatório personalizado será liberado após a confirmação do pagamento.
           </p>
 
           {/* Abas de Pagamento */}
@@ -386,10 +397,10 @@ export default function App() {
               id="tab-pix"
               type="button"
               onClick={() => setActivePaymentTab('pix')}
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer border border-stone-200"
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer border border-stone-200 ${activePaymentTab === 'pix' ? 'payment-tab-active' : ''}`}
             >
               <Smartphone className="w-4 h-4 text-emerald-600" />
-              <span>Pagar via PIX (R$ 9,90)</span>
+              <span>Pix</span>
             </button>
             <button
               id="tab-card"
@@ -397,12 +408,12 @@ export default function App() {
               onClick={() => setActivePaymentTab('card')}
               className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 activePaymentTab === 'card'
-                  ? 'bg-white text-emerald-800 shadow-sm border border-stone-200'
+                  ? 'payment-tab-active bg-white text-emerald-800 shadow-sm border border-stone-200'
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
               <CreditCard className="w-4 h-4 text-stone-500" />
-              <span>PIX ou Cartão</span>
+              <span>Cartão de crédito</span>
             </button>
           </div>
 
@@ -531,11 +542,11 @@ export default function App() {
             <div className="space-y-4 text-left">
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-stone-700 text-xs leading-relaxed space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 text-sm">PIX, Cartão ou Carteiras Digitais</span>
+                  <span className="font-semibold text-stone-900 text-sm">Cartão de crédito</span>
                   <span className="font-bold text-stone-900 text-base">R$ 9,90</span>
                 </div>
                 <p className="text-stone-600">
-                  Pagamento protegido pela Stripe. As formas disponíveis, incluindo PIX e cartão, são exibidas no checkout seguro conforme a configuração da conta.
+                  Pagamento protegido pela Stripe. Você será direcionado ao checkout seguro para informar os dados do cartão.
                 </p>
               </div>
 
@@ -555,7 +566,7 @@ export default function App() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5" />
-                    <span>PAGAR COM PIX OU CARTÃO (R$ 9,90)</span>
+                    <span>CONCLUIR PAGAMENTO — R$ 9,90</span>
                   </>
                 )}
               </button>
@@ -570,7 +581,8 @@ export default function App() {
           variants={resultadoContainerVariants}
           initial="hidden"
           animate="visible"
-          className="w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200">
+          className="brand-page-card report-card w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200">
+          <div className="report-brand"><img src="/ja-logo.webp" alt="Janaina Araújo" /><p>Seu Relatório Personalizado</p><small>Mini Diagnóstico Emocional</small></div>
           <motion.h2 
             variants={resultadoItemVariants}
             className="text-2xl md:text-3xl font-bold mb-6 text-emerald-800 text-center border-b border-stone-100 pb-6">
