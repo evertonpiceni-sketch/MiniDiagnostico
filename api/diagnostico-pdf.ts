@@ -1,4 +1,4 @@
-import Stripe from 'stripe';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 type Req = { method?: string; query: Record<string, string | string[] | undefined> };
 type Res = { status: (code: number) => Res; setHeader: (name: string, value: string) => void; end: (body?: any) => void; json: (data: unknown) => void };
@@ -6,8 +6,15 @@ type Res = { status: (code: number) => Res; setHeader: (name: string, value: str
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
 const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY].map(clean).find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
-const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
+const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+
+function validToken(id: string, token: string) {
+  if (RESULT_TOKEN_SECRET.length < 32 || !token) return false;
+  const expected = Buffer.from(createHmac('sha256', RESULT_TOKEN_SECRET).update(`result:${id}`).digest('base64url'));
+  const received = Buffer.from(token);
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
 
 async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
@@ -61,31 +68,14 @@ function summary(dominant: string) {
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   try {
-    let id = String(req.query.id || '');
-    const stripeSessionId = String(req.query.session_id || '');
-    let stripeSession: Stripe.Checkout.Session | null = null;
-    if (!validId(id) && stripeSessionId && STRIPE_KEY) {
-      stripeSession = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(stripeSessionId);
-      if (stripeSession.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-      const linked = stripeSession.metadata?.quiz_session_id || stripeSession.client_reference_id || '';
-      if (!validId(linked)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
-      id = linked;
-    }
+    const id = String(req.query.id || '');
+    const token = String(req.query.token || '');
     if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+    if (!validToken(id, token)) return res.status(403).json({ error: 'Acesso ao PDF não autorizado.' });
     const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id`);
     const q = rows[0];
     if (!q) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
-    if (q.payment_status !== 'paid') {
-      if (!stripeSession) {
-        if (!stripeSessionId || !STRIPE_KEY) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-        stripeSession = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(stripeSessionId);
-      }
-      const linked = stripeSession.metadata?.quiz_session_id || stripeSession.client_reference_id;
-      if (stripeSession.payment_status !== 'paid' || linked !== id) return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-      const paidAt = new Date().toISOString();
-      await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ payment_status: 'paid', paid_at: paidAt, stripe_checkout_session_id: stripeSession.id }) });
-      q.payment_status = 'paid'; q.paid_at = paidAt; q.stripe_checkout_session_id = stripeSession.id;
-    }
+    if (q.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
     const nome = String(q.nome || 'Cliente');
     const dominant = String(q.resultado_dominante || 'MEDO');
     const pdf = makePdf(['MINI DIAGNOSTICO - RESULTADO COMPLETO',`Nome: ${nome}`,'',`Padrao dominante: ${dominant}`,`Medo: ${q.score_medo}/12`,`Inseguranca: ${q.score_inseguranca}/12`,`Procrastinacao: ${q.score_procrastinacao}/12`,'',summary(dominant),'','Pagamento confirmado.',`Data de confirmacao: ${q.paid_at || 'registrada no sistema'}`,'','Este documento e um material de autoconhecimento e nao substitui avaliacao profissional.']);
