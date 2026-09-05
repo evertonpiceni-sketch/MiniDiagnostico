@@ -8,6 +8,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/retry-deliveries",
+      "schedule": "0 10 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/resultado",
