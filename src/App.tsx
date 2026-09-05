@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import type { Variants } from 'motion/react';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
 import { Loader2, Check, Copy, Sparkles, Smartphone, CreditCard, ShieldCheck, MessageCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const PIX_CODE = '00020126530014br.gov.bcb.pix0131contato.janainaaraujo@gmail.com52040000530398654049.905802BR5914JANAINA ARAUJO6014RIO DE JANEIRO62070503***63049B5A';
 
-const resultadoContainerVariants = {
+const resultadoContainerVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: {
     opacity: 1,
@@ -20,7 +21,7 @@ const resultadoContainerVariants = {
   }
 };
 
-const resultadoItemVariants = {
+const resultadoItemVariants: Variants = {
   hidden: { opacity: 0, y: 15 },
   visible: { 
     opacity: 1, 
@@ -32,14 +33,15 @@ const resultadoItemVariants = {
 export default function App() {
   const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>(() => { if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/resultado') return 'resultado'; if (path === '/paywall') return 'paywall'; } return 'inicio'; });
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
   const [quizSessionId, setQuizSessionId] = useState<string | null>(() => { return new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'); });
+  const [resultToken] = useState<string>(() => new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('result_token') || '');
   const [resultado, setResultado] = useState<any>(null);
   useEffect(() => { if (quizSessionId) localStorage.setItem('quiz_session_id', quizSessionId); }, [quizSessionId]);
 
-  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('pix');
+  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('card');
   const [copiedCode, setCopiedCode] = useState(false);
   const [isVerifyingPix, setIsVerifyingPix] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
@@ -79,14 +81,14 @@ export default function App() {
       const res = await fetch(`/api/quiz/${currentId}/verify-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm_pix: true })
+        body: JSON.stringify({ token: resultToken })
       });
       if (res.ok) {
         const data = await res.json();
         if (data.payment_status === 'paid') {
           toast.success('Pagamento confirmado! Carregando seu diagnóstico completo...');
           setCurrentStep('loading');
-          await fetchResult(currentId);
+          await fetchResult(currentId, resultToken);
           return;
         }
       }
@@ -128,17 +130,23 @@ export default function App() {
     }
   };
 
-  const fetchResult = async (sessionId: string | null) => {
+  const fetchResult = async (sessionId: string | null, token = resultToken) => {
     try {
+      if (token) sessionStorage.setItem('result_token', token);
+      const checkoutSessionId = new URLSearchParams(window.location.search).get('checkout_session_id');
       if (sessionId) {
         try {
-          await fetch(`/api/quiz/${sessionId}/verify-payment`, { method: 'POST' });
+          await fetch(`/api/quiz/${sessionId}/verify-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, checkout_session_id: checkoutSessionId }),
+          });
         } catch(e){}
       }
       await new Promise(r => setTimeout(r, 600));
       let backendPaid = false;
       if (sessionId) {
-        const res = await fetch(`/api/quiz/${sessionId}`);
+        const res = await fetch(`/api/quiz/${sessionId}?token=${encodeURIComponent(token)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.payment_status === 'paid') {
@@ -165,10 +173,11 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
+    const token = params.get('token') || sessionStorage.getItem('result_token') || '';
     const isCanceled = params.get('canceled');
     if (window.location.pathname.includes('/resultado') || sessionId) {
       setCurrentStep('loading');
-      fetchResult(sessionId);
+      fetchResult(sessionId, token);
     } else if (isCanceled) {
       setCurrentStep('paywall');
     }
@@ -177,17 +186,21 @@ export default function App() {
   // Polling automático de pagamento
   useEffect(() => {
     let interval: any;
-    if (currentStep === 'paywall' && quizSessionId) {
+    if (currentStep === 'paywall' && quizSessionId && resultToken) {
       interval = setInterval(async () => {
         try {
-          const res = await fetch(`/api/quiz/${quizSessionId}/verify-payment`, { method: 'POST' });
+          const res = await fetch(`/api/quiz/${quizSessionId}/verify-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: resultToken }),
+          });
           if (res.ok) {
             const data = await res.json();
             if (data.payment_status === 'paid') {
               clearInterval(interval);
               toast.success('Pagamento identificado com sucesso! Desbloqueando seu diagnóstico...');
               setCurrentStep('loading');
-              await fetchResult(quizSessionId);
+              await fetchResult(quizSessionId, resultToken);
             }
           }
         } catch (e) {}
@@ -198,8 +211,10 @@ export default function App() {
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nome && email) {
+    if (nome && whatsapp.replace(/\D/g, '').length >= 10) {
       setCurrentStep('quiz');
+    } else {
+      toast.error('Informe um número de WhatsApp válido com DDD.');
     }
   };
 
@@ -244,7 +259,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nome, email, respostas: finalRespostas,
+          nome, whatsapp, respostas: finalRespostas,
           score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao,
           resultado_dominante: dominante
         })
@@ -287,8 +302,8 @@ export default function App() {
               <input required type="text" value={nome} onChange={e => setNome(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="Seu nome" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-stone-700">E-mail</label>
-              <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="seu@email.com" />
+              <label className="block text-sm font-medium mb-1 text-stone-700">WhatsApp</label>
+              <input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="(51) 99999-9999" />
             </div>
             <button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 shadow-md shadow-emerald-900/10 active:scale-[0.98]">
               COMEÇAR
@@ -367,7 +382,7 @@ export default function App() {
               id="tab-pix"
               type="button"
               onClick={() => setActivePaymentTab('pix')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+              className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${
                 activePaymentTab === 'pix'
                   ? 'bg-white text-emerald-800 shadow-sm border border-emerald-100'
                   : 'text-stone-600 hover:text-stone-900'
@@ -391,7 +406,7 @@ export default function App() {
             </button>
           </div>
 
-          {activePaymentTab === 'pix' && (
+          {false && activePaymentTab === 'pix' && (
             <div className="space-y-4 text-left">
               {/* Box com QR Code e detalhes */}
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -576,7 +591,7 @@ export default function App() {
                 <motion.div variants={resultadoItemVariants}>
                   <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
                   <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
-                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procura sinais de que está fazendo a escolha certa.</p>
+                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procaminho de volta pra si sinais de que está fazendo a escolha certa.</p>
                   <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
                   <p>A segurança que você espera sentir antes de agir muitas vezes é construída depois que você começa a agir.</p>
                 </motion.div>
@@ -594,7 +609,7 @@ export default function App() {
                 <motion.div variants={resultadoItemVariants}>
                   <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
                   <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
-                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procura sinais de que está fazendo a escolha certa.</p>
+                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procaminho de volta pra si sinais de que está fazendo a escolha certa.</p>
                   <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
                   <p>A segurança que você espera sentir antes de agir muitas vezes é construída depois que você começa a agir.</p>
                 </motion.div>
@@ -606,7 +621,7 @@ export default function App() {
                 </motion.div>
                 <motion.div variants={resultadoItemVariants}>
                   <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">UMA PERGUNTA IMPORTANTE</h3>
-                  <p>Pense em algo que você gostaria de fazer, mas diante do qual ainda sente insegurança.<br/>"Se eu não precisasse provar que sou capaz, o que eu já me permitiria fazer?"<br/>Observe a primeira resposta que surgir antes que sua mente comece a procurar justificativas.</p>
+                  <p>Pense em algo que você gostaria de fazer, mas diante do qual ainda sente insegurança.<br/>"Se eu não precisasse provar que sou capaz, o que eu já me permitiria fazer?"<br/>Observe a primeira resposta que surgir antes que sua mente comece a procaminho de volta pra sir justificativas.</p>
                 </motion.div>
                 <motion.div variants={resultadoItemVariants}>
                   <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">SEU PRIMEIRO MOVIMENTO</h3>
@@ -653,6 +668,14 @@ export default function App() {
           </div>
           
           <motion.div variants={resultadoItemVariants} className="mt-12 p-6 md:p-8 bg-stone-100 rounded-2xl border border-stone-200 text-center">
+            {quizSessionId && resultToken && (
+              <a
+                href={`/api/diagnostico-pdf?id=${encodeURIComponent(quizSessionId)}&token=${encodeURIComponent(resultToken)}`}
+                className="block text-center w-full bg-emerald-700 text-white font-medium py-4 rounded-xl hover:bg-emerald-800 transition-colors mb-4"
+              >
+                BAIXAR MEU DIAGNÓSTICO EM PDF
+              </a>
+            )}
             <h3 className="text-xl font-bold mb-2 text-stone-800">E SE VOCÊ QUISER IR ALÉM DESTE PRIMEIRO PASSO?</h3>
             <p className="text-stone-700 mb-6">
               Este resultado mostra o padrão que mais se destacou nas suas respostas, mas ele não conta toda a sua história. Por trás da {resultado.resultado_dominante.toLowerCase()} podem existir experiências, crenças e formas de proteção que foram sendo construídas ao longo da sua vida — e compreender essa origem pode ser o próximo passo para transformar esse padrão.
