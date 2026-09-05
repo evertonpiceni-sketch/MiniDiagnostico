@@ -14,6 +14,18 @@ const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECR
 
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
+function validCpf(value: unknown) {
+  const cpf = String(value || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const calc = (length: number) => {
+    let sum = 0;
+    for (let i = 0; i < length; i++) sum += Number(cpf[i]) * (length + 1 - i);
+    const r = (sum * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  return calc(9) === Number(cpf[9]) && calc(10) === Number(cpf[10]);
+}
+
 function resultToken(id: string) {
   if (RESULT_TOKEN_SECRET.length < 32) throw new Error('RESULT_TOKEN_SECRET_INVALID');
   return createHmac('sha256', RESULT_TOKEN_SECRET).update(`result:${id}`).digest('base64url');
@@ -61,21 +73,24 @@ async function asaas<T>(path: string, init: RequestInit = {}): Promise<T> {
       throw new Error(`ASAAS_${r.status}:${String(detail || 'Falha na API do Asaas').slice(0, 300)}`);
     }
     return data as T;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') throw new Error('ASAAS_TIMEOUT');
+    if (String(error?.message || '').toLowerCase().includes('fetch failed')) throw new Error('ASAAS_CONNECTION');
+    throw error;
   } finally {
     clearTimeout(timer);
   }
 }
 
 function todayBrazil() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${map.year}-${map.month}-${map.day}`;
 }
 
-async function findOrCreateCustomer(quiz: any) {
+async function findOrCreateCustomer(quiz: any, cpfCnpj: string) {
   const found = await asaas<any>(`/customers?externalReference=${encodeURIComponent(quiz.quiz_session_id)}&limit=1`);
   const existing = Array.isArray(found?.data) ? found.data[0] : null;
   if (existing?.id) return String(existing.id);
@@ -85,6 +100,7 @@ async function findOrCreateCustomer(quiz: any) {
     method: 'POST',
     body: JSON.stringify({
       name: String(quiz.nome || 'Cliente Mini Diagnóstico').slice(0, 100),
+      cpfCnpj,
       mobilePhone: mobilePhone || undefined,
       externalReference: quiz.quiz_session_id,
       notificationDisabled: true,
@@ -142,7 +158,9 @@ export default async function handler(req: Req, res: Res) {
     if (RESULT_TOKEN_SECRET.length < 32) return res.status(503).json({ error: 'Proteção do resultado não está configurada.' });
 
     const id = String(req.body?.quiz_session_id || '').trim();
+    const cpfCnpj = String(req.body?.cpfCnpj || '').replace(/\D/g, '');
     if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
+    if (!validCpf(cpfCnpj)) return res.status(400).json({ error: 'Informe um CPF válido para gerar o PIX no Asaas.' });
 
     const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,payment_status,asaas_payment_id`);
     const quiz = rows[0];
@@ -165,7 +183,7 @@ export default async function handler(req: Req, res: Res) {
     }
 
     if (!payment) {
-      const customerId = await findOrCreateCustomer(quiz);
+      const customerId = await findOrCreateCustomer(quiz, cpfCnpj);
       payment = await createPayment(quiz, customerId);
       await savePayment(id, String(payment.id), token);
     } else {
@@ -193,11 +211,14 @@ export default async function handler(req: Req, res: Res) {
     console.error('Asaas PIX error', message);
     if (message === 'DB_CONFIG' || message.startsWith('DB_')) return res.status(503).json({ error: 'Banco de dados indisponível para o PIX.' });
     if (message === 'ASAAS_NOT_CONFIGURED') return res.status(503).json({ error: 'PIX Asaas não está configurado.' });
+    if (message === 'ASAAS_TIMEOUT') return res.status(504).json({ error: 'O Asaas demorou para responder. Tente novamente.' });
+    if (message === 'ASAAS_CONNECTION') return res.status(503).json({ error: 'Não foi possível conectar ao Asaas a partir do servidor.' });
     if (message === 'ASAAS_CUSTOMER_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou o cadastro do cliente.' });
     if (message === 'ASAAS_PAYMENT_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou a identificação da cobrança PIX.' });
     if (message === 'ASAAS_PAYMENT_MISMATCH') return res.status(409).json({ error: 'A cobrança PIX encontrada não corresponde a este diagnóstico.' });
     const asaasError = publicAsaasError(message);
     if (asaasError) return res.status(asaasError.status).json({ error: asaasError.error });
-    return res.status(500).json({ error: 'Não foi possível gerar o PIX. Tente novamente.' });
+    const safe = message.replace(/\$aact_[^\s]+/g, '[chave ocultada]').replace(/\s+/g, ' ').slice(0, 160);
+    return res.status(500).json({ error: `Falha técnica ao gerar PIX: ${safe || 'erro interno desconhecido'}` });
   }
 }
