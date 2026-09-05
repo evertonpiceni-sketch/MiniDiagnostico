@@ -237,7 +237,7 @@ const replaceManualPix = () => {
     <div class="space-y-4 text-center">
       <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
         <div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro pelo Asaas</div>
-        <p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. O cartão continua sendo processado pela Stripe.</p>
+        <p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. A confirmação do pagamento é automática.</p>
       </div>
       <button id="btn-pagar-pix-asaas" type="button" class="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">GERAR PIX (R$ 9,90)</button>
       <p class="text-[11px] text-stone-500">Após pagar, aguarde alguns segundos. Não é necessário enviar comprovante.</p>
