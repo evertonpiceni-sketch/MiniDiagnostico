@@ -134,11 +134,13 @@ const beginPixPolling = (sessionId: string, token: string) => {
   window.setTimeout(stopPixPolling, 15 * 60 * 1000);
 };
 
-const requestAsaasPix = async (sessionId: string) => {
+const normalizeCpf = (value: string) => value.replace(/\D/g, '');
+
+const requestAsaasPix = async (sessionId: string, cpfCnpj: string) => {
   const response = await fetch('/api/asaas-pix', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ quiz_session_id: sessionId }),
+    body: JSON.stringify({ quiz_session_id: sessionId, cpfCnpj }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : `Não foi possível gerar o PIX (HTTP ${response.status}).`);
@@ -160,13 +162,13 @@ const renderPixQr = (root: HTMLElement, sessionId: string, data: Awaited<ReturnT
   root.innerHTML = `
     <div class="space-y-4 text-center">
       <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-        <div class="text-sm font-bold text-emerald-900 mb-2">PIX via Asaas • R$ 9,90</div>
+        <div class="text-sm font-bold text-emerald-900 mb-2">PIX • R$ 9,90</div>
         <p class="text-xs text-emerald-800 leading-relaxed">Escaneie o QR Code ou use o código Copia e Cola. A liberação é automática após a confirmação do pagamento.</p>
       </div>
       <div class="flex justify-center"><img id="asaas-pix-qr" alt="QR Code PIX" class="w-56 h-56 rounded-xl bg-white p-3" /></div>
       <textarea id="asaas-pix-payload" readonly class="w-full min-h-24 rounded-xl border p-3 text-xs break-all"></textarea>
       <button id="btn-copiar-pix-asaas" type="button" class="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">COPIAR CÓDIGO PIX</button>
-      <p id="asaas-pix-status" class="text-[11px] text-stone-500">Aguardando confirmação automática do Asaas...</p>
+      <p id="asaas-pix-status" class="text-[11px] text-stone-500">Aguardando confirmação automática do pagamento...</p>
     </div>
   `;
 
@@ -198,13 +200,21 @@ const startAsaasPix = async (button: HTMLButtonElement, root: HTMLElement) => {
     return;
   }
 
+  const cpfInput = window.prompt('Informe o CPF do pagador para gerar o PIX:');
+  if (cpfInput === null) return;
+  const cpfCnpj = normalizeCpf(cpfInput);
+  if (cpfCnpj.length !== 11) {
+    alert('Informe um CPF válido com 11 números.');
+    return;
+  }
+
   pixInFlight = true;
   button.disabled = true;
   const original = button.textContent || 'GERAR PIX (R$ 9,90)';
   button.textContent = 'Gerando PIX seguro...';
 
   try {
-    const data = await requestAsaasPix(sessionId);
+    const data = await requestAsaasPix(sessionId, cpfCnpj);
     const token = String(data.token || '');
     if (data.paid && token) {
       redirectToResult(sessionId, token);
@@ -236,7 +246,7 @@ const replaceManualPix = () => {
   root.innerHTML = `
     <div class="space-y-4 text-center">
       <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-        <div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro pelo Asaas</div>
+        <div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro</div>
         <p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. A confirmação do pagamento é automática.</p>
       </div>
       <button id="btn-pagar-pix-asaas" type="button" class="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">GERAR PIX (R$ 9,90)</button>
