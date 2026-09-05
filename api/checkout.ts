@@ -6,7 +6,9 @@ type Res = { status: (code: number) => Res; json: (data: unknown) => void };
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
-const STRIPE_PRICE_ID = clean(process.env.STRIPE_PRICE_ID);
+// Public Stripe Price ID for the live MiniDiagnostico account. Keeping it here avoids
+// accidentally pointing production at a Price created in a different Stripe account.
+const STRIPE_PRICE_ID = 'price_1UC8ArDYMR4k9wGHoh4bSlw0';
 const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
 const APP_URL = clean(process.env.APP_URL).replace(/\/$/, '');
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
@@ -16,6 +18,7 @@ const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECR
   .map(clean)
   .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+const validLiveStripeKey = (key: string) => key.startsWith('sk_live_') || key.startsWith('rk_live_');
 
 function resultToken(id: string) {
   if (RESULT_TOKEN_SECRET.length < 32) throw new Error('RESULT_TOKEN_SECRET_INVALID');
@@ -63,7 +66,7 @@ async function markCheckoutSession(id: string, stripeSessionId: string, token: s
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
   try {
-    if (!STRIPE_KEY || !STRIPE_PRICE_ID.startsWith('price_')) return res.status(503).json({ error: 'Stripe não está configurado.' });
+    if (!validLiveStripeKey(STRIPE_KEY)) return res.status(503).json({ error: 'Stripe de produção não está configurado corretamente.' });
     if (RESULT_TOKEN_SECRET.length < 32) return res.status(503).json({ error: 'Proteção do resultado não está configurada.' });
     const id = String(req.body?.quiz_session_id || '').trim();
     if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
