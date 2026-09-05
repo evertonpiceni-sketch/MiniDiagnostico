@@ -23,7 +23,6 @@
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-hot-toast": "^2.6.0",
-    "resend": "^6.24.0",
     "stripe": "^22.6.0",
     "tailwind-merge": "^3.6.0"
   },
@@ -33,6 +32,7 @@
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
