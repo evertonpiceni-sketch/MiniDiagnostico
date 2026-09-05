@@ -52,5 +52,9 @@ input:focus,button:focus-visible,a:focus-visible { outline:none !important; box-
 #btn-pagar-pix-stripe { background:linear-gradient(135deg,var(--brand-gold-bright),var(--brand-gold)) !important; color:#17110a !important; border:1px solid rgba(255,225,162,.35) !important; }
 #btn-pagar-pix-stripe + p { color:var(--brand-muted) !important; }
 
+/* WhatsApp remains implemented for later, but all user-facing WhatsApp actions are hidden for now. */
+a[href*="wa.me"],
+a[href*="whatsapp.com"] { display:none !important; }
+
 @media (max-width:640px) { #mini-diagnostico-brand-logo { width:76px !important; height:76px !important; top:8px !important; } [class~="bg-white"] { box-shadow:0 18px 50px rgba(0,0,0,.48) !important; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
