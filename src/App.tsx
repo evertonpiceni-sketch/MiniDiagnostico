@@ -382,11 +382,7 @@ export default function App() {
               id="tab-pix"
               type="button"
               onClick={() => setActivePaymentTab('pix')}
-              className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${
-                activePaymentTab === 'pix'
-                  ? 'bg-white text-emerald-800 shadow-sm border border-emerald-100'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
+              className="hidden"
             >
               <Smartphone className="w-4 h-4 text-emerald-600" />
               <span>Pagar via PIX (R$ 9,90)</span>
@@ -402,7 +398,7 @@ export default function App() {
               }`}
             >
               <CreditCard className="w-4 h-4 text-stone-500" />
-              <span>Cartão de Crédito</span>
+              <span>PIX ou Cartão</span>
             </button>
           </div>
 
@@ -531,11 +527,11 @@ export default function App() {
             <div className="space-y-4 text-left">
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-stone-700 text-xs leading-relaxed space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 text-sm">Cartão de Crédito / Carteiras Digitais</span>
+                  <span className="font-semibold text-stone-900 text-sm">PIX, Cartão ou Carteiras Digitais</span>
                   <span className="font-bold text-stone-900 text-base">R$ 9,90</span>
                 </div>
                 <p className="text-stone-600">
-                  Pagamento protegido pela Stripe. Aceita cartões Visa, Mastercard, Elo, Hipercard, Apple Pay e Google Pay.
+                  Pagamento protegido pela Stripe. As formas disponíveis, incluindo PIX e cartão, são exibidas no checkout seguro conforme a configuração da conta.
                 </p>
               </div>
 
@@ -555,7 +551,7 @@ export default function App() {
                 ) : (
                   <>
                     <CreditCard className="w-5 h-5" />
-                    <span>PAGAR COM CARTÃO DE CRÉDITO (R$ 9,90)</span>
+                    <span>PAGAR COM PIX OU CARTÃO (R$ 9,90)</span>
                   </>
                 )}
               </button>
