@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 type VercelRequest = {
   method?: string;
@@ -134,18 +134,9 @@ function calculateScores(answers: Record<string, number>) {
   };
 }
 
-function deterministicSessionId(whatsapp: string, answers: Record<string, number>) {
-  const canonical = `${whatsapp}:${JSON.stringify(answers)}`;
-  const hex = createHash('sha256').update(canonical).digest('hex').slice(0, 32).split('');
-  hex[12] = '5';
-  hex[16] = ['8', '9', 'a', 'b'][parseInt(hex[16], 16) % 4];
-  const value = hex.join('');
-  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
-}
-
 async function findDuplicate(whatsapp: string, answers: Record<string, number>) {
   const rows = await db<any[]>(
-    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&select=quiz_session_id,whatsapp,respostas,payment_status&limit=20`,
+    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,payment_status&order=created_at.desc&limit=20`,
   );
   return rows.find(
     (row) => String(row?.whatsapp || '') === whatsapp && JSON.stringify(row?.respostas || {}) === JSON.stringify(answers),
@@ -201,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const quiz_session_id = deterministicSessionId(whatsapp, respostas);
+    const quiz_session_id = randomUUID();
     const row = {
       quiz_session_id,
       nome,
@@ -217,10 +208,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         headers: { Prefer: 'return=minimal' },
         body: JSON.stringify(row),
       });
-    } catch (error: any) {
-      if (error?.message === 'DB_409') {
-        return res.status(200).json({ ok: true, quiz_session_id, reused: true });
-      }
+    } catch (error) {
       throw error;
     }
 
