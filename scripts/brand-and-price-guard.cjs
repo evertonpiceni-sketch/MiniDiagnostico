@@ -9,6 +9,16 @@ code = code.replace(/cura/gi, 'caminho de volta pra si');
 // Keep the displayed price explicit wherever it is rendered in the app.
 code = code.replace(/R\$\s*47(?:[,.]00)?/g, 'R$ 9,90');
 
+// Keep the landing copy exactly aligned with the approved visual preview.
+code = code.replace(
+  /Descubra o que está bloqueando o seu bem-estar emocional/g,
+  'Descubra o que está te impedindo de avançar',
+);
+code = code.replace(
+  /Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação\./g,
+  'Você sabe que quer mudar alguma coisa. Talvez até saiba o que precisa fazer. Mas, na hora de avançar, algo acontece.\n\nResponda a 12 perguntas rápidas e descubra qual padrão pode estar agindo por trás dessa trava — muitas vezes sem que você perceba.\n\nSeu resultado pode revelar mais do que você imagina.',
+);
+
 // The production backend identifies and delivers the diagnosis by WhatsApp.
 // Keep the frontend contract aligned with /api/quiz so the 12th answer can be saved.
 code = code.replace("const [email, setEmail] = useState('');", "const [whatsapp, setWhatsapp] = useState('');");
@@ -22,7 +32,7 @@ code = code.replace(
 code = code.replace('placeholder="seu@email.com"', 'placeholder="(11) 99999-9999"');
 
 // Keep both payment choices visible in production. Pix remains the existing
-// manual/QR flow; card payments continue through the official Stripe Checkout.
+// flow; card payments continue through the official Stripe Checkout.
 code = code.replace(
   'className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${',
   'className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${',
@@ -38,6 +48,8 @@ const requiredFragments = [
   'type="tel" inputMode="tel" autoComplete="tel" value={whatsapp}',
   "{activePaymentTab === 'pix' && (",
   'id="btn-pagar-cartao-stripe"',
+  'Descubra o que está te impedindo de avançar',
+  'Seu resultado pode revelar mais do que você imagina.',
 ];
 
 for (const fragment of requiredFragments) {
@@ -55,4 +67,4 @@ if (code.includes("{false && activePaymentTab === 'pix' && (")) {
 }
 
 fs.writeFileSync(appPath, code);
-console.log('Production guards applied: R$ 9,90 / WhatsApp cadastro / Pix + card visible');
+console.log('Production guards applied: copy final / R$ 9,90 / WhatsApp / Pix + card visible');
