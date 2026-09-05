@@ -6,9 +6,7 @@ type Res = { status: (code: number) => Res; json: (data: unknown) => void };
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
-// Public Stripe Price ID for the live MiniDiagnostico account. Keeping it here avoids
-// accidentally pointing production at a Price created in a different Stripe account.
-const STRIPE_PRICE_ID = 'price_1UC8ArDYMR4k9wGHoh4bSlw0';
+const STRIPE_PRICE_ID = clean(process.env.STRIPE_PRICE_ID);
 const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
 const APP_URL = clean(process.env.APP_URL).replace(/\/$/, '');
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
@@ -67,6 +65,7 @@ export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
   try {
     if (!validLiveStripeKey(STRIPE_KEY)) return res.status(503).json({ error: 'Stripe de produção não está configurado corretamente.' });
+    if (!STRIPE_PRICE_ID.startsWith('price_')) return res.status(503).json({ error: 'O preço da Stripe não está configurado.' });
     if (RESULT_TOKEN_SECRET.length < 32) return res.status(503).json({ error: 'Proteção do resultado não está configurada.' });
     const id = String(req.body?.quiz_session_id || '').trim();
     if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
