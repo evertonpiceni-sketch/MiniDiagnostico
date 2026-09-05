@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 type VercelRequest = NodeJS.ReadableStream & {
   method?: string;
@@ -6,7 +7,7 @@ type VercelRequest = NodeJS.ReadableStream & {
   query: Record<string, string | string[] | undefined>;
   headers: Record<string, string | string[] | undefined>;
 };
-type VercelResponse = { status: (code: number) => VercelResponse; json: (data: unknown) => unknown };
+type VercelResponse = { status: (code: number) => VercelResponse; json: (data: unknown) => unknown; send: (data: unknown) => unknown };
 
 export const config = { api: { bodyParser: false } };
 
@@ -23,12 +24,16 @@ const STRIPE_KEY = cleanEnv(process.env.STRIPE_SECRET_KEY);
 const WEBHOOK_SECRET = cleanEnv(process.env.STRIPE_WEBHOOK_SECRET);
 const PRICE_ID = cleanEnv(process.env.STRIPE_PRICE_ID);
 const APP_URL = cleanEnv(process.env.APP_URL).replace(/\/$/, '');
+const RESULT_TOKEN_SECRET = cleanEnv(process.env.RESULT_TOKEN_SECRET);
+const CRON_SECRET = cleanEnv(process.env.CRON_SECRET);
 
 const WHATSAPP_PHONE_NUMBER_ID = cleanEnv(process.env.WHATSAPP_PHONE_NUMBER_ID);
 const WHATSAPP_ACCESS_TOKEN = cleanEnv(process.env.WHATSAPP_ACCESS_TOKEN);
 const WHATSAPP_API_VERSION = cleanEnv(process.env.WHATSAPP_API_VERSION) || 'v23.0';
 const WHATSAPP_TEMPLATE_NAME = cleanEnv(process.env.WHATSAPP_TEMPLATE_NAME);
 const WHATSAPP_TEMPLATE_LANGUAGE = cleanEnv(process.env.WHATSAPP_TEMPLATE_LANGUAGE) || 'pt_BR';
+const WHATSAPP_VERIFY_TOKEN = cleanEnv(process.env.WHATSAPP_VERIFY_TOKEN);
+const WHATSAPP_APP_SECRET = cleanEnv(process.env.WHATSAPP_APP_SECRET);
 
 const send = (res: VercelResponse, status: number, data: unknown) => res.status(status).json(data);
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -41,6 +46,18 @@ function dbConfig() {
   try { parsed = new URL(RAW_DB_URL); } catch { throw new Error('DB_URL_INVALID'); }
   if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.supabase.co')) throw new Error('DB_URL_INVALID');
   return { url: parsed.origin, key: DB_KEY };
+}
+
+function expectedResultToken(id: string) {
+  if (RESULT_TOKEN_SECRET.length < 32) throw new Error('RESULT_TOKEN_SECRET_INVALID');
+  return createHmac('sha256', RESULT_TOKEN_SECRET).update(`result:${id}`).digest('base64url');
+}
+
+function validResultToken(id: string, value: unknown) {
+  if (typeof value !== 'string' || !value || RESULT_TOKEN_SECRET.length < 32) return false;
+  const expected = Buffer.from(expectedResultToken(id));
+  const received = Buffer.from(value);
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -136,11 +153,11 @@ function scores(a: Record<string, number>) {
 }
 
 async function findQuiz(id: string) {
-  return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id,whatsapp_sent_at`))[0] || null;
+  return (await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,respostas,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at,stripe_checkout_session_id,result_access_token_hash,whatsapp_delivery_status,whatsapp_claimed_at,whatsapp_sent_at,whatsapp_message_id,whatsapp_attempts`))[0] || null;
 }
 
 async function findDuplicate(whatsapp: string, respostas: Record<string, number>) {
-  const rows = await db<any[]>(`quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&select=quiz_session_id,whatsapp,respostas,payment_status&limit=20`);
+  const rows = await db<any[]>(`quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,payment_status&order=created_at.desc&limit=20`);
   return rows.find(row => row?.quiz_session_id && validId(String(row.quiz_session_id)) && String(row.whatsapp || '') === whatsapp && JSON.stringify(row.respostas || {}) === JSON.stringify(respostas)) || null;
 }
 
@@ -159,20 +176,18 @@ function appUrl(req: VercelRequest) {
 }
 
 function whatsappConfigured() {
-  return Boolean(WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN);
+  return Boolean(WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN && WHATSAPP_TEMPLATE_NAME);
 }
 
 async function sendWhatsappResult(q: any, resultUrl: string) {
   if (!whatsappConfigured()) {
-    console.warn('WhatsApp Cloud API não configurada; resultado não enviado.');
-    return false;
+    throw new Error('WHATSAPP_NOT_CONFIGURED');
   }
 
   const to = normalizeWhatsapp(String(q.whatsapp || ''));
   const endpoint = `https://graph.facebook.com/${encodeURIComponent(WHATSAPP_API_VERSION)}/${encodeURIComponent(WHATSAPP_PHONE_NUMBER_ID)}/messages`;
   const common = { messaging_product: 'whatsapp', to };
-  const payload = WHATSAPP_TEMPLATE_NAME
-    ? {
+  const payload = {
         ...common,
         type: 'template',
         template: {
@@ -190,14 +205,6 @@ async function sendWhatsappResult(q: any, resultUrl: string) {
             ],
           }],
         },
-      }
-    : {
-        ...common,
-        type: 'text',
-        text: {
-          preview_url: true,
-          body: `Olá, ${q.nome || 'Cliente'}! Seu pagamento foi confirmado.\n\n*Mini Diagnóstico*\nPadrão dominante: *${q.resultado_dominante}*\nMedo: ${q.score_medo}/12\nInsegurança: ${q.score_inseguranca}/12\nProcrastinação: ${q.score_procrastinacao}/12\n\nAcesse seu resultado completo: ${resultUrl}`,
-        },
       };
 
   const ctl = new AbortController();
@@ -212,45 +219,66 @@ async function sendWhatsappResult(q: any, resultUrl: string) {
     const text = await response.text();
     if (!response.ok) {
       console.error('WhatsApp API', response.status, text.slice(0, 700));
-      return false;
+      throw new Error(`WHATSAPP_${response.status}:${text.slice(0, 300)}`);
     }
+    const parsed = JSON.parse(text);
+    const messageId = String(parsed?.messages?.[0]?.id || '');
+    if (!messageId) throw new Error('WHATSAPP_MESSAGE_ID_MISSING');
     console.log('Resultado enviado por WhatsApp para', to.slice(0, 4) + '********');
-    return true;
+    return messageId;
   } catch (error) {
     console.error('WhatsApp API request failed', error);
-    return false;
+    throw error;
   } finally {
     clearTimeout(timer);
   }
 }
 
 async function deliverWhatsappOnce(q: any, resultUrl: string) {
-  if (q.whatsapp_sent_at) return true;
+  if (['accepted', 'sent', 'delivered', 'read'].includes(String(q.whatsapp_delivery_status))) return true;
   const claimedAt = new Date().toISOString();
-  const claimed = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(q.quiz_session_id)}&whatsapp_sent_at=is.null&select=quiz_session_id`, {
+  const leaseExpired = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const filter = `quiz_sessions?quiz_session_id=eq.${encodeURIComponent(q.quiz_session_id)}&whatsapp_delivery_status=in.(pending,failed,processing)&or=(whatsapp_claimed_at.is.null,whatsapp_claimed_at.lt.${encodeURIComponent(leaseExpired)})&select=quiz_session_id`;
+  const claimed = await db<any[]>(filter, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ whatsapp_sent_at: claimedAt }),
+    body: JSON.stringify({
+      whatsapp_delivery_status: 'processing',
+      whatsapp_claimed_at: claimedAt,
+      whatsapp_attempts: Number(q.whatsapp_attempts || 0) + 1,
+      whatsapp_last_error: null,
+    }),
   });
-  if (!claimed?.length) return Boolean(q.whatsapp_sent_at);
-
-  const sent = await sendWhatsappResult(q, resultUrl);
-  if (sent) {
-    q.whatsapp_sent_at = claimedAt;
-    return true;
-  }
+  if (!claimed?.length) return ['processing', 'accepted', 'sent', 'delivered', 'read'].includes(String(q.whatsapp_delivery_status));
 
   try {
-    await patch(q.quiz_session_id, { whatsapp_sent_at: null });
-  } catch (resetError) {
-    console.error('WhatsApp retry marker reset failed', resetError);
+    const messageId = await sendWhatsappResult(q, resultUrl);
+    await patch(q.quiz_session_id, {
+      whatsapp_delivery_status: 'accepted',
+      whatsapp_message_id: messageId,
+      whatsapp_sent_at: new Date().toISOString(),
+      whatsapp_claimed_at: null,
+      whatsapp_last_error: null,
+    });
+    q.whatsapp_delivery_status = 'accepted';
+    return true;
+  } catch (sendError: any) {
+    try {
+      await patch(q.quiz_session_id, {
+        whatsapp_delivery_status: 'failed',
+        whatsapp_claimed_at: null,
+        whatsapp_last_error: String(sendError?.message || sendError).slice(0, 500),
+      });
+    } catch (resetError) {
+      console.error('WhatsApp failure status update failed', resetError);
+    }
+    return false;
   }
-  return false;
 }
 
 async function confirmStripeSession(q: any, s: Stripe.Checkout.Session, resultUrl: string) {
   const linkedQuizId = s.metadata?.quiz_session_id || s.client_reference_id;
-  if (linkedQuizId !== q.quiz_session_id || s.payment_status !== 'paid') return false;
+  if (linkedQuizId !== q.quiz_session_id || s.payment_status !== 'paid' || s.currency !== 'brl' || s.amount_total !== 990) return false;
   if (q.stripe_checkout_session_id && q.stripe_checkout_session_id !== s.id) return false;
 
   if (q.payment_status !== 'paid') {
@@ -262,8 +290,7 @@ async function confirmStripeSession(q: any, s: Stripe.Checkout.Session, resultUr
   }
 
   // Retry delivery when a previous WhatsApp attempt failed. The DB marker prevents duplicates.
-  await deliverWhatsappOnce(q, resultUrl);
-  return true;
+  return deliverWhatsappOnce(q, resultUrl);
 }
 
 async function quiz(req: VercelRequest, res: VercelResponse) {
@@ -293,6 +320,7 @@ async function quiz(req: VercelRequest, res: VercelResponse) {
     if (!rateLimit(req, 60, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas consultas. Aguarde alguns minutos e tente novamente.' });
     const id = String(req.query.id || '');
     if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
+    if (!validResultToken(id, req.query.token)) return send(res, 403, { error: 'Acesso ao resultado não autorizado.' });
     try {
       const q = await findQuiz(id);
       if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
@@ -311,16 +339,22 @@ async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string
   if (!rateLimit(req, 60, 15 * 60 * 1000)) return send(res, 429, { error: 'Muitas verificações. Aguarde alguns minutos e tente novamente.' });
   if (!validId(id)) return send(res, 400, { error: 'Sessão inválida.' });
   try {
+    const requestBody = await body(req);
+    const token = String(requestBody.token || '');
+    if (!validResultToken(id, token)) return send(res, 403, { error: 'Acesso ao resultado não autorizado.' });
     const q = await findQuiz(id);
     if (!q) return send(res, 404, { error: 'Quiz não encontrado.' });
+    const resultUrl = `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`;
     if (q.payment_status === 'paid') {
-      await deliverWhatsappOnce(q, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
+      await deliverWhatsappOnce(q, resultUrl);
       return send(res, 200, { payment_status: 'paid' });
     }
-    const checkoutId = String(q.stripe_checkout_session_id || '');
+    const suppliedCheckoutId = String(requestBody.checkout_session_id || '');
+    const checkoutId = suppliedCheckoutId.startsWith('cs_') ? suppliedCheckoutId : String(q.stripe_checkout_session_id || '');
     if (!checkoutId.startsWith('cs_') || !STRIPE_KEY) return send(res, 200, { payment_status: 'pending' });
     const s = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(checkoutId);
-    const confirmed = await confirmStripeSession(q, s, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
+    if (s.metadata?.result_token !== token) return send(res, 403, { error: 'Checkout não pertence a este acesso.' });
+    const confirmed = await confirmStripeSession(q, s, resultUrl);
     return send(res, 200, { payment_status: confirmed ? 'paid' : 'pending' });
   } catch (e) {
     console.error('Verify payment', e);
@@ -331,23 +365,91 @@ async function verifyPayment(req: VercelRequest, res: VercelResponse, id: string
 async function webhook(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
   if (!STRIPE_KEY || !WEBHOOK_SECRET) return send(res, 500, { error: 'Webhook Stripe não configurado.' });
+  const signature = req.headers['stripe-signature'];
+  if (typeof signature !== 'string') return send(res, 400, { error: 'Assinatura Stripe ausente.' });
+  let event: Stripe.Event;
   try {
-    const signature = req.headers['stripe-signature'];
-    if (typeof signature !== 'string') return send(res, 400, { error: 'Assinatura Stripe ausente.' });
-    const event = new Stripe(STRIPE_KEY).webhooks.constructEvent(await raw(req), signature, WEBHOOK_SECRET);
+    event = new Stripe(STRIPE_KEY).webhooks.constructEvent(await raw(req), signature, WEBHOOK_SECRET);
+  } catch (e) {
+    console.error('Webhook signature', e);
+    return send(res, 400, { error: 'Webhook inválido.' });
+  }
+  try {
     if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const s = event.data.object as Stripe.Checkout.Session;
       const id = s.metadata?.quiz_session_id || s.client_reference_id;
       if (id && validId(id)) {
         const q = await findQuiz(id);
-        if (q) await confirmStripeSession(q, s, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}`);
+        if (!q) throw new Error('QUIZ_NOT_FOUND');
+        const token = String(s.metadata?.result_token || '');
+        if (!validResultToken(id, token)) throw new Error('RESULT_TOKEN_INVALID');
+        const delivered = await confirmStripeSession(q, s, `${appUrl(req)}/resultado?session_id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`);
+        if (!delivered) throw new Error('PAYMENT_OR_DELIVERY_NOT_CONFIRMED');
       }
     }
     return send(res, 200, { received: true });
   } catch (e) {
-    console.error('Webhook', e);
-    return send(res, 400, { error: 'Webhook inválido.' });
+    console.error('Webhook processing', e);
+    return send(res, 500, { error: 'Falha temporária ao processar webhook.' });
   }
+}
+
+function validMetaSignature(payload: Buffer, signature: unknown) {
+  if (!WHATSAPP_APP_SECRET || typeof signature !== 'string' || !signature.startsWith('sha256=')) return false;
+  const expected = Buffer.from(`sha256=${createHmac('sha256', WHATSAPP_APP_SECRET).update(payload).digest('hex')}`);
+  const received = Buffer.from(signature);
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
+
+async function whatsappWebhook(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    const mode = String(req.query['hub.mode'] || '');
+    const token = String(req.query['hub.verify_token'] || '');
+    const challenge = String(req.query['hub.challenge'] || '');
+    if (mode === 'subscribe' && WHATSAPP_VERIFY_TOKEN && token === WHATSAPP_VERIFY_TOKEN) {
+      return res.status(200).send(challenge);
+    }
+    return send(res, 403, { error: 'Verificação recusada.' });
+  }
+  if (req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
+  const payload = await raw(req);
+  if (!validMetaSignature(payload, req.headers['x-hub-signature-256'])) return send(res, 401, { error: 'Assinatura Meta inválida.' });
+  try {
+    const data = JSON.parse(payload.toString('utf8'));
+    const statuses = (data?.entry || []).flatMap((entry: any) =>
+      (entry?.changes || []).flatMap((change: any) => change?.value?.statuses || []),
+    );
+    for (const status of statuses) {
+      const messageId = String(status?.id || '');
+      const value = String(status?.status || '');
+      if (!messageId || !['sent', 'delivered', 'read', 'failed'].includes(value)) continue;
+      const error = value === 'failed' ? JSON.stringify(status?.errors || []).slice(0, 500) : null;
+      await db(`quiz_sessions?whatsapp_message_id=eq.${encodeURIComponent(messageId)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ whatsapp_delivery_status: value, whatsapp_last_error: error }),
+      });
+    }
+    return send(res, 200, { received: true });
+  } catch (e) {
+    console.error('WhatsApp webhook processing', e);
+    return send(res, 500, { error: 'Falha temporária ao processar webhook.' });
+  }
+}
+
+async function retryDeliveries(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET' && req.method !== 'POST') return send(res, 405, { error: 'Método não permitido.' });
+  const authorization = String(req.headers.authorization || '');
+  if (!CRON_SECRET || authorization !== `Bearer ${CRON_SECRET}`) return send(res, 401, { error: 'Não autorizado.' });
+  if (!APP_URL) return send(res, 503, { error: 'APP_URL não configurada.' });
+  const rows = await db<any[]>('quiz_sessions?payment_status=eq.paid&whatsapp_delivery_status=in.(pending,failed)&whatsapp_attempts=lt.8&select=quiz_session_id,nome,whatsapp,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,whatsapp_delivery_status,whatsapp_attempts&order=paid_at.asc&limit=25');
+  let delivered = 0;
+  for (const q of rows) {
+    const token = expectedResultToken(String(q.quiz_session_id));
+    const resultUrl = `${APP_URL}/resultado?session_id=${encodeURIComponent(q.quiz_session_id)}&token=${encodeURIComponent(token)}`;
+    if (await deliverWhatsappOnce(q, resultUrl)) delivered += 1;
+  }
+  return send(res, 200, { processed: rows.length, accepted: delivered });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -378,6 +480,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  if (p.endsWith('/whatsapp-webhook')) return whatsappWebhook(req, res);
+  if (p.endsWith('/retry-deliveries')) return retryDeliveries(req, res);
   if (p.endsWith('/webhook')) return webhook(req, res);
   if (p.endsWith('/checkout')) return send(res, 404, { error: 'Rota de checkout dedicada não encontrada.' });
   if (p.endsWith('/quiz')) return quiz(req, res);
