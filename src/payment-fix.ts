@@ -41,12 +41,10 @@ const installQuizRequestGuard = () => {
   if ((window as Window & { [marker]?: boolean })[marker]) return;
 
   const originalFetch = window.fetch.bind(window);
-
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init);
     const url = new URL(request.url, window.location.href);
     const method = request.method.toUpperCase();
-
     if (!shouldDeduplicateQuizRequest(url, method)) return originalFetch(input, init);
 
     const body = typeof init?.body === 'string' ? init.body : '';
@@ -123,7 +121,7 @@ const verifyPixPayment = async (sessionId: string, token: string) => {
     const data = await response.json().catch(() => ({}));
     if (response.ok && data?.payment_status === 'paid') redirectToResult(sessionId, token);
   } catch {
-    // Polling is best-effort; the next interval retries automatically.
+    // Polling is best-effort.
   }
 };
 
@@ -157,7 +155,7 @@ const renderPixQr = (root: HTMLElement, sessionId: string, data: Awaited<ReturnT
   const token = String(data.token || '');
   const payload = String(data.payload || '');
   const encodedImage = String(data.encodedImage || '');
-  if (!token || !payload || !/^[A-Za-z0-9+/=\r\n]+$/.test(encodedImage)) throw new Error('O Asaas retornou um PIX inválido.');
+  if (!token || !payload || !/^[A-Za-z0-9+/=\r\n]+$/.test(encodedImage)) throw new Error('O provedor de pagamento retornou um PIX inválido.');
 
   root.innerHTML = `
     <div class="space-y-4 text-center">
@@ -200,11 +198,11 @@ const startAsaasPix = async (button: HTMLButtonElement, root: HTMLElement) => {
     return;
   }
 
-  const cpfInput = window.prompt('Informe o CPF do pagador para gerar o PIX:');
-  if (cpfInput === null) return;
-  const cpfCnpj = normalizeCpf(cpfInput);
+  const cpfField = document.getElementById('pix-cpf') as HTMLInputElement | null;
+  const cpfCnpj = normalizeCpf(cpfField?.value || '');
   if (cpfCnpj.length !== 11) {
-    alert('Informe um CPF válido com 11 números.');
+    alert('Informe um CPF válido com 11 números para gerar o PIX.');
+    cpfField?.focus();
     return;
   }
 
@@ -249,10 +247,24 @@ const replaceManualPix = () => {
         <div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro</div>
         <p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. A confirmação do pagamento é automática.</p>
       </div>
+      <div class="text-left">
+        <label for="pix-cpf" class="block text-sm font-medium mb-1 text-stone-700">CPF do pagador</label>
+        <input id="pix-cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" class="w-full border border-stone-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-700" />
+        <p class="text-[11px] text-stone-500 mt-1">Necessário apenas para gerar a cobrança PIX. Este CPF não é salvo no diagnóstico.</p>
+      </div>
       <button id="btn-pagar-pix-asaas" type="button" class="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">GERAR PIX (R$ 9,90)</button>
       <p class="text-[11px] text-stone-500">Após pagar, aguarde alguns segundos. Não é necessário enviar comprovante.</p>
     </div>
   `;
+
+  const cpfField = document.getElementById('pix-cpf') as HTMLInputElement | null;
+  cpfField?.addEventListener('input', () => {
+    const digits = normalizeCpf(cpfField.value).slice(0, 11);
+    cpfField.value = digits
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1-$2');
+  });
 
   const button = document.getElementById('btn-pagar-pix-asaas') as HTMLButtonElement | null;
   if (button) button.addEventListener('click', () => void startAsaasPix(button, root as HTMLElement));
