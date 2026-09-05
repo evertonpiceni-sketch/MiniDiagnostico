@@ -79,25 +79,6 @@ const installQuizRequestGuard = () => {
   (window as Window & { [marker]?: boolean })[marker] = true;
 };
 
-const installBrandLogo = () => {
-  if (typeof document === 'undefined') return;
-  const marker = 'mini-diagnostico-brand-logo';
-  if (document.getElementById(marker)) return;
-
-  const logo = document.createElement('img');
-  logo.id = marker;
-  logo.src = '/ja-logo.webp';
-  logo.alt = 'Janaína Araújo';
-  logo.style.cssText = [
-    'position:fixed', 'top:12px', 'left:50%', 'transform:translateX(-50%)',
-    'width:92px', 'height:92px', 'object-fit:cover', 'border-radius:50%',
-    'z-index:40', 'pointer-events:none', 'background:#050505',
-    'border:1px solid rgba(242,201,120,.5)',
-    'box-shadow:0 12px 38px rgba(0,0,0,.5),0 0 30px rgba(217,170,85,.08)',
-  ].join(';');
-  document.body.appendChild(logo);
-};
-
 let pixInFlight = false;
 let pixPollTimer: number | null = null;
 
@@ -120,9 +101,7 @@ const verifyPixPayment = async (sessionId: string, token: string) => {
     });
     const data = await response.json().catch(() => ({}));
     if (response.ok && data?.payment_status === 'paid') redirectToResult(sessionId, token);
-  } catch {
-    // Polling is best-effort.
-  }
+  } catch {}
 };
 
 const beginPixPolling = (sessionId: string, token: string) => {
@@ -142,13 +121,7 @@ const requestAsaasPix = async (sessionId: string, cpfCnpj: string) => {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : `Não foi possível gerar o PIX (HTTP ${response.status}).`);
-  return data as {
-    paid?: boolean;
-    token?: string;
-    payload?: string;
-    encodedImage?: string;
-    expirationDate?: string | null;
-  };
+  return data as { paid?: boolean; token?: string; payload?: string; encodedImage?: string; expirationDate?: string | null; };
 };
 
 const renderPixQr = (root: HTMLElement, sessionId: string, data: Awaited<ReturnType<typeof requestAsaasPix>>) => {
@@ -156,127 +129,49 @@ const renderPixQr = (root: HTMLElement, sessionId: string, data: Awaited<ReturnT
   const payload = String(data.payload || '');
   const encodedImage = String(data.encodedImage || '');
   if (!token || !payload || !/^[A-Za-z0-9+/=\r\n]+$/.test(encodedImage)) throw new Error('O provedor de pagamento retornou um PIX inválido.');
-
-  root.innerHTML = `
-    <div class="space-y-4 text-center">
-      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-        <div class="text-sm font-bold text-emerald-900 mb-2">PIX • R$ 9,90</div>
-        <p class="text-xs text-emerald-800 leading-relaxed">Escaneie o QR Code ou use o código Copia e Cola. A liberação é automática após a confirmação do pagamento.</p>
-      </div>
-      <div class="flex justify-center"><img id="asaas-pix-qr" alt="QR Code PIX" class="w-56 h-56 rounded-xl bg-white p-3" /></div>
-      <textarea id="asaas-pix-payload" readonly class="w-full min-h-24 rounded-xl border p-3 text-xs break-all"></textarea>
-      <button id="btn-copiar-pix-asaas" type="button" class="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">COPIAR CÓDIGO PIX</button>
-      <p id="asaas-pix-status" class="text-[11px] text-stone-500">Aguardando confirmação automática do pagamento...</p>
-    </div>
-  `;
-
+  root.innerHTML = `<div class="space-y-4 text-center"><div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5"><div class="text-sm font-bold text-emerald-900 mb-2">PIX • R$ 9,90</div><p class="text-xs text-emerald-800 leading-relaxed">Escaneie o QR Code ou use o código Copia e Cola. A liberação é automática após a confirmação do pagamento.</p></div><div class="flex justify-center"><img id="asaas-pix-qr" alt="QR Code PIX" class="w-56 h-56 rounded-xl bg-white p-3" /></div><textarea id="asaas-pix-payload" readonly class="w-full min-h-24 rounded-xl border p-3 text-xs break-all"></textarea><button id="btn-copiar-pix-asaas" type="button" class="w-full py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">COPIAR CÓDIGO PIX</button><p id="asaas-pix-status" class="text-[11px] text-stone-500">Aguardando confirmação automática do pagamento...</p></div>`;
   const image = document.getElementById('asaas-pix-qr') as HTMLImageElement | null;
   const textarea = document.getElementById('asaas-pix-payload') as HTMLTextAreaElement | null;
   const copyButton = document.getElementById('btn-copiar-pix-asaas') as HTMLButtonElement | null;
   if (image) image.src = `data:image/png;base64,${encodedImage.replace(/\s/g, '')}`;
   if (textarea) textarea.value = payload;
-  copyButton?.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(payload);
-      copyButton.textContent = 'PIX COPIADO ✓';
-      window.setTimeout(() => { copyButton.textContent = 'COPIAR CÓDIGO PIX'; }, 1800);
-    } catch {
-      textarea?.focus();
-      textarea?.select();
-      document.execCommand('copy');
-    }
-  });
-
+  copyButton?.addEventListener('click', async () => { try { await navigator.clipboard.writeText(payload); copyButton.textContent = 'PIX COPIADO ✓'; window.setTimeout(() => { copyButton.textContent = 'COPIAR CÓDIGO PIX'; }, 1800); } catch { textarea?.focus(); textarea?.select(); document.execCommand('copy'); } });
   beginPixPolling(sessionId, token);
 };
 
 const startAsaasPix = async (button: HTMLButtonElement, root: HTMLElement) => {
   if (pixInFlight) return;
   const sessionId = getSessionId();
-  if (!sessionId) {
-    alert('Sessão do diagnóstico não encontrada. Volte ao início e refaça o diagnóstico.');
-    return;
-  }
-
+  if (!sessionId) { alert('Sessão do diagnóstico não encontrada. Volte ao início e refaça o diagnóstico.'); return; }
   const cpfField = document.getElementById('pix-cpf') as HTMLInputElement | null;
   const cpfCnpj = normalizeCpf(cpfField?.value || '');
-  if (cpfCnpj.length !== 11) {
-    alert('Informe um CPF válido com 11 números para gerar o PIX.');
-    cpfField?.focus();
-    return;
-  }
-
-  pixInFlight = true;
-  button.disabled = true;
-  const original = button.textContent || 'GERAR PIX (R$ 9,90)';
-  button.textContent = 'Gerando PIX seguro...';
-
-  try {
-    const data = await requestAsaasPix(sessionId, cpfCnpj);
-    const token = String(data.token || '');
-    if (data.paid && token) {
-      redirectToResult(sessionId, token);
-      return;
-    }
-    renderPixQr(root, sessionId, data);
-  } catch (error) {
-    pixInFlight = false;
-    button.disabled = false;
-    button.textContent = original;
-    alert(error instanceof Error ? error.message : 'Não foi possível gerar o PIX.');
-  }
+  if (cpfCnpj.length !== 11) { alert('Informe um CPF válido com 11 números para gerar o PIX.'); cpfField?.focus(); return; }
+  pixInFlight = true; button.disabled = true;
+  const original = button.textContent || 'GERAR PIX (R$ 9,90)'; button.textContent = 'Gerando PIX seguro...';
+  try { const data = await requestAsaasPix(sessionId, cpfCnpj); const token = String(data.token || ''); if (data.paid && token) { redirectToResult(sessionId, token); return; } renderPixQr(root, sessionId, data); }
+  catch (error) { pixInFlight = false; button.disabled = false; button.textContent = original; alert(error instanceof Error ? error.message : 'Não foi possível gerar o PIX.'); }
 };
 
 const replaceManualPix = () => {
   const confirmButton = document.getElementById('btn-confirmar-pix');
   const copyButton = document.getElementById('btn-copiar-pix-inline');
   if (!confirmButton || !copyButton) return;
-
   let root: HTMLElement | null = confirmButton.parentElement;
-  while (root && root.parentElement) {
-    if (root.contains(copyButton) && root.className.includes('space-y-4')) break;
-    root = root.parentElement;
-  }
-  if (!root || !root.contains(copyButton)) return;
-  if (root.dataset.paymentFixApplied === 'asaas') return;
-
+  while (root && root.parentElement) { if (root.contains(copyButton) && root.className.includes('space-y-4')) break; root = root.parentElement; }
+  if (!root || !root.contains(copyButton) || root.dataset.paymentFixApplied === 'asaas') return;
   root.dataset.paymentFixApplied = 'asaas';
-  root.innerHTML = `
-    <div class="space-y-4 text-center">
-      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-        <div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro</div>
-        <p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. A confirmação do pagamento é automática.</p>
-      </div>
-      <div class="text-left">
-        <label for="pix-cpf" class="block text-sm font-medium mb-1 text-stone-700">CPF do pagador</label>
-        <input id="pix-cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" class="w-full border border-stone-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-700" />
-        <p class="text-[11px] text-stone-500 mt-1">Necessário apenas para gerar a cobrança PIX. Este CPF não é salvo no diagnóstico.</p>
-      </div>
-      <button id="btn-pagar-pix-asaas" type="button" class="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">GERAR PIX (R$ 9,90)</button>
-      <p class="text-[11px] text-stone-500">Após pagar, aguarde alguns segundos. Não é necessário enviar comprovante.</p>
-    </div>
-  `;
-
+  root.innerHTML = `<div class="space-y-4 text-center"><div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5"><div class="text-sm font-bold text-emerald-900 mb-2">PIX seguro</div><p class="text-xs text-emerald-800 leading-relaxed">Gere um PIX de R$ 9,90 com QR Code e Copia e Cola. A confirmação do pagamento é automática.</p></div><div class="text-left"><label for="pix-cpf" class="block text-sm font-medium mb-1 text-stone-700">CPF do pagador</label><input id="pix-cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" class="w-full border border-stone-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-700" /><p class="text-[11px] text-stone-500 mt-1">Necessário apenas para gerar a cobrança PIX. Este CPF não é salvo no diagnóstico.</p></div><button id="btn-pagar-pix-asaas" type="button" class="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.99] cursor-pointer text-sm">GERAR PIX (R$ 9,90)</button><p class="text-[11px] text-stone-500">Após pagar, aguarde alguns segundos. Não é necessário enviar comprovante.</p></div>`;
   const cpfField = document.getElementById('pix-cpf') as HTMLInputElement | null;
-  cpfField?.addEventListener('input', () => {
-    const digits = normalizeCpf(cpfField.value).slice(0, 11);
-    cpfField.value = digits
-      .replace(/^(\d{3})(\d)/, '$1.$2')
-      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1-$2');
-  });
-
+  cpfField?.addEventListener('input', () => { const digits = normalizeCpf(cpfField.value).slice(0, 11); cpfField.value = digits.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2'); });
   const button = document.getElementById('btn-pagar-pix-asaas') as HTMLButtonElement | null;
   if (button) button.addEventListener('click', () => void startAsaasPix(button, root as HTMLElement));
 };
 
 const bootPaymentFix = () => {
   installQuizRequestGuard();
-  installBrandLogo();
-  const observer = new MutationObserver(() => {
-    installBrandLogo();
-    replaceManualPix();
-  });
+  const staleFloatingLogo = document.body.querySelector(':scope > #mini-diagnostico-brand-logo');
+  staleFloatingLogo?.remove();
+  const observer = new MutationObserver(() => replaceManualPix());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   replaceManualPix();
 };
