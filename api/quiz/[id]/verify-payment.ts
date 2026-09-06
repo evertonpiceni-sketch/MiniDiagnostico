@@ -1,21 +1,18 @@
 import Stripe from 'stripe';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-type Req = {
-  method?: string;
-  body?: any;
-  query: Record<string, string | string[] | undefined>;
-};
+type Req = { method?: string; body?: any; query: Record<string, string | string[] | undefined> };
 type Res = { status: (code: number) => Res; json: (data: unknown) => void };
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const STRIPE_KEY = clean(process.env.STRIPE_SECRET_KEY);
+const ASAAS_API_KEY = clean(process.env.ASAAS_API_KEY);
+const ASAAS_API_URL = (clean(process.env.ASAAS_API_URL) || 'https://api.asaas.com/v3').replace(/\/$/, '');
 const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
 const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
 const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
   .map(clean)
   .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
-
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
 function expectedToken(id: string) {
@@ -46,26 +43,59 @@ async function db(resource: string, init: RequestInit = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function markPaid(id: string, method: 'card_stripe' | 'pix_asaas', stripeSessionId?: string) {
+  await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      payment_status: 'paid',
+      paid_at: new Date().toISOString(),
+      payment_method_selected: method,
+      checkout_error_code: null,
+      checkout_error_message: null,
+      checkout_error_at: null,
+      ...(stripeSessionId ? { stripe_checkout_session_id: stripeSessionId } : {}),
+    }),
+  });
+}
+
+async function verifyAsaas(id: string, paymentId: string) {
+  if (!ASAAS_API_KEY || !paymentId) return false;
+  const r = await fetch(`${ASAAS_API_URL}/payments/${encodeURIComponent(paymentId)}`, {
+    headers: { access_token: ASAAS_API_KEY, 'User-Agent': 'MiniDiagnostico/1.0', Accept: 'application/json' },
+  });
+  if (!r.ok) return false;
+  const payment = await r.json() as any;
+  const validPayment = String(payment?.externalReference || '') === id
+    && String(payment?.billingType || '') === 'PIX'
+    && Math.abs(Number(payment?.value) - 9.9) <= 0.001
+    && ['RECEIVED', 'CONFIRMED'].includes(String(payment?.status || ''));
+  if (!validPayment) return false;
+  await markPaid(id, 'pix_asaas');
+  return true;
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
-
   const id = String(req.query.id || '');
   if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
   const token = String(req.body?.token || '');
   if (!validToken(id, token)) return res.status(403).json({ error: 'Acesso ao resultado não autorizado.' });
 
   try {
-    const rows = await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,payment_status,stripe_checkout_session_id`) as any[];
+    const rows = await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,payment_status,stripe_checkout_session_id,asaas_payment_id,payment_method_selected`) as any[];
     const quiz = rows?.[0];
     if (!quiz) return res.status(404).json({ error: 'Quiz não encontrado.' });
     if (quiz.payment_status === 'paid') return res.status(200).json({ payment_status: 'paid' });
 
+    if (quiz.asaas_payment_id && await verifyAsaas(id, String(quiz.asaas_payment_id))) {
+      return res.status(200).json({ payment_status: 'paid' });
+    }
+
     const supplied = String(req.body?.checkout_session_id || '');
     const checkoutId = supplied.startsWith('cs_') ? supplied : String(quiz.stripe_checkout_session_id || '');
     if (!checkoutId.startsWith('cs_') || !STRIPE_KEY) return res.status(200).json({ payment_status: 'pending' });
-    if (quiz.stripe_checkout_session_id && quiz.stripe_checkout_session_id !== checkoutId) {
-      return res.status(403).json({ error: 'Checkout não pertence a esta sessão.' });
-    }
+    if (quiz.stripe_checkout_session_id && quiz.stripe_checkout_session_id !== checkoutId) return res.status(403).json({ error: 'Checkout não pertence a esta sessão.' });
 
     const session = await new Stripe(STRIPE_KEY).checkout.sessions.retrieve(checkoutId);
     const linkedQuizId = session.metadata?.quiz_session_id || session.client_reference_id;
@@ -74,21 +104,9 @@ export default async function handler(req: Req, res: Res) {
       && session.payment_status === 'paid'
       && session.currency === 'brl'
       && session.amount_total === 990;
-
     if (!validPayment) return res.status(200).json({ payment_status: 'pending' });
 
-    await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        payment_status: 'paid',
-        paid_at: new Date().toISOString(),
-        stripe_checkout_session_id: session.id,
-      }),
-    });
-
-    // WhatsApp delivery is intentionally not triggered here. The paid result is
-    // unlocked directly in the web app/PDF flow.
+    await markPaid(id, 'card_stripe', session.id);
     return res.status(200).json({ payment_status: 'paid' });
   } catch (e) {
     console.error('Verify payment', e);
