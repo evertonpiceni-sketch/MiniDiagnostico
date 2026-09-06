@@ -11,7 +11,6 @@ const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
 const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
   .map(clean)
   .find((key) => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
-
 const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 
 function validCpf(value: unknown) {
@@ -45,6 +44,14 @@ async function db<T>(resource: string, init: RequestInit = {}): Promise<T> {
   const text = await r.text();
   if (!r.ok) throw new Error(`DB_${r.status}:${text.slice(0, 300)}`);
   return text ? JSON.parse(text) as T : undefined as T;
+}
+
+async function patchQuiz(id: string, body: Record<string, unknown>) {
+  await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
 }
 
 async function asaas<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -83,9 +90,7 @@ async function asaas<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 function todayBrazil() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
   return `${map.year}-${map.month}-${map.day}`;
 }
@@ -94,17 +99,10 @@ async function findOrCreateCustomer(quiz: any, cpfCnpj: string) {
   const found = await asaas<any>(`/customers?externalReference=${encodeURIComponent(quiz.quiz_session_id)}&limit=1`);
   const existing = Array.isArray(found?.data) ? found.data[0] : null;
   if (existing?.id) return String(existing.id);
-
   const mobilePhone = String(quiz.whatsapp || '').replace(/\D/g, '').replace(/^55/, '');
   const created = await asaas<any>('/customers', {
     method: 'POST',
-    body: JSON.stringify({
-      name: String(quiz.nome || 'Cliente Mini Diagnóstico').slice(0, 100),
-      cpfCnpj,
-      mobilePhone: mobilePhone || undefined,
-      externalReference: quiz.quiz_session_id,
-      notificationDisabled: true,
-    }),
+    body: JSON.stringify({ name: String(quiz.nome || 'Cliente Mini Diagnóstico').slice(0, 100), cpfCnpj, mobilePhone: mobilePhone || undefined, externalReference: quiz.quiz_session_id, notificationDisabled: true }),
   });
   if (!created?.id) throw new Error('ASAAS_CUSTOMER_ID_MISSING');
   return String(created.id);
@@ -113,28 +111,48 @@ async function findOrCreateCustomer(quiz: any, cpfCnpj: string) {
 async function createPayment(quiz: any, customerId: string) {
   const payment = await asaas<any>('/payments', {
     method: 'POST',
-    body: JSON.stringify({
-      customer: customerId,
-      billingType: 'PIX',
-      value: 9.90,
-      dueDate: todayBrazil(),
-      description: 'Mini Diagnóstico Completo',
-      externalReference: quiz.quiz_session_id,
-    }),
+    body: JSON.stringify({ customer: customerId, billingType: 'PIX', value: 9.90, dueDate: todayBrazil(), description: 'Mini Diagnóstico Completo', externalReference: quiz.quiz_session_id }),
   });
   if (!payment?.id) throw new Error('ASAAS_PAYMENT_ID_MISSING');
   return payment;
 }
 
 async function savePayment(quizId: string, paymentId: string, token: string) {
-  await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(quizId)}&payment_status=neq.paid`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      asaas_payment_id: paymentId,
-      result_access_token_hash: createHash('sha256').update(token).digest('hex'),
-    }),
+  await patchQuiz(quizId, {
+    payment_method_selected: 'pix_asaas',
+    checkout_attempted_at: new Date().toISOString(),
+    checkout_error_code: null,
+    checkout_error_message: null,
+    checkout_error_at: null,
+    asaas_payment_id: paymentId,
+    result_access_token_hash: createHash('sha256').update(token).digest('hex'),
   });
+}
+
+async function markPaid(quizId: string) {
+  await patchQuiz(quizId, {
+    payment_status: 'paid',
+    paid_at: new Date().toISOString(),
+    payment_method_selected: 'pix_asaas',
+    checkout_error_code: null,
+    checkout_error_message: null,
+    checkout_error_at: null,
+  });
+}
+
+async function recordError(id: string, code: string, message: string) {
+  if (!validId(id)) return;
+  try {
+    await patchQuiz(id, {
+      payment_method_selected: 'pix_asaas',
+      checkout_attempted_at: new Date().toISOString(),
+      checkout_error_code: code.slice(0, 120),
+      checkout_error_message: message.slice(0, 500),
+      checkout_error_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('Asaas PIX error persistence failed', e);
+  }
 }
 
 function publicAsaasError(message: string) {
@@ -152,16 +170,15 @@ function publicAsaasError(message: string) {
 
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
-
+  const id = String(req.body?.quiz_session_id || '').trim();
   try {
-    if (!ASAAS_API_KEY) return res.status(503).json({ error: 'PIX Asaas não está configurado.' });
-    if (RESULT_TOKEN_SECRET.length < 32) return res.status(503).json({ error: 'Proteção do resultado não está configurada.' });
-
-    const id = String(req.body?.quiz_session_id || '').trim();
-    const cpfCnpj = String(req.body?.cpfCnpj || '').replace(/\D/g, '');
     if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
-    if (!validCpf(cpfCnpj)) return res.status(400).json({ error: 'Informe um CPF válido para gerar o PIX no Asaas.' });
+    await patchQuiz(id, { payment_method_selected: 'pix_asaas', checkout_attempted_at: new Date().toISOString(), checkout_error_code: null, checkout_error_message: null, checkout_error_at: null });
+    if (!ASAAS_API_KEY) throw new Error('ASAAS_NOT_CONFIGURED');
+    if (RESULT_TOKEN_SECRET.length < 32) throw new Error('RESULT_TOKEN_SECRET_INVALID');
 
+    const cpfCnpj = String(req.body?.cpfCnpj || '').replace(/\D/g, '');
+    if (!validCpf(cpfCnpj)) return res.status(400).json({ error: 'Informe um CPF válido para gerar o PIX no Asaas.' });
     const rows = await db<any[]>(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,whatsapp,payment_status,asaas_payment_id`);
     const quiz = rows[0];
     if (!quiz) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
@@ -173,9 +190,7 @@ export default async function handler(req: Req, res: Res) {
     if (quiz.asaas_payment_id) {
       try {
         payment = await asaas<any>(`/payments/${encodeURIComponent(String(quiz.asaas_payment_id))}`);
-        if (String(payment?.externalReference || '') !== id || Number(payment?.value) !== 9.9 || String(payment?.billingType || '') !== 'PIX') {
-          throw new Error('ASAAS_PAYMENT_MISMATCH');
-        }
+        if (String(payment?.externalReference || '') !== id || Number(payment?.value) !== 9.9 || String(payment?.billingType || '') !== 'PIX') throw new Error('ASAAS_PAYMENT_MISMATCH');
       } catch (error: any) {
         if (String(error?.message || '').startsWith('ASAAS_404:')) payment = null;
         else throw error;
@@ -185,40 +200,32 @@ export default async function handler(req: Req, res: Res) {
     if (!payment) {
       const customerId = await findOrCreateCustomer(quiz, cpfCnpj);
       payment = await createPayment(quiz, customerId);
-      await savePayment(id, String(payment.id), token);
-    } else {
-      await savePayment(id, String(payment.id), token);
     }
+    await savePayment(id, String(payment.id), token);
 
     if (['RECEIVED', 'CONFIRMED'].includes(String(payment?.status || ''))) {
+      await markPaid(id);
       return res.status(200).json({ ok: true, paid: true, token });
     }
 
     const qr = await asaas<any>(`/payments/${encodeURIComponent(String(payment.id))}/pixQrCode`);
-    if (!qr?.payload || !qr?.encodedImage) return res.status(502).json({ error: 'Asaas não retornou o QR Code do PIX.' });
-
-    return res.status(200).json({
-      ok: true,
-      paid: false,
-      token,
-      payment_id: String(payment.id),
-      payload: String(qr.payload),
-      encodedImage: String(qr.encodedImage),
-      expirationDate: qr.expirationDate || null,
-    });
+    if (!qr?.payload || !qr?.encodedImage) throw new Error('ASAAS_QR_MISSING');
+    return res.status(200).json({ ok: true, paid: false, token, payment_id: String(payment.id), payload: String(qr.payload), encodedImage: String(qr.encodedImage), expirationDate: qr.expirationDate || null });
   } catch (error: any) {
     const message = String(error?.message || error || '');
     console.error('Asaas PIX error', message);
+    await recordError(id, message.split(':')[0] || 'ASAAS_PIX_ERROR', message);
     if (message === 'DB_CONFIG' || message.startsWith('DB_')) return res.status(503).json({ error: 'Banco de dados indisponível para o PIX.' });
     if (message === 'ASAAS_NOT_CONFIGURED') return res.status(503).json({ error: 'PIX Asaas não está configurado.' });
+    if (message === 'RESULT_TOKEN_SECRET_INVALID') return res.status(503).json({ error: 'Proteção do resultado não está configurada.' });
     if (message === 'ASAAS_TIMEOUT') return res.status(504).json({ error: 'O Asaas demorou para responder. Tente novamente.' });
     if (message === 'ASAAS_CONNECTION') return res.status(503).json({ error: 'Não foi possível conectar ao Asaas a partir do servidor.' });
     if (message === 'ASAAS_CUSTOMER_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou o cadastro do cliente.' });
     if (message === 'ASAAS_PAYMENT_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou a identificação da cobrança PIX.' });
     if (message === 'ASAAS_PAYMENT_MISMATCH') return res.status(409).json({ error: 'A cobrança PIX encontrada não corresponde a este diagnóstico.' });
+    if (message === 'ASAAS_QR_MISSING') return res.status(502).json({ error: 'Asaas não retornou o QR Code do PIX.' });
     const asaasError = publicAsaasError(message);
     if (asaasError) return res.status(asaasError.status).json({ error: asaasError.error });
-    const safe = message.replace(/\$aact_[^\s]+/g, '[chave ocultada]').replace(/\s+/g, ' ').slice(0, 160);
-    return res.status(500).json({ error: `Falha técnica ao gerar PIX: ${safe || 'erro interno desconhecido'}` });
+    return res.status(500).json({ error: 'Falha técnica ao gerar PIX.' });
   }
 }
