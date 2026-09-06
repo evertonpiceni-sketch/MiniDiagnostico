@@ -1,5 +1,6 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import './payment-session-guard';
 import './asaas-cpf-fix';
 import './payment-fix-safe';
 import './post-payment-recovery';
