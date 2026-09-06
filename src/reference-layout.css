@@ -1,0 +1,469 @@
+/* Approved visual reference — therapeutic cream / sage / lavender / plum / gold */
+
+:root {
+  --ref-cream: #f8f0df;
+  --ref-paper: #fffaf0;
+  --ref-sage: #8d9f82;
+  --ref-sage-dark: #5f725f;
+  --ref-lavender: #b9a7c8;
+  --ref-lavender-soft: #eee5f2;
+  --ref-plum: #6f2f69;
+  --ref-plum-dark: #52204f;
+  --ref-gold: #c9a04b;
+  --ref-ink: #26302c;
+  --ref-muted: #66706a;
+  --ref-line: rgba(99, 110, 99, .22);
+}
+
+body {
+  background:
+    radial-gradient(circle at 4% 8%, rgba(141,159,130,.16), transparent 18%),
+    radial-gradient(circle at 96% 92%, rgba(201,160,75,.14), transparent 19%),
+    linear-gradient(135deg, #fffaf1 0%, var(--ref-cream) 100%);
+}
+
+.brand-shell {
+  background:
+    radial-gradient(ellipse at top left, rgba(141,159,130,.12), transparent 30%),
+    radial-gradient(ellipse at bottom right, rgba(201,160,75,.12), transparent 30%),
+    linear-gradient(145deg, #fffaf1, #f7eddc) !important;
+}
+
+/* LANDING */
+.brand-start-card {
+  background: linear-gradient(90deg, rgba(255,250,240,.98) 0 48%, #f4e5c8 48% 100%) !important;
+}
+
+.brand-start-card:before,
+.brand-start-card:after {
+  display: none !important;
+}
+
+.brand-start-content > img#mini-diagnostico-brand-logo,
+.brand-start-card > img#mini-diagnostico-brand-logo {
+  display: block !important;
+  width: 132px !important;
+  height: auto !important;
+  object-fit: contain !important;
+  margin: 0 0 28px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.brand-start-content {
+  padding-top: 118px !important;
+  padding-bottom: 150px !important;
+}
+
+.preview-nav {
+  left: 22vw !important;
+  right: auto !important;
+  top: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: clamp(14px, 1.8vw, 28px) !important;
+  color: #34413b !important;
+}
+
+.preview-nav .preview-nav-link {
+  font-size: .77rem;
+  font-weight: 700;
+  color: #34413b;
+  white-space: nowrap;
+}
+
+.preview-nav-cta {
+  margin-left: 6px;
+  min-width: 94px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--ref-plum), var(--ref-plum-dark)) !important;
+  border: 1px solid rgba(70,24,67,.12);
+  box-shadow: 0 8px 18px rgba(91,37,87,.18) !important;
+}
+
+.brand-eyebrow {
+  color: #506257 !important;
+  letter-spacing: .2em !important;
+}
+
+.brand-start-content h1 {
+  color: #28312d !important;
+  font-size: clamp(3rem, 4.55vw, 5rem) !important;
+  line-height: .98 !important;
+  letter-spacing: -.025em;
+  max-width: 690px !important;
+}
+
+.home-copy-block,
+.brand-start-content > p.text-stone-500 {
+  max-width: 610px;
+  color: #4f5a55 !important;
+  font-size: clamp(.92rem, 1.05vw, 1.02rem) !important;
+  line-height: 1.62 !important;
+}
+
+.brand-benefits {
+  margin-top: 26px !important;
+  margin-bottom: 26px !important;
+}
+
+.brand-benefits svg {
+  color: #34483e !important;
+  stroke-width: 1.7;
+}
+
+.brand-benefits b {
+  color: #303a35;
+  font-size: .8rem !important;
+}
+
+.brand-benefits small {
+  color: #69736d;
+}
+
+.brand-hero-art {
+  background: linear-gradient(135deg, #f4e4bf 0%, #e8c77f 46%, #809577 100%) !important;
+}
+
+.brand-hero-art:before {
+  background:
+    radial-gradient(circle at 73% 18%, rgba(255,247,207,.92), transparent 24%),
+    linear-gradient(90deg, rgba(255,250,240,.94), transparent 18%) !important;
+}
+
+.brand-hero-art:after {
+  inset: 2.5% 1.5% 0 4.5% !important;
+  border-radius: 46% 0 0 0 !important;
+  background-position: center !important;
+  box-shadow: -24px 24px 70px rgba(75,57,28,.14) !important;
+}
+
+.lead-capture summary,
+.lead-capture button {
+  background: linear-gradient(135deg, var(--ref-plum), var(--ref-plum-dark)) !important;
+  box-shadow: 0 10px 22px rgba(94,39,89,.18) !important;
+}
+
+.preview-signature strong {
+  color: #39433f;
+  font-size: 2.25rem !important;
+}
+.preview-signature span { color: #59645f; }
+.preview-mantra { color: #5b665f !important; }
+
+/* QUIZ / PAYMENT / RESULT shared canvas */
+.brand-page-card {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,250,240,.985) !important;
+  border: 1px solid rgba(190,164,111,.34) !important;
+  box-shadow: 0 24px 70px rgba(77,61,39,.11) !important;
+}
+
+.brand-page-card:before {
+  content: "";
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  right: -78px;
+  top: -82px;
+  border-radius: 55% 45% 60% 40%;
+  background: radial-gradient(ellipse at center, rgba(141,159,130,.24), rgba(141,159,130,.04) 62%, transparent 64%);
+  pointer-events: none;
+}
+
+.brand-page-card:after {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  left: -82px;
+  bottom: -86px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(201,160,75,.14), transparent 67%);
+  pointer-events: none;
+}
+
+.brand-card-header,
+.payment-card > *,
+.quiz-card > *,
+.result-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-card-header img {
+  width: 118px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.quiz-card {
+  max-width: 650px !important;
+  padding: 34px 40px 30px !important;
+}
+
+.quiz-card .brand-card-header span {
+  color: #38443e !important;
+  font-weight: 700;
+}
+
+.quiz-card .bg-stone-100.h-1\.5 {
+  background: rgba(95,114,95,.18) !important;
+  border: 1px solid rgba(95,114,95,.22);
+}
+
+.quiz-card .bg-gradient-to-r {
+  background: linear-gradient(90deg, var(--ref-gold), var(--ref-sage)) !important;
+}
+
+.quiz-card h2 {
+  color: #28312d !important;
+  font-size: clamp(1.9rem, 3.8vw, 2.5rem) !important;
+  line-height: 1.08 !important;
+}
+
+.quiz-card .space-y-3 button {
+  min-height: 58px;
+  background: rgba(255,255,255,.8) !important;
+  border: 1px solid rgba(98,111,100,.27) !important;
+  border-radius: 11px !important;
+  color: #3c4742 !important;
+}
+
+.quiz-card .space-y-3 button:hover,
+.quiz-card .space-y-3 button:focus {
+  background: var(--ref-lavender-soft) !important;
+  border-color: rgba(111,47,105,.42) !important;
+  color: var(--ref-plum-dark) !important;
+}
+
+.brand-back {
+  color: #43584b !important;
+  border-color: rgba(67,88,75,.3) !important;
+}
+
+.brand-card-quote {
+  color: #a27b3b !important;
+}
+
+/* PAYMENT — approved card proportions */
+.payment-card {
+  width: min(94vw, 610px) !important;
+  max-width: 610px !important;
+  padding: 32px 36px 34px !important;
+  text-align: left !important;
+}
+
+.payment-card .brand-card-header {
+  margin-bottom: 8px;
+}
+
+.payment-card .brand-card-header svg {
+  color: var(--ref-plum);
+}
+
+.payment-card > .inline-flex {
+  background: #f5efe3 !important;
+  color: #5e675f !important;
+  border-color: rgba(151,135,100,.22) !important;
+}
+
+.payment-card > h2 {
+  font-size: 2.15rem !important;
+  margin-bottom: 4px !important;
+  color: #28312d !important;
+}
+
+.payment-title {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.55rem;
+  color: #2b3430;
+  margin: 20px 0 6px;
+}
+
+.result-preview {
+  max-width: none !important;
+  width: 100%;
+  grid-template-columns: 52px 1fr;
+  justify-items: start;
+  align-items: center;
+  text-align: left;
+  column-gap: 14px;
+  padding: 18px 20px !important;
+  background: rgba(255,255,255,.75) !important;
+  border-color: rgba(184,163,200,.52) !important;
+}
+
+.result-preview span {
+  grid-row: 1 / span 3;
+  width: 50px !important;
+  height: 50px !important;
+  background: #e7d9ec !important;
+  color: var(--ref-plum) !important;
+}
+.result-preview small,
+.result-preview strong,
+.result-preview p { grid-column: 2; text-align: left !important; }
+.result-preview strong { color: var(--ref-plum-dark) !important; }
+
+.payment-card .flex.bg-stone-100 {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px !important;
+}
+
+#tab-pix,
+#tab-card {
+  min-height: 64px;
+  border-radius: 13px !important;
+  border: 1px solid rgba(105,112,103,.28) !important;
+  background: rgba(255,255,255,.82) !important;
+  color: #3a4640 !important;
+  box-shadow: none !important;
+}
+
+#tab-pix.payment-tab-active,
+#tab-card.payment-tab-active {
+  border-color: rgba(111,47,105,.58) !important;
+  background: #f2e8f3 !important;
+  color: var(--ref-plum-dark) !important;
+  box-shadow: 0 6px 16px rgba(96,48,92,.08) !important;
+}
+
+#tab-pix svg,
+#tab-card svg {
+  color: var(--ref-plum) !important;
+}
+
+.payment-card .bg-stone-50,
+.payment-card .bg-emerald-50 {
+  background: rgba(255,255,255,.72) !important;
+  border-color: rgba(113,120,111,.23) !important;
+}
+
+.payment-card .bg-emerald-600,
+.payment-card .bg-emerald-700,
+.payment-card .bg-teal-700,
+.payment-card button.bg-gradient-to-r {
+  background: linear-gradient(135deg, var(--ref-plum), var(--ref-plum-dark)) !important;
+  color: white !important;
+}
+
+.payment-card input,
+.payment-card textarea {
+  background: white !important;
+  border-color: rgba(99,110,99,.24) !important;
+  border-radius: 10px !important;
+}
+
+/* RESULT / report */
+.result-card {
+  max-width: 760px !important;
+  background: rgba(255,250,240,.99) !important;
+}
+
+.result-card h1,
+.result-card h2,
+.result-card h3 {
+  color: #41303f !important;
+}
+
+#resultado-whatsapp-cta {
+  background: rgba(238,229,242,.72) !important;
+  border-color: rgba(111,47,105,.22) !important;
+}
+
+/* MOBILE — emulate approved mobile mockup */
+@media (max-width: 900px) {
+  .brand-start-card {
+    padding-top: 78px !important;
+    background: linear-gradient(180deg, #fffaf0 0 54%, #f2e4c8 54% 100%) !important;
+  }
+
+  .brand-start-content {
+    padding-top: 20px !important;
+    padding-bottom: 54px !important;
+  }
+
+  .brand-start-content > img#mini-diagnostico-brand-logo {
+    width: 112px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .preview-nav {
+    left: auto !important;
+    right: 16px !important;
+    top: 24px !important;
+  }
+
+  .preview-nav .preview-nav-link {
+    display: none;
+  }
+
+  .preview-nav:before {
+    content: "☰";
+    font-size: 1.25rem;
+    color: #39433e;
+    margin-right: 10px;
+  }
+
+  .preview-nav-cta {
+    padding: 9px 14px !important;
+    min-width: auto;
+  }
+
+  .brand-start-content h1 {
+    max-width: 620px !important;
+  }
+
+  .brand-hero-art {
+    min-height: 480px !important;
+  }
+
+  .brand-hero-art:after {
+    inset: 2% 0 0 0 !important;
+    border-radius: 42% 42% 0 0 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .brand-start-content h1 {
+    font-size: clamp(2.25rem, 10.4vw, 3.05rem) !important;
+    line-height: 1.01 !important;
+  }
+
+  .brand-benefits {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .payment-card,
+  .quiz-card,
+  .result-card {
+    width: calc(100vw - 18px) !important;
+    padding: 20px 16px 22px !important;
+  }
+
+  .payment-card .flex.bg-stone-100 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #tab-pix,
+  #tab-card {
+    min-height: 54px;
+  }
+
+  .result-preview {
+    grid-template-columns: 44px 1fr;
+    padding: 14px !important;
+  }
+
+  .result-preview span {
+    width: 44px !important;
+    height: 44px !important;
+  }
+}
