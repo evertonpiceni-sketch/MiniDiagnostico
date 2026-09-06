@@ -1,0 +1,233 @@
+/* Responsive proportional sizing overrides */
+
+:root {
+  --content-gutter: clamp(16px, 3.5vw, 56px);
+}
+
+.brand-shell {
+  width: 100%;
+  min-height: 100dvh;
+}
+
+.brand-start-card {
+  min-height: 100dvh !important;
+  grid-template-columns: minmax(0, 47%) minmax(0, 53%);
+}
+
+.brand-start-content {
+  padding-left: clamp(28px, 5.8vw, 92px);
+  padding-right: clamp(24px, 4.2vw, 68px);
+}
+
+.brand-start-content h1 {
+  font-size: clamp(2.7rem, 4.9vw, 5.15rem) !important;
+  max-width: min(690px, 100%) !important;
+}
+
+.home-copy-block {
+  max-width: min(610px, 100%);
+  font-size: clamp(.95rem, 1.2vw, 1.08rem);
+}
+
+.brand-benefits {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 460px);
+}
+
+.brand-hero-art {
+  min-height: 100dvh;
+}
+
+.quiz-card,
+.payment-card,
+.result-card {
+  width: min(92vw, 680px) !important;
+  margin-inline: auto;
+}
+
+.payment-card {
+  width: min(92vw, 590px) !important;
+}
+
+.result-card {
+  width: min(94vw, 760px) !important;
+}
+
+.payment-card img,
+.payment-card svg,
+.result-card img,
+.result-card svg {
+  max-width: 100%;
+}
+
+.payment-card button,
+.payment-card a,
+.result-card button,
+.result-card a {
+  max-width: 100%;
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .brand-start-card {
+    grid-template-columns: minmax(0, 52%) minmax(0, 48%);
+  }
+
+  .brand-start-content {
+    padding-top: 48px;
+    padding-bottom: 72px;
+  }
+
+  .brand-start-content h1 {
+    font-size: clamp(2.6rem, 4.4vw, 4.2rem) !important;
+    line-height: 1 !important;
+  }
+
+  .brand-hero-art:after {
+    inset: 9% 3% 0 4%;
+  }
+}
+
+@media (max-width: 900px) {
+  .brand-start-card {
+    min-height: auto !important;
+    padding-top: 84px !important;
+  }
+
+  .brand-start-content {
+    padding: 36px var(--content-gutter) 56px !important;
+  }
+
+  .brand-start-content h1 {
+    font-size: clamp(2.25rem, 9vw, 4rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .brand-benefits {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .brand-hero-art {
+    min-height: clamp(420px, 68vh, 640px);
+  }
+
+  .quiz-card,
+  .payment-card,
+  .result-card {
+    width: min(calc(100vw - 28px), 680px) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .brand-start-card:before {
+    left: 16px;
+    width: 54px;
+    height: 54px;
+    font-size: 1.1rem;
+  }
+
+  .preview-nav {
+    right: 14px;
+  }
+
+  .preview-nav-cta {
+    padding: 10px 14px;
+    font-size: .7rem;
+  }
+
+  .brand-start-content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .brand-start-content h1 {
+    font-size: clamp(2.05rem, 10.4vw, 3rem) !important;
+  }
+
+  .home-copy-block {
+    font-size: .92rem;
+    line-height: 1.58;
+  }
+
+  .brand-benefits {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 22px !important;
+  }
+
+  .brand-benefits span {
+    padding-inline: 4px;
+  }
+
+  .brand-benefits b {
+    font-size: .72rem;
+  }
+
+  .brand-benefits small {
+    font-size: .58rem;
+  }
+
+  .lead-capture {
+    max-width: 100%;
+  }
+
+  .lead-capture summary,
+  .lead-capture button {
+    width: 100%;
+  }
+
+  .brand-hero-art {
+    min-height: clamp(380px, 58vh, 500px);
+  }
+
+  .quiz-card,
+  .payment-card,
+  .result-card {
+    width: calc(100vw - 20px) !important;
+    border-radius: 20px !important;
+    padding: 20px 16px !important;
+  }
+
+  .quiz-card h2,
+  .payment-card > h2,
+  .result-card h1,
+  .result-card h2 {
+    overflow-wrap: anywhere;
+  }
+
+  .payment-card > h2 {
+    font-size: clamp(1.65rem, 8vw, 2.1rem) !important;
+  }
+
+  .result-preview {
+    width: 100%;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand-start-content h1 {
+    font-size: 2rem !important;
+  }
+
+  .brand-benefits {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .brand-benefits span {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 8px 0;
+  }
+
+  .brand-benefits span:last-child {
+    border-bottom: 0;
+  }
+
+  .quiz-card,
+  .payment-card,
+  .result-card {
+    width: calc(100vw - 12px) !important;
+    padding: 16px 12px !important;
+  }
+}
