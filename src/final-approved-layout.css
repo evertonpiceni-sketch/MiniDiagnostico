@@ -1,0 +1,116 @@
+/* FINAL APPROVED CLIENT REFERENCE — 2026-09-06
+   Source of truth: approved cream/sage/lavender/plum/gold mockups.
+   This file is intentionally imported last and only overrides presentation. */
+
+:root{
+  --approved-cream:#f8f0df;
+  --approved-paper:#fffaf0;
+  --approved-sage:#8d9f82;
+  --approved-sage-dark:#5f725f;
+  --approved-lavender:#b9a7c8;
+  --approved-lavender-soft:#eee5f2;
+  --approved-plum:#6f2f69;
+  --approved-plum-dark:#52204f;
+  --approved-gold:#c9a04b;
+  --approved-ink:#28312d;
+  --approved-muted:#66706a;
+  --approved-line:rgba(99,110,99,.24);
+}
+
+html,body,#root{min-height:100%;background:var(--approved-cream)}
+body{color:var(--approved-ink)}
+.brand-shell{padding:0!important;min-height:100dvh!important;background:linear-gradient(145deg,#fffaf1 0%,#f6ecd9 100%)!important}
+
+/* LANDING — faithful to approved desktop composition */
+.brand-start-card{
+  display:grid!important;
+  grid-template-columns:minmax(0,46%) minmax(0,54%)!important;
+  grid-template-rows:82px minmax(0,1fr) 102px!important;
+  width:100%!important;
+  max-width:none!important;
+  min-height:100dvh!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+  background:linear-gradient(90deg,#fffaf0 0 46%,#f3e4c6 46% 100%)!important;
+}
+.brand-start-card:before,.brand-start-card:after{display:none!important}
+.preview-nav{position:absolute!important;top:28px!important;left:18.5vw!important;right:auto!important;display:flex!important;align-items:center!important;gap:clamp(16px,2vw,30px)!important;z-index:20!important}
+.preview-nav-link{font-size:.78rem!important;font-weight:700!important;color:#334139!important}
+.preview-nav-cta{padding:10px 20px!important;border-radius:999px!important;background:linear-gradient(135deg,var(--approved-plum),var(--approved-plum-dark))!important;color:white!important;box-shadow:0 8px 20px rgba(82,32,79,.18)!important}
+.brand-start-content{grid-column:1!important;grid-row:2!important;align-self:center!important;max-width:700px!important;padding:48px 4.4vw 62px 5.5vw!important;z-index:5!important}
+.brand-start-content>img#mini-diagnostico-brand-logo{display:block!important;width:112px!important;height:auto!important;margin:0 0 24px!important;background:transparent!important;border:0!important;border-radius:0!important}
+.brand-eyebrow{margin:0 0 10px!important;font-size:.76rem!important;letter-spacing:.2em!important;font-weight:800!important;color:#506257!important}
+.brand-start-content h1{margin:0 0 16px!important;max-width:620px!important;font-size:clamp(2.65rem,4vw,4.75rem)!important;line-height:.98!important;letter-spacing:-.026em!important;color:var(--approved-ink)!important}
+.home-copy-block,.brand-start-content>p.text-stone-500{max-width:560px!important;margin:0 0 12px!important;font-size:clamp(.94rem,1vw,1.04rem)!important;line-height:1.58!important;color:#4f5a55!important}
+.brand-benefits{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:min(100%,430px)!important;margin:24px 0 22px!important}
+.brand-benefits span{min-height:70px!important;padding:4px 10px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;border-right:1px solid var(--approved-line)!important}
+.brand-benefits span:last-child{border-right:0!important}
+.brand-benefits svg{width:24px!important;height:24px!important;margin-bottom:5px!important;color:#334b40!important}
+.brand-benefits b{font-size:.78rem!important;color:#303a35!important}.brand-benefits small{font-size:.62rem!important;color:#69736d!important}
+.lead-capture{width:min(100%,365px)!important;margin:0!important}
+.lead-capture summary{min-height:52px!important;border-radius:999px!important;background:linear-gradient(135deg,var(--approved-plum),var(--approved-plum-dark))!important;color:#fff!important;font-weight:700!important;box-shadow:0 10px 22px rgba(82,32,79,.18)!important}
+.lead-capture form{background:rgba(255,255,255,.96)!important;border:1px solid var(--approved-line)!important;box-shadow:0 14px 36px rgba(63,52,36,.12)!important}
+.brand-hero-art{grid-column:2!important;grid-row:1/4!important;min-height:100dvh!important;position:relative!important;background:linear-gradient(135deg,#f7e7bf,#e8c77f 48%,#83997b)!important}
+.brand-hero-art:before{content:""!important;position:absolute!important;inset:0!important;background:linear-gradient(90deg,rgba(255,250,240,.95) 0%,rgba(255,250,240,.24) 17%,transparent 34%),radial-gradient(circle at 72% 18%,rgba(255,248,211,.92),transparent 24%)!important;z-index:1!important}
+.brand-hero-art:after{content:""!important;position:absolute!important;inset:5.5% 2% 0 3%!important;background:url('/hero-golden-woman.webp') center/cover no-repeat!important;border-radius:44% 0 0 0!important;box-shadow:-22px 24px 70px rgba(73,52,30,.13)!important;z-index:2!important}
+.preview-signature{left:5.5vw!important;bottom:-72px!important}.preview-signature strong{font-size:2rem!important;color:#39433f!important}.preview-signature span{color:#59645f!important}
+.preview-instagram{display:none!important}.preview-mantra{left:27vw!important;bottom:-70px!important;color:#5c675f!important}
+
+/* QUIZ — approved card proportions */
+.brand-page-card{background:rgba(255,250,240,.99)!important;border:1px solid rgba(190,164,111,.34)!important;border-radius:22px!important;box-shadow:0 20px 60px rgba(77,61,39,.10)!important}
+.quiz-card{width:min(94vw,640px)!important;max-width:640px!important;padding:32px 36px 28px!important}
+.brand-card-header img{width:108px!important;height:auto!important;border:0!important;border-radius:0!important;background:transparent!important;padding:0!important}
+.quiz-card h2{font-size:clamp(1.85rem,3vw,2.4rem)!important;line-height:1.08!important;color:var(--approved-ink)!important}
+.quiz-card .space-y-3 button{min-height:56px!important;border-radius:10px!important;border:1px solid rgba(96,109,99,.28)!important;background:rgba(255,255,255,.84)!important;color:#3b4641!important;text-align:left!important}
+.quiz-card .space-y-3 button:hover,.quiz-card .space-y-3 button:focus{background:var(--approved-lavender-soft)!important;border-color:rgba(111,47,105,.48)!important;color:var(--approved-plum-dark)!important}
+.quiz-card .bg-gradient-to-r{background:linear-gradient(90deg,var(--approved-gold),var(--approved-sage))!important}
+.brand-back{border-radius:999px!important;background:#fff!important;border:1px solid var(--approved-line)!important;color:#45594d!important}
+.brand-card-quote{color:#9a7739!important}
+
+/* PAYWALL — visual reference, operational price remains R$ 9,90 */
+.payment-card{width:min(94vw,600px)!important;max-width:600px!important;padding:30px 34px 32px!important;text-align:left!important;background:rgba(255,250,240,.99)!important}
+.payment-card>h2{font-size:2.05rem!important;line-height:1.08!important;color:var(--approved-ink)!important}
+.result-preview{width:100%!important;max-width:none!important;grid-template-columns:48px 1fr!important;justify-items:start!important;align-items:center!important;text-align:left!important;column-gap:14px!important;background:rgba(255,255,255,.78)!important;border:1px solid rgba(184,163,200,.5)!important;border-radius:14px!important;padding:16px 18px!important}
+.result-preview span{grid-row:1/span 3!important;width:48px!important;height:48px!important;background:#e8dced!important;color:var(--approved-plum)!important}.result-preview small,.result-preview strong,.result-preview p{grid-column:2!important;text-align:left!important}.result-preview strong{color:var(--approved-plum-dark)!important}
+.payment-card .flex.bg-stone-100{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;background:transparent!important;border:0!important;padding:0!important}
+#tab-pix,#tab-card{min-height:60px!important;border-radius:12px!important;border:1px solid rgba(103,112,104,.28)!important;background:rgba(255,255,255,.86)!important;color:#39453f!important}
+#tab-pix.payment-tab-active,#tab-card.payment-tab-active{background:#f1e7f2!important;border-color:rgba(111,47,105,.55)!important;color:var(--approved-plum-dark)!important}
+.payment-card .bg-emerald-600,.payment-card .bg-emerald-700,.payment-card .bg-teal-700,.payment-card button.bg-gradient-to-r{background:linear-gradient(135deg,var(--approved-plum),var(--approved-plum-dark))!important;color:white!important}
+.payment-card .bg-stone-50,.payment-card .bg-emerald-50{background:rgba(255,255,255,.74)!important;border-color:var(--approved-line)!important}
+
+/* RESULT */
+.result-card{width:min(95vw,760px)!important;max-width:760px!important;background:rgba(255,250,240,.99)!important}
+.result-card h1,.result-card h2,.result-card h3{color:#41303f!important}
+#resultado-whatsapp-cta{background:rgba(238,229,242,.72)!important;border-color:rgba(111,47,105,.22)!important}
+
+/* MOBILE — match approved phone mockup: content FIRST, artwork SECOND */
+@media(max-width:900px){
+  .brand-start-card{display:flex!important;flex-direction:column!important;min-height:100dvh!important;padding:0!important;background:linear-gradient(180deg,#fffaf0 0%,#fffaf0 70%,#f2e4c8 100%)!important}
+  .preview-nav{top:20px!important;right:14px!important;left:auto!important;gap:8px!important}.preview-nav-link{display:none!important}.preview-nav:before{content:"☰";font-size:1.25rem;color:#39433e;margin-right:8px}.preview-nav-cta{padding:9px 14px!important;font-size:.72rem!important}
+  .brand-start-content{order:1!important;width:100%!important;max-width:none!important;padding:24px 20px 24px!important;margin:0!important}
+  .brand-start-content>img#mini-diagnostico-brand-logo{width:92px!important;margin:0 0 18px!important}
+  .brand-eyebrow{font-size:.7rem!important;margin-bottom:8px!important}
+  .brand-start-content h1{max-width:520px!important;font-size:clamp(2.15rem,8.8vw,3rem)!important;line-height:1.02!important;margin-bottom:14px!important}
+  .home-copy-block,.brand-start-content>p.text-stone-500{font-size:.91rem!important;line-height:1.5!important;max-width:520px!important}
+  .brand-benefits{width:100%!important;max-width:430px!important;margin:18px 0 18px!important}.brand-benefits span{min-height:62px!important;padding:3px 5px!important}.brand-benefits b{font-size:.72rem!important}.brand-benefits small{font-size:.58rem!important}
+  .lead-capture{width:100%!important;max-width:430px!important}.lead-capture summary{width:100%!important;min-height:50px!important}
+  .preview-signature,.preview-mantra{display:none!important}
+  .brand-hero-art{order:2!important;width:100%!important;min-height:270px!important;height:30vh!important;max-height:360px!important;margin-top:0!important;background:linear-gradient(135deg,#f6e5bd,#e8c77f 46%,#809577)!important}
+  .brand-hero-art:before{background:linear-gradient(180deg,#fffaf0 0%,rgba(255,250,240,.18) 24%,transparent 45%)!important}
+  .brand-hero-art:after{inset:0 0 0 0!important;border-radius:38% 38% 0 0!important;background-position:center 30%!important;box-shadow:none!important}
+  .quiz-card,.payment-card,.result-card{width:calc(100vw - 18px)!important;margin:9px auto!important;padding:20px 16px 22px!important;border-radius:18px!important}
+  .brand-card-header img{width:88px!important}.quiz-card h2{font-size:1.8rem!important}.quiz-card .space-y-3 button{min-height:54px!important}
+}
+
+@media(max-width:640px){
+  .payment-card .flex.bg-stone-100{grid-template-columns:1fr!important}
+  #tab-pix,#tab-card{min-height:52px!important}
+  .result-preview{grid-template-columns:42px 1fr!important;padding:13px!important}.result-preview span{width:42px!important;height:42px!important}
+}
+
+@media(max-width:380px){
+  .brand-start-content{padding-left:14px!important;padding-right:14px!important}.brand-start-content h1{font-size:2rem!important}.brand-benefits{grid-template-columns:repeat(3,minmax(0,1fr))!important}.brand-benefits span{padding-inline:2px!important}.brand-hero-art{min-height:240px!important}
+}
