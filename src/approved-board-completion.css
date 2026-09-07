@@ -1,0 +1,16 @@
+/* Complemento fiel à prancha aprovada — carregado por último. */
+.brand-start-card{isolation:isolate;padding-bottom:118px!important;min-height:100dvh!important}
+.brand-start-content:before{content:"";position:absolute;z-index:-1;width:190px;height:300px;left:-95px;top:8%;opacity:.38;background:radial-gradient(ellipse at 65% 15%,#71866b 0 13%,transparent 14%),radial-gradient(ellipse at 40% 35%,#91a287 0 14%,transparent 15%),radial-gradient(ellipse at 70% 55%,#71866b 0 13%,transparent 14%),radial-gradient(ellipse at 35% 76%,#9eaa8e 0 14%,transparent 15%);transform:rotate(-18deg)}
+.brand-start-content:after{content:"O primeiro passo para a sua cura começa com o autoconhecimento.";position:absolute;left:clamp(30px,5vw,76px);bottom:-82px;width:min(520px,80vw);font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:.9rem;line-height:1.4;color:#806c45;z-index:8}
+.brand-hero-art{z-index:1!important}
+.brand-hero-art:before{z-index:3!important;background:linear-gradient(90deg,rgba(255,250,240,.96),rgba(255,250,240,.18) 18%,transparent 34%),linear-gradient(0deg,rgba(55,76,58,.30),transparent 35%)!important}
+.brand-hero-art:after{z-index:2!important;filter:saturate(.9) contrast(.98)}
+.brand-start-card:before{content:"";position:absolute;left:-3%;right:-3%;bottom:48px;height:112px;z-index:6;background:linear-gradient(175deg,transparent 0 38%,rgba(203,163,77,.42) 39% 42%,#f8edd9 43% 70%,rgba(135,155,125,.34) 71% 74%,#fffaf0 75%);pointer-events:none}
+.brand-start-card:after{content:"Janaína Araújo\A TERAPEUTA INTEGRATIVA     ❦";white-space:pre;position:absolute;right:clamp(28px,5vw,78px);bottom:24px;z-index:8;text-align:right;font-family:Georgia,'Times New Roman',serif;font-size:1rem;line-height:1.2;letter-spacing:.04em;color:#5c6e5b;pointer-events:none}
+.brand-benefits span{position:relative}.brand-benefits span:after{content:"";position:absolute;bottom:-7px;width:24px;height:1px;background:var(--gold);opacity:.55}
+.brand-page-card:after{content:"❦";display:block;text-align:center;margin-top:20px;color:var(--gold);font-size:1.3rem;opacity:.8}
+.quiz-card:before,.payment-card:before,.result-card:after{pointer-events:none}
+.quiz-card:before,.payment-card:before{content:"";position:absolute;right:-18px;bottom:-18px;width:92px;height:92px;opacity:.15;background:radial-gradient(ellipse at 35% 35%,#71866b 0 18%,transparent 20%),radial-gradient(ellipse at 65% 65%,#9baa90 0 18%,transparent 20%);transform:rotate(28deg)}
+.result-card{overflow:hidden!important}.result-card:after{content:"❦";font-size:2rem!important;color:var(--gold)!important;margin-top:28px!important}
+@media(max-width:900px){.brand-start-card{padding-bottom:105px!important}.brand-start-content:after{position:static;display:block;margin-top:28px;width:100%;font-size:.82rem}.brand-start-card:before{bottom:42px;height:86px}.brand-start-card:after{right:20px;bottom:15px;font-size:.82rem}.brand-hero-art{min-height:360px!important}.brand-start-content:before{width:120px;height:210px;left:-72px;opacity:.25}}
+@media(max-width:520px){.brand-start-card{padding-bottom:94px!important}.brand-start-card:before{height:70px;bottom:38px}.brand-start-card:after{font-size:.72rem;right:14px}.brand-hero-art{height:34vh!important;min-height:300px!important}.brand-start-content:after{font-size:.78rem}.brand-benefits{gap:0!important}}
