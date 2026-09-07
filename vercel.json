@@ -3,9 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "trailingSlash": false,
-  "functions": {
-    "api/[...path].ts": { "maxDuration": 30 }
-  },
   "rewrites": [
     { "source": "/resultado", "destination": "/index.html" },
     { "source": "/paywall", "destination": "/index.html" },
