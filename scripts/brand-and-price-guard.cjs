@@ -1,29 +1,29 @@
 const fs = require('fs');
+
 const appPath = 'src/App.tsx';
-let code = fs.readFileSync(appPath, 'utf8');
-code = code.replace(/R\$\s*47(?:[,.]00)?/g, 'R$ 9,90');
-code = code.replace("const [email, setEmail] = useState('');", "const [whatsapp, setWhatsapp] = useState('');");
-code = code.replace('if (nome && email) {', "if (nome && whatsapp.replace(/\\D/g, '').length >= 10) {");
-code = code.replace('nome, email, respostas: finalRespostas,', 'nome, whatsapp, respostas: finalRespostas,');
-code = code.replace('>E-mail</label>', '>WhatsApp</label>');
-code = code.replace('type="email" value={email} onChange={e => setEmail(e.target.value)}','type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)}');
-code = code.replace('placeholder="seu@email.com"', 'placeholder="(51) 99999-9999"');
-code = code.replace(/Descubra o que est[aá] te impedindo de avan[cç]ar/g, 'Descubra o que está bloqueando o seu bem-estar emocional');
-code = code.replace(/<div className="home-copy-block">[\s\S]*?<\/div>/g, '<div className="home-copy-block"><p>Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p></div>');
-code = code.replace(/<nav className="preview-nav"[\s\S]*?<\/nav>/g, '');
-const formPattern = /<form onSubmit=\{handleStart\} className="space-y-4">[\s\S]*?<\/form>/;
-const previewCapture = `<details className="lead-capture" id="cadastro"><summary>Iniciar meu diagnóstico <ArrowRight className="inline w-4 h-4 ml-1" /></summary><form onSubmit={handleStart} className="space-y-4"><div><label>Nome</label><input required type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" /></div><div><label>WhatsApp</label><input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(51) 99999-9999" /></div><button type="submit">Continuar <ArrowRight className="inline w-4 h-4 ml-1" /></button></form></details><div className="preview-signature"><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><a className="preview-instagram" href="https://www.instagram.com/eujanainaaraujo/" target="_blank" rel="noreferrer" aria-label="Instagram de Janaína Araújo">Instagram&nbsp; @eujanainaaraujo</a><p className="preview-mantra">O primeiro passo para o seu autocuidado começa com o autoconhecimento.</p>`;
-if (formPattern.test(code)) code = code.replace(formPattern, previewCapture);
-code = code.replace("localStorage.setItem('janaina_resultado', JSON.stringify(resultadoCalculado));", "localStorage.removeItem('janaina_resultado');");
-code = code.replace(/\{previewResult\?\.resultado_dominante && <div className="result-preview"><span>✦<\/span><small>Sua principal área de atenção é<\/small><strong>\{previewResult\.resultado_dominante\}<\/strong><\/div>\}/, `<div className="result-preview result-locked"><span>✦</span><small>Seu padrão predominante foi identificado</small><strong>Resultado confidencial</strong><p>Existe um padrão se destacando nas suas respostas. Desbloqueie o relatório para descobrir qual é e entender como ele pode estar influenciando suas escolhas.</p></div>`);
-code = code.replace('Pagamento protegido pela Stripe. Você será direcionado ao checkout seguro para informar os dados do cartão.', 'Pagamento protegido pelo Asaas. Você será direcionado à página segura do Asaas para informar os dados do cartão.');
-code = code.replace('id="btn-pagar-cartao-stripe"', 'id="btn-pagar-cartao-asaas"');
-code = code.replace('Checkout Oficial da Stripe', 'Checkout Seguro do Asaas');
-code = code.replace('className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${','className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${');
-code = code.replace("{false && activePaymentTab === 'pix' && (", "{activePaymentTab === 'pix' && (");
-const required = ["const [whatsapp, setWhatsapp] = useState('');", 'Descubra o que está bloqueando o seu bem-estar emocional', 'className="lead-capture"', '@eujanainaaraujo', 'Resultado confidencial', 'id="btn-pagar-cartao-asaas"', "{activePaymentTab === 'pix' && (", 'QUERO APROFUNDAR MEU DIAGNÓSTICO'];
-for (const fragment of required) if (!code.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
-if (code.includes('className="preview-nav"')) throw new Error('Production guard failed: legacy navigation must stay removed');
-if (code.includes('Pagamento protegido pela Stripe')) throw new Error('Production guard failed: legacy Stripe UI copy remains');
-fs.writeFileSync(appPath, code);
-console.log('Production guards applied: approved menu-free visual / R$ 9,90 / WhatsApp / locked result / Asaas Pix + credit');
+const mainPath = 'src/main.tsx';
+const cssPath = 'src/final-approved-layout.css';
+
+const app = fs.readFileSync(appPath, 'utf8');
+const main = fs.readFileSync(mainPath, 'utf8');
+const css = fs.readFileSync(cssPath, 'utf8');
+
+const requiredApp = [
+  "const [whatsapp, setWhatsapp] = useState('');",
+  'Descubra o que está bloqueando o seu bem-estar emocional',
+  'R$ 9,90',
+  'id="btn-pagar-cartao-asaas"',
+  "{activePaymentTab === 'pix' && (",
+  'QUERO APROFUNDAR MEU DIAGNÓSTICO',
+];
+for (const fragment of requiredApp) {
+  if (!app.includes(fragment)) throw new Error(`Production guard failed: missing App fragment: ${fragment}`);
+}
+if (app.includes("localStorage.setItem('janaina_resultado'")) throw new Error('Production guard failed: diagnosis must not be persisted before payment');
+if (app.includes('Pagamento protegido pela Stripe') || app.includes('btn-pagar-cartao-stripe')) throw new Error('Production guard failed: legacy Stripe UI remains');
+if (app.includes('className="preview-nav"')) throw new Error('Production guard failed: legacy navigation remains');
+if (main.includes("'./responsive.css'") || main.includes("'./reference-layout.css'")) throw new Error('Production guard failed: legacy visual CSS is still imported');
+if (!main.includes("'./final-approved-layout.css'")) throw new Error('Production guard failed: approved layout CSS is not imported');
+if (!css.includes('.preview-nav,.preview-nav-link,.preview-nav-cta{display:none!important}')) throw new Error('Production guard failed: approved layout does not explicitly suppress legacy navigation');
+
+console.log('Production guards verified: menu-free approved layout / R$ 9,90 / WhatsApp / protected result / Asaas Pix + credit');
