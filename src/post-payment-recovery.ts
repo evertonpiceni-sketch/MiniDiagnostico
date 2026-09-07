@@ -14,8 +14,7 @@ const clearRecovery = () => {
   sessionStorage.removeItem(RECOVERY_ATTEMPTS);
 };
 
-// When Stripe/Asaas sends the customer back to the result route, preserve the
-// complete return URL. The backend/webhook can need a few seconds to settle.
+// Preserve the Asaas return URL while webhook/payment status propagation settles.
 if (path.includes('/resultado') && params.get('session_id')) {
   sessionStorage.setItem(RECOVERY_URL, window.location.href);
   if (!sessionStorage.getItem(RECOVERY_STARTED)) {
@@ -23,7 +22,6 @@ if (path.includes('/resultado') && params.get('session_id')) {
     sessionStorage.setItem(RECOVERY_ATTEMPTS, '0');
   }
 
-  // As soon as React renders the unlocked result, recovery is no longer needed.
   const observer = new MutationObserver(() => {
     if (document.querySelector('.result-card')) {
       clearRecovery();
@@ -40,9 +38,6 @@ if (path.includes('/resultado') && params.get('session_id')) {
   }
 }
 
-// Older result logic could send a just-paid customer to `/` if the first
-// verification happened before payment propagation finished. Return them to
-// the preserved result URL instead of losing the session and showing page 1.
 if (path === '/') {
   const recoveryUrl = sessionStorage.getItem(RECOVERY_URL);
   const started = Number(sessionStorage.getItem(RECOVERY_STARTED) || '0');

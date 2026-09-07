@@ -1,707 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import type { Variants } from 'motion/react';
-import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
-import { Loader2, Check, Copy, Sparkles, Smartphone, CreditCard, ShieldCheck, MessageCircle, ArrowLeft, ArrowRight, LockKeyhole, Clock3, MonitorSmartphone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, LockKeyhole, MonitorSmartphone, ShieldCheck, Smartphone, Sparkles } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
 
-const PIX_CODE = '00020126530014br.gov.bcb.pix0131contato.janainaaraujo@gmail.com52040000530398654049.905802BR5914JANAINA ARAUJO6014RIO DE JANEIRO62070503***63049B5A';
-
-const resultadoContainerVariants: Variants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.6,
-      ease: "easeOut",
-      staggerChildren: 0.2,
-      delayChildren: 0.3
-    }
-  }
-};
-
-const resultadoItemVariants: Variants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { duration: 0.5, ease: "easeOut" }
-  }
-};
+const resultadoContainerVariants: Variants = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: .6, ease: 'easeOut', staggerChildren: .16 } } };
+const resultadoItemVariants: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: .45, ease: 'easeOut' } } };
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState<'inicio' | 'quiz' | 'paywall' | 'resultado' | 'loading'>(() => { if (typeof window !== 'undefined') { const path = window.location.pathname; if (path === '/resultado') return 'resultado'; if (path === '/paywall') return 'paywall'; } return 'inicio'; });
+  const [currentStep, setCurrentStep] = useState<'inicio'|'quiz'|'paywall'|'resultado'|'loading'>(() => window.location.pathname === '/resultado' ? 'resultado' : window.location.pathname === '/paywall' ? 'paywall' : 'inicio');
   const [nome, setNome] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
-  const [quizSessionId, setQuizSessionId] = useState<string | null>(() => { return new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'); });
-  const [resultToken] = useState<string>(() => new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('result_token') || '');
+  const [quizSessionId, setQuizSessionId] = useState<string|null>(() => new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'));
+  const [resultToken, setResultToken] = useState(() => new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('result_token') || '');
   const [resultado, setResultado] = useState<any>(null);
+  const [activePaymentTab, setActivePaymentTab] = useState<'pix'|'card'>('pix');
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixCpf, setPixCpf] = useState('');
+  const [pixData, setPixData] = useState<{payload:string;encodedImage:string}|null>(null);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => { if (quizSessionId) localStorage.setItem('quiz_session_id', quizSessionId); }, [quizSessionId]);
 
-  const [activePaymentTab, setActivePaymentTab] = useState<'pix' | 'card'>('pix');
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [isVerifyingPix, setIsVerifyingPix] = useState(false);
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const previewResult = (() => {
-    try { return JSON.parse(localStorage.getItem('janaina_resultado') || 'null'); }
-    catch { return null; }
-  })();
-
-  const copyToClipboard = async (text: string) => {
+  const fetchResult = async (sessionId: string|null, token = resultToken) => {
+    if (!sessionId || !token) { setCurrentStep('paywall'); return; }
     try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand('copy');
-        textArea.remove();
-      }
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 3000);
-      toast.success('Código PIX Copia e Cola copiado! Cole no aplicativo do seu banco.');
-    } catch (e) {
-      toast.error('Não foi possível copiar automaticamente. Selecione o código manualmente.');
-    }
-  };
-
-  const handleConfirmPix = async () => {
-    const currentId = quizSessionId || localStorage.getItem('quiz_session_id');
-    if (!currentId) {
-      toast.error('Sessão do quiz não encontrada. Por favor, refaça o diagnóstico.');
-      return;
-    }
-    setIsVerifyingPix(true);
-    try {
-      const res = await fetch(`/api/quiz/${currentId}/verify-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resultToken })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.payment_status === 'paid') {
-          toast.success('Pagamento confirmado! Carregando seu diagnóstico completo...');
-          setCurrentStep('loading');
-          await fetchResult(currentId, resultToken);
-          return;
-        }
-      }
-      toast('Este PIX é conferido por comprovante. Use o botão de WhatsApp abaixo após o pagamento.');
-    } catch (err) {
-      toast.error('Erro de conexão ao verificar pagamento. Tente novamente.');
-    } finally {
-      setIsVerifyingPix(false);
-    }
-  };
-
-  const handleCheckout = async () => {
-    let currentSessionId = quizSessionId || new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id');
-    if (!currentSessionId) {
-       toast.error("Sessão não encontrada. Por favor, volte e refaça o quiz.");
-       setTimeout(() => { window.location.href = '/'; }, 2000);
-       return;
-    }
-    if (currentSessionId !== quizSessionId) {
-       setQuizSessionId(currentSessionId);
-    }
-    setIsCheckoutLoading(true);
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quiz_session_id: currentSessionId })
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        window.location.href = data.url;
-      } else {
-        toast.error(data.error || 'Erro ao iniciar o pagamento.');
-      }
-    } catch (e) {
-      toast.error('Erro de conexão ao iniciar o pagamento.');
-    } finally {
-      setIsCheckoutLoading(false);
-    }
-  };
-
-  const fetchResult = async (sessionId: string | null, token = resultToken) => {
-    try {
-      if (token) sessionStorage.setItem('result_token', token);
-      const checkoutSessionId = new URLSearchParams(window.location.search).get('checkout_session_id');
-      if (sessionId) {
-        try {
-          await fetch(`/api/quiz/${sessionId}/verify-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, checkout_session_id: checkoutSessionId }),
-          });
-        } catch(e){}
-      }
-      await new Promise(r => setTimeout(r, 600));
-      let backendPaid = false;
-      if (sessionId) {
-        const res = await fetch(`/api/quiz/${sessionId}?token=${encodeURIComponent(token)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.payment_status === 'paid') {
-            setResultado(data);
-            setCurrentStep('resultado');
-            backendPaid = true;
-            return;
-          }
-        }
-      }
-      if (!backendPaid) {
-        if (window.location.pathname.includes('/resultado')) {
-           toast.error('Pagamento não identificado. Conclua o pagamento para ver seu resultado.');
-           setTimeout(() => { window.location.href = '/'; }, 2000);
-        }
-        setCurrentStep('paywall');
-      }
-    } catch (e) {
-      toast.error('Não foi possível verificar seu pagamento no momento.');
+      sessionStorage.setItem('result_token', token);
+      await fetch(`/api/quiz/${encodeURIComponent(sessionId)}/verify-payment`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token}) }).catch(() => null);
+      const res = await fetch(`/api/quiz/${encodeURIComponent(sessionId)}?token=${encodeURIComponent(token)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.payment_status === 'paid') { setResultado(data); setCurrentStep('resultado'); return; }
       setCurrentStep('paywall');
-    }
+    } catch { toast.error('Não foi possível verificar o pagamento agora.'); setCurrentStep('paywall'); }
   };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
     const token = params.get('token') || sessionStorage.getItem('result_token') || '';
-    const isCanceled = params.get('canceled');
-    if (window.location.pathname.includes('/resultado') || sessionId) {
-      setCurrentStep('loading');
-      fetchResult(sessionId, token);
-    } else if (isCanceled) {
-      setCurrentStep('paywall');
-    }
+    if (token) setResultToken(token);
+    if (window.location.pathname === '/resultado' && sessionId) { setCurrentStep('loading'); void fetchResult(sessionId, token); }
   }, []);
 
-  // Polling automático de pagamento
   useEffect(() => {
-    let interval: any;
-    if (currentStep === 'paywall' && quizSessionId && resultToken) {
-      interval = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/quiz/${quizSessionId}/verify-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: resultToken }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.payment_status === 'paid') {
-              clearInterval(interval);
-              toast.success('Pagamento identificado com sucesso! Desbloqueando seu diagnóstico...');
-              setCurrentStep('loading');
-              await fetchResult(quizSessionId, resultToken);
-            }
-          }
-        } catch (e) {}
-      }, 4000);
-    }
-    return () => clearInterval(interval);
-  }, [currentStep, quizSessionId]);
+    if (currentStep !== 'paywall' || !quizSessionId || !resultToken) return;
+    const interval = window.setInterval(async () => {
+      const res = await fetch(`/api/quiz/${encodeURIComponent(quizSessionId)}/verify-payment`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:resultToken}) }).catch(() => null);
+      if (!res?.ok) return;
+      const data = await res.json().catch(() => ({}));
+      if (data.payment_status === 'paid') { window.clearInterval(interval); setCurrentStep('loading'); void fetchResult(quizSessionId, resultToken); }
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, [currentStep, quizSessionId, resultToken]);
 
-  const handleStart = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (nome && whatsapp.replace(/\D/g, '').length >= 10) {
-      setCurrentStep('quiz');
-    } else {
-      toast.error('Informe um número de WhatsApp válido com DDD.');
-    }
-  };
+  const handleStart = (e: React.FormEvent) => { e.preventDefault(); if (nome.trim() && whatsapp.replace(/\D/g,'').length >= 10) setCurrentStep('quiz'); else toast.error('Informe nome e WhatsApp válido com DDD.'); };
+  const selected = respostas[PERGUNTAS[currentQuestionIndex]?.id];
+  const handleAnswer = (valor:number) => setRespostas(prev => ({...prev, [PERGUNTAS[currentQuestionIndex].id]:valor}));
 
-  const handleAnswer = async (valor: number) => {
-    const newRespostas = { ...respostas, [PERGUNTAS[currentQuestionIndex].id]: valor };
-    setRespostas(newRespostas);
-    
-    if (currentQuestionIndex < PERGUNTAS.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      setCurrentStep('loading');
-      await finishQuiz(newRespostas);
-    }
-  };
-
-  const finishQuiz = async (finalRespostas: Record<number, number>) => {
-    let medo = 0;
-    let inseguranca = 0;
-    let procrastinacao = 0;
-
-    for (let i = 1; i <= 4; i++) medo += finalRespostas[i] || 0;
-    for (let i = 5; i <= 8; i++) inseguranca += finalRespostas[i] || 0;
-    for (let i = 9; i <= 12; i++) procrastinacao += finalRespostas[i] || 0;
-
-    let dominante = 'MEDO';
-    let max = medo;
-    if (inseguranca > max) { dominante = 'INSEGURANÇA'; max = inseguranca; }
-    if (procrastinacao > max) { dominante = 'PROCRASTINAÇÃO'; max = procrastinacao; }
-
-    const resultadoCalculado = {
-      nome, 
-      resultado_dominante: dominante,
-      score_medo: medo,
-      score_inseguranca: inseguranca,
-      score_procrastinacao: procrastinacao
-    };
-    
-    localStorage.setItem('janaina_resultado', JSON.stringify(resultadoCalculado));
-
+  const finishQuiz = async (answers:Record<number,number>) => {
+    setCurrentStep('loading');
     try {
-      const res = await fetch('/api/quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome, whatsapp, respostas: finalRespostas,
-          score_medo: medo, score_inseguranca: inseguranca, score_procrastinacao: procrastinacao,
-          resultado_dominante: dominante
-        })
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        setQuizSessionId(data.quiz_session_id);
-        setCurrentStep('paywall');
-      } else {
-        const errorData = await res.json().catch(() => null);
-        toast.error(errorData?.error || 'Erro ao salvar o quiz. Verifique as configurações do banco de dados.');
-        setCurrentStep('quiz');
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error('Erro de conexão com o servidor.');
-      setCurrentStep('quiz');
-    }
+      const res = await fetch('/api/quiz', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome:nome.trim(), whatsapp, respostas:answers}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.quiz_session_id) throw new Error(data.error || 'Não foi possível salvar o diagnóstico.');
+      localStorage.removeItem('janaina_resultado');
+      setQuizSessionId(data.quiz_session_id);
+      setCurrentStep('paywall');
+      history.replaceState({}, '', `/paywall?session_id=${encodeURIComponent(data.quiz_session_id)}`);
+    } catch(e) { toast.error(e instanceof Error ? e.message : 'Erro de conexão com o servidor.'); setCurrentStep('quiz'); }
   };
 
-  return (
-    <div className="brand-shell min-h-screen flex flex-col items-center justify-center p-4 text-stone-800 font-sans">
-      <Toaster position="top-center" />
-      
-      <AnimatePresence mode="wait">
-      {currentStep === 'inicio' && (
-        <motion.div
-          key="inicio"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="brand-start-card w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <div className="brand-hero-art" aria-hidden="true" />
-          <div className="brand-start-content">
-          <img id="mini-diagnostico-brand-logo" src="/ja-logo.webp" alt="Janaina Araújo — Terapeuta Integrativa" />
-          <p className="brand-eyebrow">MINI DIAGNÓSTICO</p>
-          <h1 className="text-3xl md:text-5xl font-bold mb-3 text-emerald-800">Descubra o que está bloqueando o seu bem-estar emocional</h1>
-          <p className="text-stone-500 mb-5">Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p>
-          <div className="brand-benefits"><span><Clock3 /> <b>Rápido</b><small>5 minutos</small></span><span><ShieldCheck /> <b>Seguro</b><small>e confidencial</small></span><span><MonitorSmartphone /> <b>100%</b><small>online</small></span></div>
-          <form onSubmit={handleStart} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-stone-700">Nome</label>
-              <input required type="text" value={nome} onChange={e => setNome(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="Seu nome" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-stone-700">WhatsApp</label>
-              <input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full border border-stone-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-700" placeholder="(51) 99999-9999" />
-            </div>
-            <button type="submit" className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium py-3 rounded-lg transition-colors mt-4 shadow-md shadow-emerald-900/10 active:scale-[0.98]">
-              Iniciar meu diagnóstico <ArrowRight className="inline w-4 h-4 ml-1" />
-            </button>
-          </form>
-          </div>
-        </motion.div>
-      )}
+  const handleNext = () => {
+    if (selected === undefined) return toast.error('Escolha uma resposta para continuar.');
+    if (currentQuestionIndex < PERGUNTAS.length - 1) setCurrentQuestionIndex(i => i + 1); else void finishQuiz(respostas);
+  };
 
-      {currentStep === 'quiz' && (
-        <motion.div
-          key="pergunta"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="brand-page-card quiz-card w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
-          <div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaina Araújo" /><span>Pergunta {currentQuestionIndex + 1} de {PERGUNTAS.length}</span></div>
-          <div className="mb-8">
-            <div className="w-full bg-stone-100 h-1.5 rounded-full mt-2 overflow-hidden">
-              <div className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full transition-all duration-300" style={{ width: `${((currentQuestionIndex + 1) / PERGUNTAS.length) * 100}%` }} />
-            </div>
-          </div>
-          <p className="brand-eyebrow">AUTOCONHECIMENTO</p>
-          <h2 className="text-xl font-medium mb-8 leading-relaxed text-stone-800">
-            {PERGUNTAS[currentQuestionIndex]?.texto}
-          </h2>
-          <div className="space-y-3">
-            {OPCOES_RESPOSTA.map((opcao) => (
-              <button
-                key={opcao.label}
-                onClick={() => handleAnswer(opcao.valor)}
-                className="w-full text-left px-6 py-4 rounded-xl border border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:shadow-sm transition-all text-stone-700 font-medium"
-              >
-                {opcao.label}
-              </button>
-            ))}
-          </div>
-          {currentQuestionIndex > 0 && <button type="button" onClick={() => setCurrentQuestionIndex(i => i - 1)} className="brand-back"><ArrowLeft /> Voltar</button>}
-          <p className="brand-card-quote">Cada resposta te aproxima da sua verdade.</p>
-        </motion.div>
-      )}
+  const handleCheckout = async () => {
+    if (!quizSessionId) return toast.error('Sessão não encontrada. Refaça o diagnóstico.');
+    setIsCheckoutLoading(true);
+    try {
+      const res = await fetch('/api/checkout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({quiz_session_id:quizSessionId}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url || !data.token) throw new Error(data.error || 'Não foi possível iniciar o pagamento.');
+      sessionStorage.setItem('result_token', data.token); setResultToken(data.token);
+      window.location.assign(data.url);
+    } catch(e) { toast.error(e instanceof Error ? e.message : 'Erro ao iniciar pagamento.'); setIsCheckoutLoading(false); }
+  };
 
-      {currentStep === 'loading' && (
-        <motion.div
-          key="processando"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.1 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-col items-center">
-          <Loader2 className="w-8 h-8 animate-spin text-stone-400 mb-4" />
-          <p className="text-stone-500 font-medium">Processando...</p>
-        </motion.div>
-      )}
+  const generatePix = async () => {
+    if (!quizSessionId) return toast.error('Sessão não encontrada.');
+    const cpfCnpj = pixCpf.replace(/\D/g,'');
+    if (cpfCnpj.length !== 11) return toast.error('Informe um CPF válido com 11 números.');
+    setPixLoading(true);
+    try {
+      const res = await fetch('/api/asaas-pix', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({quiz_session_id:quizSessionId, cpfCnpj}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.token) throw new Error(data.error || 'Não foi possível gerar o Pix.');
+      sessionStorage.setItem('result_token', data.token); setResultToken(data.token);
+      if (data.paid) { setCurrentStep('loading'); return void fetchResult(quizSessionId, data.token); }
+      if (!data.payload || !data.encodedImage) throw new Error('O Asaas não retornou QR Code válido.');
+      setPixData({payload:data.payload, encodedImage:String(data.encodedImage).replace(/\s/g,'')});
+    } catch(e) { toast.error(e instanceof Error ? e.message : 'Erro ao gerar Pix.'); } finally { setPixLoading(false); }
+  };
 
-      {currentStep === 'paywall' && (
-        <motion.div
-          key="paywall"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="brand-page-card payment-card w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-stone-200 text-center">
-          <div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaina Araújo" /><LockKeyhole /></div>
-          
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Resultado Calculado com Sucesso</span>
-          </div>
+  const copyPix = async () => { if (!pixData) return; try { await navigator.clipboard.writeText(pixData.payload); setCopied(true); setTimeout(()=>setCopied(false),1800); } catch { toast.error('Selecione e copie o código manualmente.'); } };
 
-          <h2 className="text-2xl font-bold mb-2 text-stone-900">Seu resultado</h2>
-          {previewResult?.resultado_dominante && <div className="result-preview"><span>✦</span><small>Sua principal área de atenção é</small><strong>{previewResult.resultado_dominante}</strong></div>}
-          <h3 className="payment-title">Finalizar pagamento</h3>
-          <p className="text-stone-600 mb-6 text-sm leading-relaxed">
-            Seu relatório personalizado será liberado após a confirmação do pagamento.
-          </p>
+  return <div className="brand-shell min-h-screen flex flex-col items-center justify-center p-4 text-stone-800 font-sans"><Toaster position="top-center"/><AnimatePresence mode="wait">
+    {currentStep === 'inicio' && <motion.div key="inicio" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-20}} className="brand-start-card w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+      <div className="brand-hero-art" aria-hidden="true"/><div className="brand-start-content"><img id="mini-diagnostico-brand-logo" src="/ja-logo.webp" alt="Janaína Araújo — Terapeuta Integrativa"/><p className="brand-eyebrow">MINI DIAGNÓSTICO</p><h1 className="text-3xl md:text-5xl font-bold mb-3 text-emerald-800">Descubra o que está bloqueando o seu bem-estar emocional</h1><p className="text-stone-500 mb-5">Responda a 12 perguntas e receba um relatório personalizado sobre a principal área de atenção percebida nas suas respostas.</p><div className="brand-benefits"><span><Sparkles/><b>Rápido</b><small>2 minutos</small></span><span><ShieldCheck/><b>Seguro</b><small>e confidencial</small></span><span><MonitorSmartphone/><b>100%</b><small>online</small></span></div><form onSubmit={handleStart} className="space-y-4"><label className="block text-sm font-medium">Nome<input required value={nome} onChange={e=>setNome(e.target.value)} className="w-full border rounded-lg px-4 py-3 mt-1" placeholder="Seu nome"/></label><label className="block text-sm font-medium">WhatsApp<input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)} className="w-full border rounded-lg px-4 py-3 mt-1" placeholder="(51) 99999-9999"/></label><button className="w-full bg-emerald-800 text-white font-semibold py-3 rounded-xl">Iniciar meu diagnóstico <ArrowRight className="inline w-4 h-4"/></button></form></div>
+    </motion.div>}
 
-          {/* Abas de Pagamento */}
-          <div className="flex bg-stone-100 p-1.5 rounded-xl mb-6 border border-stone-200 gap-1">
-            <button
-              id="tab-pix"
-              type="button"
-              onClick={() => setActivePaymentTab('pix')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer border border-stone-200 ${activePaymentTab === 'pix' ? 'payment-tab-active' : ''}`}
-            >
-              <Smartphone className="w-4 h-4 text-emerald-600" />
-              <span>Pix</span>
-            </button>
-            <button
-              id="tab-card"
-              type="button"
-              onClick={() => setActivePaymentTab('card')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                activePaymentTab === 'card'
-                  ? 'payment-tab-active bg-white text-emerald-800 shadow-sm border border-stone-200'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              <CreditCard className="w-4 h-4 text-stone-500" />
-              <span>Cartão de crédito</span>
-            </button>
-          </div>
+    {currentStep === 'quiz' && <motion.div key={`q-${currentQuestionIndex}`} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} className="brand-page-card quiz-card w-full max-w-xl bg-white p-8 rounded-2xl shadow-sm border"><div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaína Araújo"/><span>Pergunta {currentQuestionIndex+1} de {PERGUNTAS.length}</span></div><div className="w-full bg-stone-100 h-1.5 rounded-full my-5"><div className="bg-emerald-700 h-full rounded-full" style={{width:`${((currentQuestionIndex+1)/PERGUNTAS.length)*100}%`}}/></div><button type="button" onClick={()=>setCurrentQuestionIndex(i=>Math.max(0,i-1))} className="brand-back" disabled={currentQuestionIndex===0}><ArrowLeft/> Voltar</button><p className="brand-eyebrow">AUTOCONHECIMENTO</p><h2 className="text-2xl font-medium mb-7">{PERGUNTAS[currentQuestionIndex]?.texto}</h2><div className="space-y-3">{OPCOES_RESPOSTA.map(op=><button key={op.label} type="button" onClick={()=>handleAnswer(op.valor)} aria-pressed={selected===op.valor} className={`w-full text-left px-6 py-4 rounded-xl border transition-all ${selected===op.valor?'border-purple-700 bg-purple-50 shadow-sm':'border-stone-200 hover:border-purple-400'}`}><span className="inline-block w-4 h-4 rounded-full border mr-3 align-middle">{selected===op.valor?'●':''}</span>{op.label}</button>)}</div><div className="flex justify-between items-center mt-7"><span/><button type="button" onClick={handleNext} className="bg-purple-800 text-white px-7 py-3 rounded-xl font-semibold">{currentQuestionIndex===PERGUNTAS.length-1?'Finalizar':'Próxima'} <ArrowRight className="inline w-4 h-4"/></button></div><p className="brand-card-quote">Cada resposta te aproxima de uma compreensão maior sobre si.</p></motion.div>}
 
-          {activePaymentTab === 'pix' && (
-            <div className="space-y-4 text-left">
-              {/* Box com QR Code e detalhes */}
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-                <div className="bg-white p-2 rounded-lg border border-stone-200 shadow-xs flex-shrink-0">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(PIX_CODE)}`}
-                    alt="QR Code PIX R$ 9,90"
-                    width={130}
-                    height={130}
-                    className="rounded"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase font-bold tracking-wider text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">PIX Copia e Cola</span>
-                    <span className="text-base font-bold text-stone-900">R$ 9,90</span>
-                  </div>
-                  <p className="text-xs text-stone-600 leading-relaxed">
-                    Abra o app do seu banco, escolha <strong>Pix</strong> e aponte a câmera para o QR Code ao lado, ou use o botão abaixo para <strong>Copiar o Código Pix</strong>.
-                  </p>
-                  <p className="text-[11px] text-stone-500">
-                    Beneficiária: <strong>Janaína Araújo</strong>
-                  </p>
-                </div>
-              </div>
+    {currentStep === 'loading' && <motion.div key="loading" initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center"><Loader2 className="w-8 h-8 animate-spin mb-4"/><p>Processando com segurança...</p></motion.div>}
 
-              {/* Código Pix Copia e Cola com botão de clique único */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wide">
-                  Código Pix Copia e Cola:
-                </label>
-                <div className="relative">
-                  <input
-                    readOnly
-                    type="text"
-                    value={PIX_CODE}
-                    className="w-full text-xs font-mono bg-stone-50 border border-stone-300 rounded-xl py-2.5 pl-3 pr-24 text-stone-700 focus:outline-none select-all"
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  <button
-                    id="btn-copiar-pix-inline"
-                    type="button"
-                    onClick={() => copyToClipboard(PIX_CODE)}
-                    className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-                  >
-                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedCode ? 'Copiado!' : 'Copiar'}</span>
-                  </button>
-                </div>
+    {currentStep === 'paywall' && <motion.div key="paywall" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} className="brand-page-card payment-card w-full max-w-lg bg-white p-6 md:p-8 rounded-2xl shadow-sm border text-center"><div className="brand-card-header"><img src="/ja-logo.webp" alt="Janaína Araújo"/><LockKeyhole/></div><div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full text-xs font-semibold mb-3"><Sparkles className="w-4 h-4"/>Resultado calculado com segurança</div><h2 className="text-2xl font-bold">Seu resultado</h2><div className="result-preview result-locked"><span>✦</span><small>Sua principal área de atenção foi identificada</small><strong>Resultado confidencial</strong><p>Conclua o pagamento para desbloquear o relatório completo.</p></div><h3 className="payment-title">Finalizar pagamento</h3><p className="text-stone-600 mb-5">Mini Diagnóstico Emocional • Relatório completo + orientações • <strong>R$ 9,90</strong></p><div className="flex bg-stone-100 p-1.5 rounded-xl mb-6 gap-1"><button id="tab-pix" type="button" onClick={()=>setActivePaymentTab('pix')} className={`flex-1 py-3 rounded-lg ${activePaymentTab==='pix'?'payment-tab-active bg-white':''}`}><Smartphone className="inline w-4 h-4 mr-2"/>Pix</button><button id="tab-card" type="button" onClick={()=>setActivePaymentTab('card')} className={`flex-1 py-3 rounded-lg ${activePaymentTab==='card'?'payment-tab-active bg-white':''}`}><CreditCard className="inline w-4 h-4 mr-2"/>Cartão de crédito</button></div>
+      {activePaymentTab==='pix' && <div className="space-y-4 text-left">{!pixData ? <><div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm">Pix seguro via Asaas. O QR Code e o Copia e Cola são gerados para esta sessão e a confirmação é automática.</div><label className="block text-sm font-medium">CPF do pagador<input value={pixCpf} onChange={e=>setPixCpf(e.target.value)} inputMode="numeric" maxLength={14} className="w-full border rounded-lg px-4 py-3 mt-1" placeholder="000.000.000-00"/></label><button id="btn-pagar-pix-asaas" type="button" disabled={pixLoading} onClick={generatePix} className="w-full py-4 bg-emerald-700 text-white font-bold rounded-xl">{pixLoading?<Loader2 className="inline w-5 h-5 animate-spin"/>:'GERAR PIX — R$ 9,90'}</button></> : <div className="space-y-4 text-center"><div className="font-bold">PIX • R$ 9,90</div><img src={`data:image/png;base64,${pixData.encodedImage}`} alt="QR Code Pix Asaas" className="w-56 h-56 mx-auto bg-white p-3 rounded-xl"/><textarea readOnly value={pixData.payload} className="w-full min-h-24 border rounded-xl p-3 text-xs"/><button type="button" onClick={copyPix} className="w-full py-4 bg-emerald-700 text-white font-bold rounded-xl">{copied?<><Check className="inline w-4 h-4"/> PIX COPIADO</>:<><Copy className="inline w-4 h-4"/> COPIAR CÓDIGO PIX</>}</button><p className="text-xs text-stone-500">Aguardando confirmação automática do Asaas...</p></div>}</div>}
+      {activePaymentTab==='card' && <div className="space-y-4 text-left"><div className="bg-stone-50 border rounded-xl p-4 text-sm"><div className="flex justify-between font-semibold"><span>Cartão de crédito</span><span>R$ 9,90</span></div><p className="mt-2 text-stone-600">Pagamento protegido pelo Asaas. Você será direcionado à página segura do Asaas para informar os dados do cartão.</p></div><button id="btn-pagar-cartao-asaas" type="button" disabled={isCheckoutLoading} onClick={handleCheckout} className="w-full py-4 bg-purple-800 text-white font-bold rounded-xl">{isCheckoutLoading?<><Loader2 className="inline w-5 h-5 animate-spin"/> Abrindo Asaas...</>:<><CreditCard className="inline w-5 h-5"/> CONCLUIR PAGAMENTO — R$ 9,90</>}</button></div>}
+      <p className="text-xs text-stone-500 mt-5"><ShieldCheck className="inline w-4 h-4"/> O resultado só é liberado após confirmação server-side do pagamento.</p></motion.div>}
 
-                {/* Botão de Destaque para Copiar */}
-                <motion.button
-                  id="btn-copiar-pix-destaque"
-                  type="button"
-                  animate={{ scale: [1, 1.02, 1] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                  onClick={() => copyToClipboard(PIX_CODE)}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm hover:shadow transition-all active:scale-[0.99] cursor-pointer"
-                >
-                  {copiedCode ? (
-                    <>
-                      <Check className="w-5 h-5 text-emerald-200" />
-                      <span>CÓDIGO PIX COPIADO! COLE NO APP DO BANCO</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-5 h-5" />
-                      <span>CLIQUE AQUI PARA COPIAR O CÓDIGO PIX</span>
-                    </>
-                  )}
-                </motion.button>
-              </div>
-
-              {/* Status de Polling + Botão de Confirmação Imediata */}
-              <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-xl space-y-3">
-                <div className="flex items-center gap-2 text-xs font-medium text-emerald-900">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
-                  </span>
-                  <span>Aguardando identificação do seu pagamento...</span>
-                </div>
-                
-                <button
-                  id="btn-confirmar-pix"
-                  type="button"
-                  disabled={isVerifyingPix}
-                  onClick={handleConfirmPix}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold rounded-xl transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-                >
-                  {isVerifyingPix ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-stone-300" />
-                      <span>Verificando pagamento...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span>Já fiz o PIX! Liberar meu resultado agora</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Botão de WhatsApp */}
-              <div className="text-center pt-1">
-                <a
-                  href={`https://wa.me/5521983928113?text=Ol%C3%A1!%20Fiz%20o%20pagamento%20de%20R$%209,90%20do%20Mini%20Diagn%C3%B3stico%20via%20PIX%20(Sess%C3%A3o:%20${encodeURIComponent(quizSessionId || '')}).%20Segue%20o%20comprovante:`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-emerald-700 font-medium transition-colors"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
-                  <span>Dúvidas ou enviar comprovante no WhatsApp? Clique aqui</span>
-                </a>
-              </div>
-            </div>
-          )}
-
-          {activePaymentTab === 'card' && (
-            <div className="space-y-4 text-left">
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 text-stone-700 text-xs leading-relaxed space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 text-sm">Cartão de crédito</span>
-                  <span className="font-bold text-stone-900 text-base">R$ 9,90</span>
-                </div>
-                <p className="text-stone-600">
-                  Pagamento protegido pela Stripe. Você será direcionado ao checkout seguro para informar os dados do cartão.
-                </p>
-              </div>
-
-              {/* Botão Direto de Checkout Oficial da Stripe */}
-              <button
-                id="btn-pagar-cartao-stripe"
-                type="button"
-                disabled={isCheckoutLoading}
-                onClick={handleCheckout}
-                className="w-full flex items-center justify-center gap-2 py-4 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm hover:shadow transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer text-sm"
-              >
-                {isCheckoutLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Redirecionando para o Checkout Seguro...</span>
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-5 h-5" />
-                    <span>CONCLUIR PAGAMENTO — R$ 9,90</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {currentStep === 'resultado' && resultado && (
-        <motion.div
-          key="resultado"
-          variants={resultadoContainerVariants}
-          initial="hidden"
-          animate="visible"
-          className="brand-page-card report-card w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-stone-200">
-          <div className="report-brand"><img src="/ja-logo.webp" alt="Janaina Araújo" /><p>Seu Relatório Personalizado</p><small>Mini Diagnóstico Emocional</small></div>
-          <motion.h2 
-            variants={resultadoItemVariants}
-            className="text-2xl md:text-3xl font-bold mb-6 text-emerald-800 text-center border-b border-stone-100 pb-6">
-            Seu Padrão Dominante: {resultado.resultado_dominante}
-          </motion.h2>
-          
-          <div className="prose prose-stone max-w-none space-y-4 text-stone-700 leading-relaxed text-lg">
-            {resultado.resultado_dominante === 'MEDO' && (
-              <>
-                <motion.div variants={resultadoItemVariants}>
-                  <p>Olá, {resultado.nome || 'JANAINA BRANDAO ARAUJO'}.</p>
-                  <p>Seu padrão predominante está relacionado ao MEDO.</p>
-                  <p>O medo não é uma fraqueza. Na verdade, ele é um dos sistemas de proteção mais eficientes que você tem.</p>
-                  <p>Ele aparece para tentar evitar que você se machuque, se decepcione ou reviva situações difíceis. Mas, muitas vezes, para tentar garantir sua segurança, ele acaba limitando o seu movimento.</p>
-                  <p>A voz do medo costuma se disfarçar de "prudência" ou "cautela". Ela se manifesta no perfeccionismo, na dificuldade de dizer não, na comparação com outras pessoas, no excesso de preparação ou naquela sensação de que ainda falta alguma coisa para você estar realmente pronta.</p>
-                  <p>Você pode até saber o que quer fazer — mas, antes de agir, surge a dúvida: "Será que eu consigo?" "Será que estou preparada?" "E se eu fizer errado?"</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
-                  <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
-                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procaminho de volta pra si sinais de que está fazendo a escolha certa.</p>
-                  <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
-                  <p>A segurança que você espera sentir antes de agir muitas vezes é construída depois que você começa a agir.</p>
-                </motion.div>
-              </>
-            )}
-            
-            {resultado.resultado_dominante === 'INSEGURANÇA' && (
-              <>
-                <motion.div variants={resultadoItemVariants}>
-                  <p>Olá, {resultado.nome || 'JANAINA BRANDAO ARAUJO'}.</p>
-                  <p>Seu padrão predominante está relacionado à INSEGURANÇA.</p>
-                  <p>A insegurança faz você duvidar da sua própria capacidade, mesmo quando há evidências claras de que você consegue.</p>
-                  <p>Você pode até saber o que quer fazer — mas, antes de agir, surge a dúvida: "Será que eu consigo?" "Será que estou preparada?" "E se eu fizer errado?"</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
-                  <p>Em algum nível, você pode ter aprendido a confiar mais nas referências externas do que na própria percepção.</p>
-                  <p>Por isso, mesmo quando já possui conhecimento, experiência ou capacidade suficiente para dar um passo, ainda procaminho de volta pra si sinais de que está fazendo a escolha certa.</p>
-                  <p>O problema é que essa confirmação nem sempre chega. Quando você condiciona sua ação à sensação de estar completamente preparada, pode acabar adiando experiências que seriam justamente as responsáveis por construir a confiança que está buscando.</p>
-                  <p>A segurança que você espera sentir antes de agir muitas vezes é construída depois que você começa a agir.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
-                  <p>Você pode perceber esse padrão quando pensa demais antes de tomar decisões, busca opiniões mesmo quando já sabe o que gostaria de fazer, compara seu processo com o de outras pessoas ou diminui suas próprias conquistas e capacidades.</p>
-                  <p>Você também pode se preparar excessivamente antes de se expor, abandonar uma ideia quando começa a duvidar da própria capacidade ou esperar sentir confiança para só então começar.</p>
-                  <p>Ter dúvidas não significa não estar preparada.<br/>A dúvida pode continuar presente enquanto você aprende a confiar mais em si mesma.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">UMA PERGUNTA IMPORTANTE</h3>
-                  <p>Pense em algo que você gostaria de fazer, mas diante do qual ainda sente insegurança.<br/>"Se eu não precisasse provar que sou capaz, o que eu já me permitiria fazer?"<br/>Observe a primeira resposta que surgir antes que sua mente comece a procaminho de volta pra sir justificativas.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">SEU PRIMEIRO MOVIMENTO</h3>
-                  <p>Escolha uma pequena decisão que você vem adiando por insegurança.<br/>Em vez de perguntar: "Tenho certeza de que consigo?", experimente perguntar:<br/>"O que eu faria agora se confiasse um pouco mais na minha própria capacidade?"<br/>Então escolha uma ação pequena e concreta para realizar nas próximas 24 horas.</p>
-                  <p>Você não precisa eliminar toda a insegurança para começar. Pode começar enquanto aprende a confiar em si.</p>
-                </motion.div>
-              </>
-            )}
-
-            {resultado.resultado_dominante === 'PROCRASTINAÇÃO' && (
-              <>
-                <motion.div variants={resultadoItemVariants}>
-                  <p>Olá, {resultado.nome || 'JANAINA BRANDAO ARAUJO'}.</p>
-                  <p>Seu padrão predominante está relacionado à PROCRASTINAÇÃO.</p>
-                  <p>A procrastinação nem sempre significa preguiça, falta de disciplina ou desorganização. Muitas vezes, você sabe exatamente o que precisa fazer — e até deseja fazer — mas existe uma distância entre saber e começar.</p>
-                  <p>Você pode ocupar o tempo com outras tarefas, esperar o momento ideal, organizar mais um pouco, pesquisar mais, pensar mais ou dizer a si mesma que fará quando estiver com mais disposição.</p>
-                  <p>E aquilo que realmente importa continua sendo adiado.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">O QUE PODE ESTAR ACONTECENDO POR TRÁS DISSO</h3>
-                  <p>Em muitos casos, a procrastinação funciona como uma forma de evitar algum desconforto associado à ação.</p>
-                  <p>Pode ser o receio de errar, de não fazer tão bem quanto gostaria, de se expor, de lidar com uma tarefa difícil ou até com as consequências de finalmente conseguir aquilo que deseja.</p>
-                  <p>Por isso, procrastinar pode trazer um alívio imediato: enquanto você não começa, também não precisa enfrentar o desconforto.</p>
-                  <p>O problema é que esse alívio costuma durar pouco. Depois podem surgir cobrança, culpa, ansiedade e aquela sensação incômoda de estar sempre devendo alguma coisa a si mesma.</p>
-                  <p>adiamento → alívio momentâneo → cobrança → culpa → mais dificuldade para começar.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">COMO ESSE PADRÃO PODE APARECER NA SUA VIDA</h3>
-                  <p>Você pode perceber esse padrão quando deixa tarefas importantes para depois, mesmo tendo tempo para realizá-las; começa várias coisas e encontra dificuldade para concluir; ou ocupa-se com tarefas menores para evitar justamente aquela que realmente precisa da sua atenção.</p>
-                  <p>Você também pode esperar estar motivada ou inspirada para começar, pesquisar e planejar excessivamente sem entrar em ação ou precisar que o prazo e a urgência aumentem para finalmente conseguir fazer.</p>
-                  <p>Você não precisa sentir vontade para começar.<br/>Muitas vezes, é justamente o movimento que produz a disposição que você estava esperando sentir antes.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">UMA PERGUNTA IMPORTANTE</h3>
-                  <p>Pense em algo importante que você vem adiando.<br/>"O que eu evito sentir, enfrentar ou descobrir quando adio essa ação?"<br/>Não procure uma resposta perfeita. Observe o que aparece primeiro.<br/>Às vezes, compreender o que está sendo evitado é mais transformador do que continuar tentando se obrigar a fazer.</p>
-                </motion.div>
-                <motion.div variants={resultadoItemVariants}>
-                  <h3 className="text-xl font-bold mt-8 mb-4 text-emerald-800">SEU PRIMEIRO MOVIMENTO</h3>
-                  <p>Escolha uma única coisa que você vem adiando.<br/>Agora reduza essa tarefa até encontrar uma ação que possa ser feita em 10 minutos ou menos.<br/>Não é terminar tudo. Não é resolver o problema inteiro. É apenas romper a inércia.<br/>Pergunte a si mesma:<br/>"Qual é a menor ação concreta que posso fazer agora para sair da intenção e entrar em movimento?"<br/>Faça essa pequena ação antes de planejar o restante.</p>
-                  <p>Porque, neste momento, você não precisa provar que consegue chegar até o final. Precisa apenas começar.</p>
-                </motion.div>
-              </>
-            )}
-          </div>
-          
-          <motion.div variants={resultadoItemVariants} className="mt-12 p-6 md:p-8 bg-stone-100 rounded-2xl border border-stone-200 text-center">
-            {quizSessionId && resultToken && (
-              <a
-                href={`/api/diagnostico-pdf?id=${encodeURIComponent(quizSessionId)}&token=${encodeURIComponent(resultToken)}`}
-                className="block text-center w-full bg-emerald-700 text-white font-medium py-4 rounded-xl hover:bg-emerald-800 transition-colors mb-4"
-              >
-                BAIXAR MEU DIAGNÓSTICO EM PDF
-              </a>
-            )}
-            <h3 className="text-xl font-bold mb-2 text-stone-800">E SE VOCÊ QUISER IR ALÉM DESTE PRIMEIRO PASSO?</h3>
-            <p className="text-stone-700 mb-6">
-              Este resultado mostra o padrão que mais se destacou nas suas respostas, mas ele não conta toda a sua história. Por trás da {resultado.resultado_dominante.toLowerCase()} podem existir experiências, crenças e formas de proteção que foram sendo construídas ao longo da sua vida — e compreender essa origem pode ser o próximo passo para transformar esse padrão.
-            </p>
-            <p className="text-stone-700 mb-8 font-medium">
-              Se você percebeu que esse padrão se repete em diferentes áreas da sua vida e sente que está na hora de compreender o que existe por trás dele, eu posso te acompanhar nesse processo.
-            </p>
-            <a href={`https://wa.me/5521983928113?text=Quero%20aprofundar%20meu%20diagnóstico%20de%20${resultado.resultado_dominante}`} target="_blank" rel="noreferrer" className="block text-center w-full bg-teal-700 text-white font-medium py-4 rounded-xl hover:bg-teal-800 transition-colors shadow-lg shadow-stone-200">
-              QUERO APROFUNDAR MEU DIAGNÓSTICO
-            </a>
-          </motion.div>
-        </motion.div>
-      )}
-      </AnimatePresence>
-    </div>
-  );
+    {currentStep==='resultado' && resultado && <motion.div key="resultado" variants={resultadoContainerVariants} initial="hidden" animate="visible" className="brand-page-card report-card w-full max-w-2xl bg-white p-6 md:p-10 rounded-2xl shadow-sm border"><div className="report-brand"><img src="/ja-logo.webp" alt="Janaína Araújo"/><p>Seu Relatório Personalizado</p><small>Mini Diagnóstico Emocional</small></div><motion.h2 variants={resultadoItemVariants} className="text-2xl md:text-3xl font-bold mb-6 text-emerald-800 text-center border-b pb-6">Sua principal área de atenção: {resultado.resultado_dominante}</motion.h2><motion.div variants={resultadoItemVariants} className="space-y-4 text-stone-700 leading-relaxed"><p>Olá, {resultado.nome}.</p><p>Este resultado indica o padrão que mais se destacou nas suas respostas. Ele é uma ferramenta de autoconhecimento e não substitui avaliação, diagnóstico ou acompanhamento de profissionais de saúde.</p>{resultado.resultado_dominante==='MEDO'&&<><p>O medo é um mecanismo de proteção. Quando ocupa espaço demais, pode favorecer excesso de cautela, perfeccionismo e dificuldade para agir diante da incerteza.</p><h3 className="text-xl font-bold text-emerald-800">Seu primeiro movimento</h3><p>Escolha uma decisão pequena que você vem adiando e defina uma ação concreta e segura para as próximas 24 horas.</p></>}{resultado.resultado_dominante==='INSEGURANÇA'&&<><p>A insegurança pode fazer você questionar capacidades que já demonstrou possuir e buscar confirmação externa antes de confiar na própria percepção.</p><h3 className="text-xl font-bold text-emerald-800">Seu primeiro movimento</h3><p>Escolha uma pequena decisão e pergunte: “O que eu faria agora se confiasse um pouco mais na minha capacidade?”</p></>}{resultado.resultado_dominante==='PROCRASTINAÇÃO'&&<><p>A procrastinação muitas vezes aparece como uma forma de evitar desconforto, incerteza ou exposição, e não simplesmente como falta de disciplina.</p><h3 className="text-xl font-bold text-emerald-800">Seu primeiro movimento</h3><p>Reduza uma tarefa adiada à menor ação concreta que possa ser feita em dez minutos ou menos.</p></>}</motion.div><motion.div variants={resultadoItemVariants} className="mt-10 p-6 bg-stone-100 rounded-2xl text-center">{quizSessionId&&resultToken&&<a href={`/api/diagnostico-pdf?id=${encodeURIComponent(quizSessionId)}&token=${encodeURIComponent(resultToken)}`} className="block w-full bg-emerald-700 text-white font-medium py-4 rounded-xl mb-4">BAIXAR MEU DIAGNÓSTICO EM PDF</a>}<p className="font-medium">Mais do que um resultado, este é um convite para ampliar seu autoconhecimento.</p></motion.div></motion.div>}
+  </AnimatePresence></div>;
 }

@@ -1,30 +1,22 @@
 const fs = require('fs');
-const appPath = 'src/App.tsx';
-let code = fs.readFileSync(appPath, 'utf8');
 
-code = code.replace(/R\$\s*47(?:[,.]00)?/g, 'R$ 9,90');
-code = code.replace("const [email, setEmail] = useState('');", "const [whatsapp, setWhatsapp] = useState('');");
-code = code.replace('if (nome && email) {', "if (nome && whatsapp.replace(/\\D/g, '').length >= 10) {");
-code = code.replace('nome, email, respostas: finalRespostas,', 'nome, whatsapp, respostas: finalRespostas,');
-code = code.replace('>E-mail</label>', '>WhatsApp</label>');
-code = code.replace('type="email" value={email} onChange={e => setEmail(e.target.value)}','type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)}');
-code = code.replace('placeholder="seu@email.com"', 'placeholder="(51) 99999-9999"');
-code = code.replace(/Descubra o que est[aá] te impedindo de avan[cç]ar/g, 'Descubra o que está bloqueando o seu bem-estar emocional');
-code = code.replace(/<nav\b[\s\S]*?<\/nav>/g, '');
-code = code.replace('<small>5 minutos</small>', '<small>2 minutos</small>');
-code = code.replace("localStorage.setItem('janaina_resultado', JSON.stringify(resultadoCalculado));", "localStorage.removeItem('janaina_resultado');");
-code = code.replace(/\{previewResult\?\.resultado_dominante && <div className="result-preview"><span>✦<\/span><small>Sua principal área de atenção é<\/small><strong>\{previewResult\.resultado_dominante\}<\/strong><\/div>\}/, `<div className="result-preview result-locked"><span>✦</span><small>Seu padrão predominante foi identificado</small><strong>Resultado confidencial</strong><p>Existe um padrão se destacando nas suas respostas. Desbloqueie o relatório para descobrir qual é e entender como ele pode estar influenciando suas escolhas.</p></div>`);
-code = code.replace('Pagamento protegido pela Stripe. Você será direcionado ao checkout seguro para informar os dados do cartão.', 'Pagamento protegido pelo Asaas. Você será direcionado à página segura do Asaas para informar os dados do cartão.');
-code = code.replace('id="btn-pagar-cartao-stripe"', 'id="btn-pagar-cartao-asaas"');
-code = code.replace('Checkout Oficial da Stripe', 'Checkout Seguro do Asaas');
-code = code.replace('className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${','className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${');
-code = code.replace("{false && activePaymentTab === 'pix' && (", "{activePaymentTab === 'pix' && (");
+const files = [
+  'src/App.tsx', 'src/main.tsx', 'index.html',
+  'api/checkout.ts', 'api/asaas-pix.ts', 'api/asaas-webhook.ts',
+  'api/quiz.ts', 'api/quiz/[id]/verify-payment.ts', 'api/diagnostico-pdf.ts',
+  'package.json', 'vercel.json', '.env.example'
+];
+const sources = files.map(file => [file, fs.readFileSync(file, 'utf8')]);
+const app = sources.find(([file]) => file === 'src/App.tsx')[1];
+const all = sources.map(([, source]) => source).join('\n');
 
-const required = ["const [whatsapp, setWhatsapp] = useState('');",'Descubra o que está bloqueando o seu bem-estar emocional','R$ 9,90','<small>2 minutos</small>',"{activePaymentTab === 'pix' && (",'QUERO APROFUNDAR MEU DIAGNÓSTICO'];
-for (const fragment of required) if (!code.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
-if (code.includes("localStorage.setItem('janaina_resultado'")) throw new Error('Production guard failed: locked diagnosis leaked to localStorage');
-if (/<nav\b/.test(code)) throw new Error('Production guard failed: navigation must stay removed');
-if (code.includes('Pagamento protegido pela Stripe') || code.includes('btn-pagar-cartao-stripe')) throw new Error('Production guard failed: legacy Stripe UI remains');
-
-fs.writeFileSync(appPath, code);
-console.log('Production guards applied: approved landing / R$ 9,90 / WhatsApp / protected result / Asaas Pix + credit');
+for (const fragment of ['Descubra o que está bloqueando o seu bem-estar emocional','R$ 9,90','WhatsApp','/api/checkout','/api/asaas-pix','CREDIT_CARD','PIX','RESULT_TOKEN_SECRET']) {
+  if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
+}
+for (const fragment of ['checkout.stripe.com','js.stripe.com','stripe-buy-button','stripe-pricing-table','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET','STRIPE_PRICE_ID',"from 'stripe'",'btn-pagar-cartao-stripe',"localStorage.setItem('janaina_resultado'",'checkout_session_id','stripe_checkout_session_id']) {
+  if (all.includes(fragment)) throw new Error(`Production guard failed: forbidden legacy fragment: ${fragment}`);
+}
+if (/<nav\b/i.test(app)) throw new Error('Production guard failed: obsolete navigation must stay removed');
+if (app.includes('<small>5 minutos</small>')) throw new Error('Production guard failed: approved duration is 2 minutos');
+if (!app.includes('Resultado confidencial')) throw new Error('Production guard failed: pending result must remain confidential');
+console.log('Production guard passed: Asaas-only, R$ 9,90, server-side payment verification, confidential pending result, approved landing constraints.');
