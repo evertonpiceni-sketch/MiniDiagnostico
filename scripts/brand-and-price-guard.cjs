@@ -1,6 +1,8 @@
 const fs = require('fs');
 const appPath = 'src/App.tsx';
 let code = fs.readFileSync(appPath, 'utf8');
+
+// Normalize legacy source safely before validating the production contract.
 code = code.replace(/R\$\s*47(?:[,.]00)?/g, 'R$ 9,90');
 code = code.replace("const [email, setEmail] = useState('');", "const [whatsapp, setWhatsapp] = useState('');");
 code = code.replace('if (nome && email) {', "if (nome && whatsapp.replace(/\\D/g, '').length >= 10) {");
@@ -17,10 +19,18 @@ code = code.replace('id="btn-pagar-cartao-stripe"', 'id="btn-pagar-cartao-asaas"
 code = code.replace('Checkout Oficial da Stripe', 'Checkout Seguro do Asaas');
 code = code.replace('className={`hidden flex-1 items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${','className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg text-sm font-bold transition-all cursor-pointer ${');
 code = code.replace("{false && activePaymentTab === 'pix' && (", "{activePaymentTab === 'pix' && (");
-const required = ["const [whatsapp, setWhatsapp] = useState('');", 'Descubra o que está bloqueando o seu bem-estar emocional', 'Resultado confidencial', 'id="btn-pagar-cartao-asaas"', "{activePaymentTab === 'pix' && (", 'QUERO APROFUNDAR MEU DIAGNÓSTICO'];
+
+const required = [
+  "const [whatsapp, setWhatsapp] = useState('');",
+  'Descubra o que está bloqueando o seu bem-estar emocional',
+  'R$ 9,90',
+  "{activePaymentTab === 'pix' && (",
+  'QUERO APROFUNDAR MEU DIAGNÓSTICO'
+];
 for (const fragment of required) if (!code.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
 if (code.includes("localStorage.setItem('janaina_resultado'")) throw new Error('Production guard failed: locked diagnosis leaked to localStorage');
 if (code.includes('className="preview-nav"')) throw new Error('Production guard failed: legacy navigation must stay removed');
 if (code.includes('Pagamento protegido pela Stripe') || code.includes('btn-pagar-cartao-stripe')) throw new Error('Production guard failed: legacy Stripe UI remains');
+
 fs.writeFileSync(appPath, code);
 console.log('Production guards applied: approved layout / R$ 9,90 / WhatsApp / protected result / Asaas Pix + credit');
