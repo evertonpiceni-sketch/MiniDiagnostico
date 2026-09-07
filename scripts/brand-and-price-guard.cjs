@@ -16,12 +16,8 @@ code = code.replace('placeholder="seu@email.com"', 'placeholder="(51) 99999-9999
 code = code.replace(/Descubra o que est[aá] te impedindo de avan[cç]ar/g, 'Descubra o que está bloqueando o seu bem-estar emocional');
 code = code.replace(/<div className="home-copy-block">[\s\S]*?<\/div>/g, '<div className="home-copy-block"><p>Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p></div>');
 
-// Approved desktop navigation appearance; secondary items are visual labels on this single-page flow.
-const approvedNav = '<nav className="preview-nav" aria-label="Navegação"><span className="preview-nav-link">Início</span><span className="preview-nav-link">Sobre</span><span className="preview-nav-link">Benefícios</span><span className="preview-nav-link">FAQ</span><a href="#cadastro" className="preview-nav-cta">Começar</a></nav>';
-code = code.replace(/<nav className="preview-nav"[\s\S]*?<\/nav>/, approvedNav);
-if (!code.includes('className="preview-nav"')) {
-  code = code.replace('<div className="brand-hero-art" aria-hidden="true" />', `${approvedNav}<div className="brand-hero-art" aria-hidden="true" />`);
-}
+// Approved landing is intentionally menu-free. Never re-inject the old Início/Sobre/Benefícios/FAQ/Começar navigation.
+code = code.replace(/<nav className="preview-nav"[\s\S]*?<\/nav>/g, '');
 
 const formPattern = /<form onSubmit=\{handleStart\} className="space-y-4">[\s\S]*?<\/form>/;
 const previewCapture = `<details className="lead-capture" id="cadastro"><summary>Iniciar meu diagnóstico <ArrowRight className="inline w-4 h-4 ml-1" /></summary><form onSubmit={handleStart} className="space-y-4"><div><label>Nome</label><input required type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" /></div><div><label>WhatsApp</label><input required type="tel" inputMode="tel" autoComplete="tel" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(51) 99999-9999" /></div><button type="submit">Continuar <ArrowRight className="inline w-4 h-4 ml-1" /></button></form></details><div className="preview-signature"><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><a className="preview-instagram" href="https://www.instagram.com/eujanainaaraujo/" target="_blank" rel="noreferrer" aria-label="Instagram de Janaína Araújo">Instagram&nbsp; @eujanainaaraujo</a><p className="preview-mantra">O primeiro passo para a sua cura começa com o autoconhecimento.</p>`;
@@ -38,7 +34,6 @@ code = code.replace("{false && activePaymentTab === 'pix' && (", "{activePayment
 const required = [
   "const [whatsapp, setWhatsapp] = useState('');",
   'Descubra o que está bloqueando o seu bem-estar emocional',
-  'className="preview-nav"',
   'className="lead-capture"',
   '@eujanainaaraujo',
   'Resultado confidencial',
@@ -47,6 +42,7 @@ const required = [
   'QUERO APROFUNDAR MEU DIAGNÓSTICO'
 ];
 for (const fragment of required) if (!code.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
+if (code.includes('className="preview-nav"')) throw new Error('Production guard failed: legacy navigation must stay removed');
 
 fs.writeFileSync(appPath, code);
-console.log('Production guards applied: approved visual reference / R$ 9,90 / WhatsApp / locked result / Pix + card');
+console.log('Production guards applied: approved menu-free visual / R$ 9,90 / WhatsApp / locked result / Pix + card');
