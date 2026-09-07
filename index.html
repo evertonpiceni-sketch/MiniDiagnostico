@@ -20,11 +20,14 @@
     <meta property="og:image" content="/logo.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="/logo.jpg" />
-    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
