@@ -6,6 +6,7 @@ import App from './App.tsx';
 import './index.css';
 import './final-approved-layout.css';
 import './approved-board-completion.css';
+import './hero-approved.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
