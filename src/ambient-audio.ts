@@ -3,6 +3,7 @@ const bootAmbientAudio = () => {
 
   let enabled = localStorage.getItem('mini_ambient_sound') !== 'off';
   let started = false;
+  let starting = false;
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
   let scheduler: number | null = null;
@@ -13,20 +14,20 @@ const bootAmbientAudio = () => {
   control.setAttribute('aria-label', 'Ativar ou pausar música relaxante');
   Object.assign(control.style, {
     position: 'fixed', right: '14px', bottom: '14px', zIndex: '1000',
-    minHeight: '38px', padding: '8px 13px', borderRadius: '999px',
-    border: '1px solid rgba(111,47,105,.24)', background: 'rgba(255,250,240,.94)',
+    minHeight: '40px', padding: '8px 13px', borderRadius: '999px',
+    border: '1px solid rgba(111,47,105,.24)', background: 'rgba(255,250,240,.96)',
     color: '#5b2858', boxShadow: '0 8px 24px rgba(75,55,45,.12)',
     backdropFilter: 'blur(10px)', fontSize: '.74rem', fontWeight: '700', cursor: 'pointer'
   });
 
-  const volumeForScreen = () => document.querySelector('.payment-card') ? 0.035 : 0.075;
+  const volumeForScreen = () => document.querySelector('.payment-card') ? 0.055 : 0.11;
 
   const update = () => {
-    control.textContent = enabled && started ? '♪ Som: ligado' : '♪ Som';
-    control.setAttribute('aria-pressed', String(enabled && started));
+    control.textContent = started ? '♪ Som: ligado' : '♪ Ativar som';
+    control.setAttribute('aria-pressed', String(started));
   };
 
-  const playBell = (frequency: number, when: number, duration = 4.8, gain = 0.022) => {
+  const playTone = (frequency: number, when: number, duration: number, gain: number) => {
     if (!ctx || !master) return;
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
@@ -34,73 +35,70 @@ const bootAmbientAudio = () => {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(frequency, when);
     filter.type = 'lowpass';
-    filter.frequency.value = 1500;
+    filter.frequency.value = 1200;
     g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(gain, when + 0.18);
+    g.gain.exponentialRampToValueAtTime(gain, when + 0.22);
     g.gain.exponentialRampToValueAtTime(0.0001, when + duration);
     osc.connect(filter); filter.connect(g); g.connect(master);
     osc.start(when); osc.stop(when + duration + 0.2);
   };
 
-  const playPad = (frequency: number, when: number, duration = 9) => {
-    if (!ctx || !master) return;
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(frequency, when);
-    filter.type = 'lowpass';
-    filter.frequency.value = 620;
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(0.012, when + 1.5);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + duration);
-    osc.connect(filter); filter.connect(g); g.connect(master);
-    osc.start(when); osc.stop(when + duration + 0.3);
-  };
-
   const schedulePhrase = () => {
     if (!ctx || !started) return;
-    const now = ctx.currentTime + 0.08;
+    const now = ctx.currentTime + 0.05;
     const progression = [220, 261.63, 196, 246.94];
     progression.forEach((root, i) => {
       const t = now + i * 6.8;
-      playPad(root, t, 8.2);
-      playPad(root * 1.5, t + 0.25, 7.6);
-      playBell(root * 2, t + 1.3, 4.3, 0.014);
-      playBell(root * 2.5, t + 3.9, 3.8, 0.009);
+      playTone(root, t, 8.2, 0.016);
+      playTone(root * 1.5, t + 0.25, 7.6, 0.011);
+      playTone(root * 2, t + 1.3, 4.3, 0.018);
+      playTone(root * 2.5, t + 3.9, 3.8, 0.012);
     });
   };
 
   const start = async () => {
-    if (!enabled || started) return;
-    ctx = new AudioContext();
-    master = ctx.createGain();
-    master.gain.value = volumeForScreen();
-    master.connect(ctx.destination);
-    await ctx.resume();
-    started = true;
-    schedulePhrase();
-    scheduler = window.setInterval(schedulePhrase, 27200);
-    update();
+    if (!enabled || started || starting) return;
+    starting = true;
+    try {
+      const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextCtor) throw new Error('AudioContext unavailable');
+      ctx = new AudioContextCtor();
+      master = ctx.createGain();
+      master.gain.value = volumeForScreen();
+      master.connect(ctx.destination);
+      await ctx.resume();
+      started = ctx.state === 'running';
+      if (!started) throw new Error('AudioContext blocked');
+      schedulePhrase();
+      scheduler = window.setInterval(schedulePhrase, 27200);
+    } catch (error) {
+      console.warn('Ambient audio could not start:', error);
+      started = false;
+      if (ctx) { try { await ctx.close(); } catch {} }
+      ctx = null; master = null;
+    } finally {
+      starting = false;
+      update();
+    }
   };
 
   const stop = async () => {
     started = false;
     if (scheduler !== null) window.clearInterval(scheduler);
     scheduler = null;
-    if (ctx) {
-      try { await ctx.close(); } catch {}
-    }
+    if (ctx) { try { await ctx.close(); } catch {} }
     ctx = null; master = null;
     update();
   };
 
   const syncForScreen = () => {
-    if (!ctx || !master) return;
+    if (!ctx || !master || ctx.state !== 'running') return;
     master.gain.setTargetAtTime(volumeForScreen(), ctx.currentTime, 0.8);
   };
 
-  control.addEventListener('click', async () => {
+  control.addEventListener('click', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (started) {
       enabled = false;
       localStorage.setItem('mini_ambient_sound', 'off');
@@ -112,10 +110,14 @@ const bootAmbientAudio = () => {
     }
   });
 
-  document.addEventListener('click', (event) => {
-    if (event.target === control || control.contains(event.target as Node)) return;
+  // Browsers block audio before a real user gesture. Start on the first interaction,
+  // and keep the visible control as a reliable fallback.
+  const startOnFirstInteraction = () => {
+    if (!enabled || started) return;
     void start();
-  }, { once: true, capture: true });
+  };
+  document.addEventListener('pointerdown', startOnFirstInteraction, { once: true, passive: true });
+  document.addEventListener('keydown', startOnFirstInteraction, { once: true });
 
   const observer = new MutationObserver(syncForScreen);
   observer.observe(document.documentElement, { childList: true, subtree: true });
