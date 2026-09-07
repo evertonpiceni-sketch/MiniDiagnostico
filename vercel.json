@@ -4,48 +4,34 @@
   "outputDirectory": "dist",
   "trailingSlash": false,
   "functions": {
-    "api/[...path].ts": {
-      "maxDuration": 30
-    }
+    "api/[...path].ts": { "maxDuration": 30 }
   },
   "rewrites": [
-    {
-      "source": "/resultado",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/paywall",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/politica-de-privacidade",
-      "destination": "/politica-de-privacidade.html"
-    }
+    { "source": "/resultado", "destination": "/index.html" },
+    { "source": "/paywall", "destination": "/index.html" },
+    { "source": "/politica-de-privacidade", "destination": "/politica-de-privacidade.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
-        },
-        {
-          "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin-allow-popups"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ]
