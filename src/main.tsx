@@ -1,8 +1,5 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import './payment-session-guard';
-import './asaas-cpf-fix';
-import './payment-fix-safe';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import './post-payment-recovery';
 import './ambient-audio';
 import App from './App.tsx';
