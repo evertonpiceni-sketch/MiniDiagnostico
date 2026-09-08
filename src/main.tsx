@@ -6,6 +6,7 @@ import './result-enhancer';
 import App from './App.tsx';
 import './index.css';
 import './brand-system.css';
+import './approved-layout.css';
 import './result-report.css';
 
 createRoot(document.getElementById('root')!).render(
