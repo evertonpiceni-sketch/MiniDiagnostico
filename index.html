@@ -23,11 +23,8 @@
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => registrations.forEach(registration => registration.unregister()));
-      }
-    </script>
+    <script>if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()))}</script>
+    <script src="/test-mode.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script src="/resultado-whatsapp.js" defer></script>
   </body>
