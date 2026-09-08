@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 
 type VercelRequest = {
   method?: string;
@@ -9,6 +9,7 @@ type VercelRequest = {
 type VercelResponse = {
   status: (code: number) => VercelResponse;
   json: (data: unknown) => unknown;
+  setHeader: (name: string, value: string) => void;
 };
 
 const cleanEnv = (value: string | undefined) => {
@@ -16,10 +17,20 @@ const cleanEnv = (value: string | undefined) => {
   return trimmed.replace(/^(["'])(.*)\1$/, '$2').trim();
 };
 
+const RESULT_TOKEN_SECRET = cleanEnv(process.env.RESULT_TOKEN_SECRET);
+
+function recoveryProof(id: string) {
+  if (RESULT_TOKEN_SECRET.length < 32) throw new Error('RESULT_TOKEN_SECRET_INVALID');
+  return createHmac('sha256', RESULT_TOKEN_SECRET).update(`recovery:${id}`).digest('base64url');
+}
+
+function setRecoveryCookie(res: VercelResponse, id: string) {
+  const proof = recoveryProof(id);
+  res.setHeader('Set-Cookie', `mini_recovery_${id}=${encodeURIComponent(proof)}; Path=/api/quiz/${id}; Max-Age=604800; HttpOnly; Secure; SameSite=Lax`);
+}
+
 function dbConfig() {
   const url = cleanEnv(process.env.SUPABASE_URL).replace(/\/$/, '');
-  // Prefer the server-side service-role key. Ignore an accidental publishable
-  // key in SUPABASE_SECRET_KEY instead of letting it override the valid key.
   const key = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
     .map(cleanEnv)
     .find((candidate) => Boolean(candidate) && !candidate.startsWith('sb_publishable_')) || '';
@@ -146,9 +157,9 @@ async function findDuplicate(whatsapp: string, answers: Record<string, number>) 
 const errorResponse = (res: VercelResponse, error: unknown) => {
   const message = String((error as any)?.message || '');
 
-  if (['DB_CONFIG_URL_MISSING', 'DB_CONFIG_KEY_MISSING', 'DB_URL_INVALID', 'DB_CONNECTION'].includes(message)) {
+  if (['DB_CONFIG_URL_MISSING', 'DB_CONFIG_KEY_MISSING', 'DB_URL_INVALID', 'DB_CONNECTION', 'RESULT_TOKEN_SECRET_INVALID'].includes(message)) {
     return res.status(503).json({
-      error: `Supabase não configurado ou indisponível. [${message}]`,
+      error: `Serviço não configurado ou indisponível. [${message}]`,
       code: message,
     });
   }
@@ -175,6 +186,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Método não permitido.' });
   }
 
+  res.setHeader('Cache-Control', 'private, no-store');
+
   try {
     const body = (req.body || {}) as Record<string, unknown>;
     const nome = typeof body.nome === 'string' ? body.nome.trim().replace(/\s+/g, ' ') : '';
@@ -185,6 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const duplicate = await findDuplicate(whatsapp, respostas);
     if (duplicate?.quiz_session_id) {
+      setRecoveryCookie(res, duplicate.quiz_session_id);
       return res.status(200).json({
         ok: true,
         quiz_session_id: duplicate.quiz_session_id,
@@ -202,16 +216,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       payment_status: 'pending',
     };
 
-    try {
-      await db('quiz_sessions', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify(row),
-      });
-    } catch (error) {
-      throw error;
-    }
+    await db('quiz_sessions', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(row),
+    });
 
+    setRecoveryCookie(res, quiz_session_id);
     return res.status(201).json({ ok: true, quiz_session_id, reused: false });
   } catch (error) {
     return errorResponse(res, error);
