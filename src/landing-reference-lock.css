@@ -1,0 +1,22 @@
+/* FINAL LOCK — landing conforme referência aprovada pela cliente. */
+.brand-start-card{position:relative!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;isolation:isolate!important}
+.brand-start-card>.brand-start-content{position:relative!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;filter:none!important;mix-blend-mode:normal!important;align-self:center!important;justify-self:stretch!important;overflow:visible!important}
+.brand-start-card>.brand-start-content>*{opacity:1!important;visibility:visible!important;filter:none!important}
+.brand-start-content>img#mini-diagnostico-brand-logo{opacity:1!important;visibility:visible!important}
+.brand-start-content>.brand-eyebrow{opacity:1!important;visibility:visible!important;color:#6f846d!important}
+.brand-start-content>h1{position:relative!important;inset:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;overflow:visible!important;color:#183234!important;text-indent:0!important}
+.brand-start-content>h1:after{content:"Descubra o que está te impedindo de avançar"!important;opacity:1!important;visibility:visible!important;color:#183234!important;display:block!important;max-width:590px!important}
+.brand-start-content>p.text-stone-500{position:relative!important;inset:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;color:#384941!important;overflow:visible!important}
+.brand-start-content>p.text-stone-500:after{content:"Você sabe que quer mudar alguma coisa. Talvez até saiba o que precisa fazer. Mas, na hora de avançar, algo acontece.\A\A Responda a 12 perguntas rápidas e descubra qual padrão pode estar agindo por trás dessa trava — muitas vezes sem que você perceba.\A\A Seu resultado pode revelar mais do que você imagina."!important;display:block!important;white-space:pre-line!important;opacity:1!important;visibility:visible!important;color:#384941!important;font-size:1rem!important;line-height:1.58!important}
+.brand-benefits{position:relative!important;inset:auto!important;transform:none!important;opacity:1!important;visibility:visible!important}
+.brand-start-card>.brand-hero-art{position:relative!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;transform:none!important;opacity:1!important;visibility:visible!important;filter:none!important;z-index:1!important}
+.brand-start-card>.brand-hero-art:after{opacity:1!important;visibility:visible!important;filter:none!important}
+.brand-start-card>.brand-hero-art:before{opacity:1!important;visibility:visible!important}
+.approved-cta-hotspot,.approved-top-hotspot{opacity:1!important;visibility:visible!important;transform:none!important}
+.brand-start-card:not(.collecting-data)>.brand-start-content form{display:none!important}
+
+@media(min-width:901px){
+ .brand-start-card{display:grid!important;grid-template-columns:minmax(520px,50%) 1fr!important;min-height:100dvh!important;padding-bottom:104px!important}
+ .brand-start-card>.brand-start-content{grid-column:1!important;grid-row:1!important;padding:44px 28px 34px clamp(52px,5.3vw,96px)!important;margin:0!important}
+ .brand-start-card>.brand-hero-art{grid-column:2!important;grid-row:1!important;min-height:calc(100dvh - 104px)!important;height:auto!important}
+}
