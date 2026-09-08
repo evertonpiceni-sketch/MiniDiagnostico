@@ -136,7 +136,7 @@ function calculateScores(answers: Record<string, number>) {
 
 async function findDuplicate(whatsapp: string, answers: Record<string, number>) {
   const rows = await db<any[]>(
-    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,payment_status,resultado_dominante&order=created_at.desc&limit=20`,
+    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,payment_status&order=created_at.desc&limit=20`,
   );
   return rows.find(
     (row) => String(row?.whatsapp || '') === whatsapp && JSON.stringify(row?.respostas || {}) === JSON.stringify(answers),
@@ -188,7 +188,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         ok: true,
         quiz_session_id: duplicate.quiz_session_id,
-        resultado_dominante: duplicate.resultado_dominante,
         reused: true,
       });
     }
@@ -213,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw error;
     }
 
-    return res.status(201).json({ ok: true, quiz_session_id, resultado_dominante: row.resultado_dominante, reused: false });
+    return res.status(201).json({ ok: true, quiz_session_id, reused: false });
   } catch (error) {
     return errorResponse(res, error);
   }
