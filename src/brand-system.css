@@ -91,7 +91,8 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 }
 .journey-page::before{content:"";position:absolute;inset:0;z-index:0;width:auto;height:auto;opacity:1;background:url('/botanical-corners.svg') center/100% 100% no-repeat;pointer-events:none;transform:none}
 .journey-page::after{content:none}
-.brand-page-card{border-color:rgba(183,122,50,.28)!important;box-shadow:0 24px 70px rgba(69,52,38,.13)!important}
+.brand-page-card{border-color:rgba(183,122,50,.28)!important;background:#fffaf0 url('/botanical-corners.svg') center/100% 100% no-repeat!important;box-shadow:0 24px 70px rgba(69,52,38,.13)!important}
+.brand-page-card>*{position:relative;z-index:1}
 .brand-page-card::after{content:"";position:absolute;left:9%;right:9%;bottom:10px;height:1px;background:linear-gradient(90deg,transparent,rgba(203,163,77,.68),transparent)}
 .brand-card-header{min-height:76px;margin-bottom:10px;border-bottom:0}
 .brand-card-header img{width:142px!important;filter:contrast(1.25) saturate(1.15);mix-blend-mode:multiply}
