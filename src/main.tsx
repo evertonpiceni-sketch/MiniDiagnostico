@@ -5,6 +5,7 @@ import './ambient-audio';
 import App from './App.tsx';
 import './index.css';
 import './brand-system.css';
+import './result-report.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
