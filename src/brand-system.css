@@ -88,6 +88,7 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
     radial-gradient(circle at 22% 8%,rgba(203,163,77,.12),transparent 28%),
     radial-gradient(circle at 83% 88%,rgba(135,155,125,.16),transparent 31%),
     linear-gradient(145deg,#fffaf0 0%,#f9efdc 100%);
+  background-size:100% 100%,auto,auto,auto;
 }
 .journey-page::before,.journey-page::after{content:none}
 .brand-page-card{border-color:rgba(183,122,50,.28)!important;box-shadow:0 24px 70px rgba(69,52,38,.13)!important}
@@ -117,7 +118,7 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 .payment-footer{display:flex;align-items:center;justify-content:center;gap:7px;margin:18px 0 0;text-align:center;font-size:.75rem;color:#53615b}.payment-footer svg{width:17px;height:17px}
 
 @media(max-width:700px){
-  .journey-page{padding:0!important;align-items:start;place-items:start center;background-size:auto 100%,auto,auto,auto}
+  .journey-page{padding:0!important;align-items:start;place-items:start center;background-size:100% 100%,auto,auto,auto}
   .brand-page-card{width:100%!important;min-height:100dvh;margin:0 auto!important;border:0!important;border-radius:0!important;box-shadow:none!important}
   .brand-card-header{min-height:67px}.brand-card-header img{width:105px!important}
   .quiz-card,.payment-card{padding:18px 20px 30px!important}
