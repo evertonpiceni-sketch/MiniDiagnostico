@@ -20,11 +20,26 @@ const bootAmbientAudio = () => {
     backdropFilter: 'blur(10px)', fontSize: '.74rem', fontWeight: '700', cursor: 'pointer'
   });
 
+  const placeControl = () => {
+    const mobile = window.matchMedia('(max-width: 700px)').matches;
+    const onLanding = !!document.querySelector('.landing-v2');
+    if (mobile && onLanding) {
+      control.style.position = 'absolute';
+      control.style.right = '18px';
+      control.style.bottom = '18px';
+    } else {
+      control.style.position = 'fixed';
+      control.style.right = '14px';
+      control.style.bottom = '14px';
+    }
+  };
+
   const volumeForScreen = () => document.querySelector('.payment-card') ? 0.055 : 0.11;
 
   const update = () => {
     control.textContent = started ? '♪ Som: ligado' : '♪ Ativar som';
     control.setAttribute('aria-pressed', String(started));
+    placeControl();
   };
 
   const playTone = (frequency: number, when: number, duration: number, gain: number) => {
@@ -92,8 +107,8 @@ const bootAmbientAudio = () => {
   };
 
   const syncForScreen = () => {
-    if (!ctx || !master || ctx.state !== 'running') return;
-    master.gain.setTargetAtTime(volumeForScreen(), ctx.currentTime, 0.8);
+    if (ctx && master && ctx.state === 'running') master.gain.setTargetAtTime(volumeForScreen(), ctx.currentTime, 0.8);
+    placeControl();
   };
 
   control.addEventListener('click', async (event) => {
@@ -110,14 +125,13 @@ const bootAmbientAudio = () => {
     }
   });
 
-  // Browsers block audio before a real user gesture. Start on the first interaction,
-  // and keep the visible control as a reliable fallback.
   const startOnFirstInteraction = () => {
     if (!enabled || started) return;
     void start();
   };
   document.addEventListener('pointerdown', startOnFirstInteraction, { once: true, passive: true });
   document.addEventListener('keydown', startOnFirstInteraction, { once: true });
+  window.addEventListener('resize', placeControl, { passive: true });
 
   const observer = new MutationObserver(syncForScreen);
   observer.observe(document.documentElement, { childList: true, subtree: true });
