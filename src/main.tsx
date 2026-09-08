@@ -7,9 +7,7 @@ import App from './App.tsx';
 import './index.css';
 import './final-approved-layout.css';
 import './approved-board-completion.css';
-import './hero-approved-live.css';
-import './landing-approved-exact.css';
-import './landing-reference-lock.css';
+import './landing-history-restore.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
