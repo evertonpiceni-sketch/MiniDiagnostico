@@ -36,8 +36,9 @@ for (const fragment of [
 
 if (app.includes('<small>5 minutos</small>')) throw new Error('Production guard failed: approved duration is 2 minutos');
 if (!app.includes('className="landing-v2"')) throw new Error('Production guard failed: landing v2 component missing');
-if (!app.includes('<img src="/hero-approved.jpg"')) throw new Error('Production guard failed: approved hero must render as a real img element');
+if (!app.includes('<img src="/hero-approved.jpg"')) throw new Error('Production guard failed: approved hero fallback element missing');
 if (!main.includes("import './landing-v2.css';")) throw new Error('Production guard failed: landing-v2.css is not loaded');
-if (!landing.includes('.landing-v2__visual img')) throw new Error('Production guard failed: isolated hero image styling missing');
+if (!landing.includes("url('/hero-approved-live.jpg')")) throw new Error('Production guard failed: audited live hero background missing');
+if (!landing.includes('.landing-v2__visual>img{display:none!important}')) throw new Error('Production guard failed: broken fallback hero is not isolated');
 
-console.log('Production guard passed: landing v2, approved Janaína identity, Asaas-only payments, R$ 9,90 and protected result flow.');
+console.log('Production guard passed: audited landing, Janaína identity, resilient hero, Asaas-only payments, R$ 9,90 and protected result flow.');
