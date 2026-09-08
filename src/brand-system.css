@@ -77,24 +77,15 @@
 .journey-page{
   isolation:isolate;
   background:
+    url('/botanical-corners.svg') center/cover no-repeat,
     radial-gradient(circle at 22% 8%,rgba(203,163,77,.12),transparent 28%),
     radial-gradient(circle at 83% 88%,rgba(135,155,125,.16),transparent 31%),
     linear-gradient(145deg,#fffaf0 0%,#f9efdc 100%);
 }
-.journey-page::before,.journey-page::after{
-  z-index:0;width:230px;height:330px;opacity:.28;filter:saturate(.8);
-  background:
-    radial-gradient(ellipse at 22% 18%,#6f8667 0 13%,transparent 14%),
-    radial-gradient(ellipse at 58% 10%,#96a88e 0 12%,transparent 13%),
-    radial-gradient(ellipse at 38% 42%,#809779 0 15%,transparent 16%),
-    radial-gradient(ellipse at 72% 55%,#a8b49a 0 13%,transparent 14%),
-    radial-gradient(ellipse at 35% 78%,#6f8667 0 15%,transparent 16%);
-}
-.journey-page::before{left:-82px;bottom:-84px;top:auto;transform:rotate(17deg)}
-.journey-page::after{right:-86px;top:-92px;transform:rotate(198deg)}
+.journey-page::before,.journey-page::after{content:none}
 .brand-page-card{border-color:rgba(183,122,50,.28)!important;box-shadow:0 24px 70px rgba(69,52,38,.13)!important}
 .brand-page-card::after{content:"";position:absolute;left:9%;right:9%;bottom:10px;height:1px;background:linear-gradient(90deg,transparent,rgba(203,163,77,.68),transparent)}
-.brand-card-header{min-height:76px;margin-bottom:10px;border-bottom:1px solid rgba(203,163,77,.18)}
+.brand-card-header{min-height:76px;margin-bottom:10px;border-bottom:0}
 .brand-card-header img{width:132px!important}
 .brand-card-header>svg{width:23px;height:23px;color:#263b38}
 .quiz-card .brand-eyebrow{margin-top:3px!important}
@@ -104,7 +95,7 @@
 .progress-track{margin-top:2px;background:#f3ecde}
 .progress-fill{background:linear-gradient(90deg,#cba34d,#879b7d)}
 
-.payment-card{text-align:left!important;padding:30px 34px 34px!important}
+.payment-card{width:min(94vw,510px)!important;text-align:left!important;padding:26px 32px 38px!important}
 .payment-card>h2{margin:17px 0 8px!important;font-family:"Playfair Display",Georgia,serif!important;font-size:clamp(2rem,5vw,2.55rem)!important;font-weight:600!important;color:#26332d!important}
 .payment-intro{margin:0 0 22px;color:#52605a;line-height:1.5}
 .payment-product{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px;padding:18px;border:1px solid rgba(95,108,96,.24);border-radius:12px;background:rgba(255,255,255,.72)}
@@ -119,10 +110,10 @@
 .payment-footer{display:flex;align-items:center;justify-content:center;gap:7px;margin:18px 0 0;text-align:center;font-size:.75rem;color:#53615b}.payment-footer svg{width:17px;height:17px}
 
 @media(max-width:700px){
-  .journey-page{padding:8px!important;align-items:start;place-items:start center}
-  .brand-page-card{margin:8px auto!important}
+  .journey-page{padding:0!important;align-items:start;place-items:start center;background-size:auto 100%,auto,auto,auto}
+  .brand-page-card{width:100%!important;min-height:100dvh;margin:0 auto!important;border:0!important;border-radius:0!important;box-shadow:none!important}
   .brand-card-header{min-height:67px}.brand-card-header img{width:105px!important}
-  .quiz-card,.payment-card{padding:18px 17px 26px!important}
+  .quiz-card,.payment-card{padding:18px 20px 30px!important}
   .quiz-card h2{font-size:1.8rem!important}.answer-option{min-height:54px;padding:12px 13px}
   .payment-card>h2{font-size:2rem!important}.payment-product{align-items:flex-start;padding:14px}.payment-product>b{font-size:1.38rem}
   .payment-card .flex.bg-stone-100{grid-template-columns:1fr!important}
