@@ -58,6 +58,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
+    const recoverableSessionId = sessionId || localStorage.getItem('quiz_session_id');
     const token = params.get('token') || sessionStorage.getItem('result_token') || '';
     if (token) setResultToken(token);
     if (window.location.pathname === '/resultado' && sessionId) {
@@ -66,6 +67,8 @@ export default function App() {
       else void recoverPaidResult(sessionId).then((recovered) => { if (!recovered) setCurrentStep('paywall'); });
     } else if (window.location.pathname === '/paywall' && sessionId && !token) {
       void recoverPaidResult(sessionId);
+    } else if (window.location.pathname === '/' && recoverableSessionId && !token) {
+      void recoverPaidResult(recoverableSessionId);
     }
   }, []);
 
