@@ -20,7 +20,7 @@ function jsonResponse(body, status = 200) {
 }
 
 function emptyResponse(status = 204) {
-  return new Response('', { status });
+  return new Response(null, { status });
 }
 
 function configureEnv() {
