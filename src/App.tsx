@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import type { Variants } from 'motion/react';
-import { ArrowLeft, ArrowRight, AtSign, Check, Copy, CreditCard, Loader2, LockKeyhole, Menu, MessageCircle, MonitorSmartphone, ShieldCheck, Smartphone, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, CreditCard, Loader2, LockKeyhole, Menu, MessageCircle, MonitorSmartphone, ShieldCheck, Smartphone, Sparkles, X } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { OPCOES_RESPOSTA, PERGUNTAS } from './data';
 
 const resultadoContainerVariants: Variants = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: .6, ease: 'easeOut', staggerChildren: .16 } } };
 const resultadoItemVariants: Variants = { hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0, transition: { duration: .45, ease: 'easeOut' } } };
-const Instagram = AtSign;
+const Instagram = ({className = ''}:{className?:string}) => <svg className={className} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>;
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<'inicio'|'quiz'|'paywall'|'resultado'|'loading'>(() => window.location.pathname === '/resultado' ? 'resultado' : window.location.pathname === '/paywall' ? 'paywall' : 'inicio');
@@ -154,6 +154,7 @@ export default function App() {
         <img className="approved-mobile__hero" src="/hero-approved-repaired.webp" alt="Mulher em momento de serenidade e autoconhecimento"/>
       </section>
       <button type="button" className="approved-landing__main-cta" onClick={()=>setShowLeadForm(true)}>Iniciar meu diagnóstico <ArrowRight/></button>
+      <a className="landing-instagram-link" href="https://instagram.com/eujanainaaraujo" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Janaína Araújo"><Instagram/> <span>@eujanainaaraujo</span></a>
       {showLeadForm && <div className="lead-modal" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title"><form onSubmit={handleStart} className="lead-modal__card">
         <button type="button" className="lead-modal__close" aria-label="Fechar" onClick={()=>setShowLeadForm(false)}><X/></button>
         <img src="/ja-logo-approved.webp" alt="Janaína Araújo"/><p className="brand-eyebrow">MINI DIAGNÓSTICO</p><h2 id="lead-modal-title">Vamos começar?</h2><p>Informe seus dados para iniciar as 12 perguntas.</p>
