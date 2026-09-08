@@ -1,3 +1,9 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> mini-diagnostico@1.0.0 lint
+> tsc --noEmit
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 .approved-landing{position:relative;width:100%;max-width:1536px;aspect-ratio:3/2;margin:0 auto;background:var(--cream);overflow:hidden}
 .approved-landing__art{display:block;width:100%;height:100%;object-fit:contain}
 .approved-mobile{display:none}
@@ -75,6 +81,7 @@
 
 /* Quiz e pagamento: acabamento unificado com a prancha visual aprovada. */
 .journey-page{
+  width:100%;
   isolation:isolate;
   background:
     url('/botanical-corners.svg') center/cover no-repeat,
