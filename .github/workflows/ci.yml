@@ -8,6 +8,7 @@ on:
 
 jobs:
   verify:
+    name: verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,5 +22,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Typecheck
         run: npm run lint
+      - name: Mocked Asaas payment tests
+        run: npm test
       - name: Production build and permanent guards
         run: npm run build
