@@ -4,8 +4,7 @@ import './post-payment-recovery';
 import './ambient-audio';
 import App from './App.tsx';
 import './index.css';
-import './final-approved-layout.css';
-import './landing-v2.css';
+import './brand-system.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
