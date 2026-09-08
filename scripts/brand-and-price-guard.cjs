@@ -13,32 +13,25 @@ const landing = sources.find(([file]) => file === 'src/landing-v2.css')[1];
 const all = sources.map(([, source]) => source).join('\n');
 
 for (const fragment of [
-  'Descubra o que está te impedindo de avançar',
-  'Você sabe que quer mudar alguma coisa.',
+  'Descubra o que está te impedindo de avançar', 'Você sabe que quer mudar alguma coisa.',
   'Responda a 12 perguntas rápidas e descubra qual padrão pode estar agindo por trás dessa trava',
-  'Seu resultado pode revelar mais do que você imagina.',
-  '2 minutos',
-  'Seus dados estão seguros e protegidos.',
+  'Seu resultado pode revelar mais do que você imagina.', '2 minutos', 'Seus dados estão seguros e protegidos.',
   'R$ 9,90', 'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX', 'RESULT_TOKEN_SECRET',
   '/ja-logo.webp', '/hero-approved.jpg', 'Resultado confidencial', 'Asaas'
-]) {
-  if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
-}
+]) if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
 
 for (const fragment of [
-  'checkout.stripe.com', 'js.stripe.com', 'stripe-buy-button', 'stripe-pricing-table',
-  'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID', "from 'stripe'",
-  'btn-pagar-cartao-stripe', "localStorage.setItem('janaina_resultado'", 'checkout_session_id',
-  'stripe_checkout_session_id', 'hero-golden-woman.webp', 'brand-start-card', 'brand-hero-art'
-]) {
-  if (all.includes(fragment)) throw new Error(`Production guard failed: forbidden legacy fragment: ${fragment}`);
-}
+  'checkout.stripe.com', 'js.stripe.com', 'stripe-buy-button', 'stripe-pricing-table', 'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID', "from 'stripe'", 'btn-pagar-cartao-stripe',
+  "localStorage.setItem('janaina_resultado'", 'checkout_session_id', 'stripe_checkout_session_id',
+  'hero-golden-woman.webp', 'brand-start-card', 'brand-hero-art'
+]) if (all.includes(fragment)) throw new Error(`Production guard failed: forbidden legacy fragment: ${fragment}`);
 
 if (app.includes('<small>5 minutos</small>')) throw new Error('Production guard failed: approved duration is 2 minutos');
 if (!app.includes('className="landing-v2"')) throw new Error('Production guard failed: landing v2 component missing');
-if (!app.includes('<img src="/hero-approved.jpg"')) throw new Error('Production guard failed: approved hero fallback element missing');
+if (!app.includes('<img src="/hero-approved.jpg"')) throw new Error('Production guard failed: approved hero element missing');
 if (!main.includes("import './landing-v2.css';")) throw new Error('Production guard failed: landing-v2.css is not loaded');
-if (!landing.includes("url('/hero-approved-live.jpg')")) throw new Error('Production guard failed: audited live hero background missing');
-if (!landing.includes('.landing-v2__visual>img{display:none!important}')) throw new Error('Production guard failed: broken fallback hero is not isolated');
+if (!landing.includes('.landing-v2__visual>img{display:block')) throw new Error('Production guard failed: approved hero is not explicitly visible');
+if (landing.includes('.landing-v2__visual>img{display:none')) throw new Error('Production guard failed: approved hero is hidden');
 
-console.log('Production guard passed: audited landing, Janaína identity, resilient hero, Asaas-only payments, R$ 9,90 and protected result flow.');
+console.log('Production guard passed: visible approved hero, responsive landing, Janaína identity, Asaas-only payments, R$ 9,90 and protected result flow.');
