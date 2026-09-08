@@ -5,6 +5,7 @@
 .approved-landing__main-cta{left:5.25%;top:74.5%;width:32%;height:6.3%}
 .approved-landing__main-cta svg{display:none}
 .approved-landing__main-cta:focus-visible{outline:4px solid rgba(113,48,109,.38);outline-offset:3px}
+.landing-instagram-link{position:absolute;z-index:4;left:27%;bottom:3.25%;display:flex;align-items:center;gap:8px;color:#71306d;text-decoration:none;font-size:.82rem;font-weight:800}.landing-instagram-link svg{width:24px;height:24px}.landing-instagram-link:focus-visible{outline:3px solid rgba(113,48,109,.35);outline-offset:4px;border-radius:8px}
 
 .lead-modal{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:18px;background:rgba(30,43,37,.48);backdrop-filter:blur(5px)}
 .lead-modal__card{position:relative;width:min(470px,100%);padding:28px;border:1px solid rgba(203,163,77,.42);border-radius:24px;background:#fffaf0;box-shadow:0 28px 80px rgba(46,32,38,.24)}
@@ -67,6 +68,7 @@
   .approved-mobile__benefits{display:grid;grid-template-columns:repeat(3,1fr);margin:18px 0}.approved-mobile__benefits span{display:flex;flex-direction:column;align-items:center;padding:4px;border-right:1px solid var(--line);font-size:.72rem}.approved-mobile__benefits span:last-child{border:0}.approved-mobile__benefits svg{width:22px;margin-bottom:4px}.approved-mobile__benefits small{font-size:.6rem;color:#657069}
   .approved-mobile__hero{display:block;width:100%;height:360px;object-fit:cover;object-position:center 35%;border-radius:22px}
   .approved-landing__main-cta{position:relative;left:auto;top:auto;display:flex;width:calc(100% - 36px);height:54px;align-items:center;justify-content:center;gap:7px;margin:20px 18px 0;color:white;background:linear-gradient(135deg,var(--plum),var(--plum-dark));font-weight:700;box-shadow:0 12px 25px rgba(85,34,82,.22)}
+  .landing-instagram-link{position:relative;left:auto;bottom:auto;justify-content:center;width:max-content;margin:22px auto 0;padding:10px 14px;border:1px solid rgba(113,48,109,.2);border-radius:999px;background:#fff;color:var(--plum-dark)}
   .approved-landing__main-cta svg{display:block;width:18px}.lead-modal__card{padding:22px 18px}.lead-modal__card>img{width:125px}
   .journey-page{padding:8px}.brand-page-card,.payment-card,.report-card{width:calc(100vw - 16px)!important;padding:22px 17px!important;border-radius:18px!important}.brand-card-header img{width:112px}.quiz-card h2{font-size:1.85rem}.journey-actions{display:grid;grid-template-columns:1fr 1fr}.primary-action,.secondary-action{padding:0 15px}
 }
