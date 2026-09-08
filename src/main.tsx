@@ -4,8 +4,8 @@ import './post-payment-recovery';
 import './ambient-audio';
 import App from './App.tsx';
 import './index.css';
-import './approved-board-completion.css';
-import './landing-reference-lock.css';
+import './final-approved-layout.css';
+import './landing-v2.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
