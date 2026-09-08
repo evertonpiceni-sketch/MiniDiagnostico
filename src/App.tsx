@@ -142,7 +142,7 @@ export default function App() {
           </form>
         </div>
         <figure className="landing-v2__visual">
-          <img src="/hero-approved.jpg" alt="Mulher em momento de serenidade e autoconhecimento"/>
+          <img src="/hero-approved-live.jpg" alt="Mulher em momento de serenidade e autoconhecimento"/>
           <figcaption className="landing-v2__quote">O primeiro passo para a sua transformação começa com o autoconhecimento.</figcaption>
         </figure>
       </section>

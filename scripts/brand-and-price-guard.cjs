@@ -17,7 +17,7 @@ for (const fragment of [
   'Responda a 12 perguntas rápidas e descubra qual padrão pode estar agindo por trás dessa trava',
   'Seu resultado pode revelar mais do que você imagina.', '2 minutos', 'Seus dados estão seguros e protegidos.',
   'R$ 9,90', 'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX', 'RESULT_TOKEN_SECRET',
-  '/ja-logo.webp', '/hero-approved.jpg', 'Resultado confidencial', 'Asaas'
+  '/ja-logo.webp', '/hero-approved-live.jpg', 'Resultado confidencial', 'Asaas'
 ]) if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
 
 for (const fragment of [
@@ -29,9 +29,14 @@ for (const fragment of [
 
 if (app.includes('<small>5 minutos</small>')) throw new Error('Production guard failed: approved duration is 2 minutos');
 if (!app.includes('className="landing-v2"')) throw new Error('Production guard failed: landing v2 component missing');
-if (!app.includes('<img src="/hero-approved.jpg"')) throw new Error('Production guard failed: approved hero element missing');
+if (!app.includes('<img src="/hero-approved-live.jpg"')) throw new Error('Production guard failed: validated approved hero element missing');
 if (!main.includes("import './landing-v2.css';")) throw new Error('Production guard failed: landing-v2.css is not loaded');
 if (!landing.includes('.landing-v2__visual>img{display:block')) throw new Error('Production guard failed: approved hero is not explicitly visible');
 if (landing.includes('.landing-v2__visual>img{display:none')) throw new Error('Production guard failed: approved hero is hidden');
+
+const hero = fs.readFileSync('public/hero-approved-live.jpg');
+if (hero.length < 10_000 || hero[0] !== 0xff || hero[1] !== 0xd8 || hero.at(-2) !== 0xff || hero.at(-1) !== 0xd9) {
+  throw new Error('Production guard failed: approved hero JPEG is missing or corrupt');
+}
 
 console.log('Production guard passed: visible approved hero, responsive landing, Janaína identity, Asaas-only payments, R$ 9,90 and protected result flow.');
