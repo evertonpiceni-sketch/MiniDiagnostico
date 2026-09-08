@@ -23,7 +23,7 @@ if (path.includes('/resultado') && params.get('session_id')) {
   }
 
   const observer = new MutationObserver(() => {
-    if (document.querySelector('.result-card')) {
+    if (document.querySelector('.report-card')) {
       clearRecovery();
       observer.disconnect();
     }
