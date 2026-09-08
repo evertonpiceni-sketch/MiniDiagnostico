@@ -4,6 +4,7 @@ const files = [
   'src/App.tsx', 'src/main.tsx', 'src/index.css', 'src/brand-system.css', 'src/ambient-audio.ts',
   'api/checkout.ts', 'api/asaas-pix.ts', 'api/asaas-webhook.ts', 'api/quiz.ts',
   'api/quiz/[id].ts', 'api/quiz/[id]/verify-payment.ts', 'api/diagnostico-pdf.ts',
+  'api/quiz/[id]/recover-access.ts',
   'index.html', 'package.json', 'vite.config.ts', 'vercel.json', '.env.example',
 ];
 const sources = files.map(file => [file, fs.readFileSync(file, 'utf8')]);
@@ -17,6 +18,7 @@ for (const fragment of [
   'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX',
   'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', '/landing-approved-reference.webp',
   '/hero-approved-repaired.webp', 'Asaas', 'resultado_dominante',
+  '/recover-access', '5521983928113', 'instagram.com/eujanainaaraujo',
 ]) if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
 
 const forbiddenPaymentProvider = ['str', 'ipe'].join('');
