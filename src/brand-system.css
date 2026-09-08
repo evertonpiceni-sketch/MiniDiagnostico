@@ -72,3 +72,59 @@
   .approved-landing__main-cta svg{display:block;width:18px}.lead-modal__card{padding:22px 18px}.lead-modal__card>img{width:125px}
   .journey-page{padding:8px}.brand-page-card,.payment-card,.report-card{width:calc(100vw - 16px)!important;padding:22px 17px!important;border-radius:18px!important}.brand-card-header img{width:112px}.quiz-card h2{font-size:1.85rem}.journey-actions{display:grid;grid-template-columns:1fr 1fr}.primary-action,.secondary-action{padding:0 15px}
 }
+
+/* Quiz e pagamento: acabamento unificado com a prancha visual aprovada. */
+.journey-page{
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 22% 8%,rgba(203,163,77,.12),transparent 28%),
+    radial-gradient(circle at 83% 88%,rgba(135,155,125,.16),transparent 31%),
+    linear-gradient(145deg,#fffaf0 0%,#f9efdc 100%);
+}
+.journey-page::before,.journey-page::after{
+  z-index:0;width:230px;height:330px;opacity:.28;filter:saturate(.8);
+  background:
+    radial-gradient(ellipse at 22% 18%,#6f8667 0 13%,transparent 14%),
+    radial-gradient(ellipse at 58% 10%,#96a88e 0 12%,transparent 13%),
+    radial-gradient(ellipse at 38% 42%,#809779 0 15%,transparent 16%),
+    radial-gradient(ellipse at 72% 55%,#a8b49a 0 13%,transparent 14%),
+    radial-gradient(ellipse at 35% 78%,#6f8667 0 15%,transparent 16%);
+}
+.journey-page::before{left:-82px;bottom:-84px;top:auto;transform:rotate(17deg)}
+.journey-page::after{right:-86px;top:-92px;transform:rotate(198deg)}
+.brand-page-card{border-color:rgba(183,122,50,.28)!important;box-shadow:0 24px 70px rgba(69,52,38,.13)!important}
+.brand-page-card::after{content:"";position:absolute;left:9%;right:9%;bottom:10px;height:1px;background:linear-gradient(90deg,transparent,rgba(203,163,77,.68),transparent)}
+.brand-card-header{min-height:76px;margin-bottom:10px;border-bottom:1px solid rgba(203,163,77,.18)}
+.brand-card-header img{width:132px!important}
+.brand-card-header>svg{width:23px;height:23px;color:#263b38}
+.quiz-card .brand-eyebrow{margin-top:3px!important}
+.quiz-card h2{font-family:"Playfair Display",Georgia,serif!important;color:#26332d!important}
+.answer-option{min-height:58px;border-radius:10px;background:rgba(255,255,255,.72);font-weight:500}
+.answer-option:hover{border-color:rgba(113,48,109,.45);background:#fff}
+.progress-track{margin-top:2px;background:#f3ecde}
+.progress-fill{background:linear-gradient(90deg,#cba34d,#879b7d)}
+
+.payment-card{text-align:left!important;padding:30px 34px 34px!important}
+.payment-card>h2{margin:17px 0 8px!important;font-family:"Playfair Display",Georgia,serif!important;font-size:clamp(2rem,5vw,2.55rem)!important;font-weight:600!important;color:#26332d!important}
+.payment-intro{margin:0 0 22px;color:#52605a;line-height:1.5}
+.payment-product{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:24px;padding:18px;border:1px solid rgba(95,108,96,.24);border-radius:12px;background:rgba(255,255,255,.72)}
+.payment-product div{display:grid;gap:4px}.payment-product strong{font-family:"Playfair Display",Georgia,serif;font-size:1.12rem;color:#26332d}.payment-product small{color:#68736d}.payment-product>b{white-space:nowrap;font-family:"Playfair Display",Georgia,serif;font-size:1.65rem;color:#552252}
+.payment-method-title{margin:0 0 10px;font-weight:700;color:#34433d}
+.payment-card .flex.bg-stone-100{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important;padding:0!important;background:transparent!important}
+#tab-pix,#tab-card{display:grid;grid-template-columns:22px 1fr;align-items:center;min-height:67px;padding:10px 14px!important;border:1px solid rgba(95,108,96,.25);border-radius:11px!important;background:rgba(255,255,255,.72)!important;color:#34433d;text-align:left}
+#tab-pix svg,#tab-card svg{grid-row:1/span 2;margin:0!important}#tab-pix small,#tab-card small{display:block;grid-column:2;margin-top:2px;font-size:.68rem;font-weight:400;color:#717a75}
+#tab-pix.payment-tab-active,#tab-card.payment-tab-active{border-color:#71306d;background:#eee5f2!important;color:#552252;box-shadow:0 0 0 1px rgba(113,48,109,.12)}
+.payment-security-note{padding:14px 16px;border:1px solid rgba(135,155,125,.35);border-radius:11px;background:#f1f5ed;color:#45564d;font-size:.88rem;line-height:1.45}
+.payment-card label input{min-height:50px;border-color:rgba(95,108,96,.28)!important;background:#fff}.payment-card label input:focus{outline:2px solid rgba(113,48,109,.18);border-color:#71306d!important}
+.payment-footer{display:flex;align-items:center;justify-content:center;gap:7px;margin:18px 0 0;text-align:center;font-size:.75rem;color:#53615b}.payment-footer svg{width:17px;height:17px}
+
+@media(max-width:700px){
+  .journey-page{padding:8px!important;align-items:start;place-items:start center}
+  .brand-page-card{margin:8px auto!important}
+  .brand-card-header{min-height:67px}.brand-card-header img{width:105px!important}
+  .quiz-card,.payment-card{padding:18px 17px 26px!important}
+  .quiz-card h2{font-size:1.8rem!important}.answer-option{min-height:54px;padding:12px 13px}
+  .payment-card>h2{font-size:2rem!important}.payment-product{align-items:flex-start;padding:14px}.payment-product>b{font-size:1.38rem}
+  .payment-card .flex.bg-stone-100{grid-template-columns:1fr!important}
+  #tab-pix,#tab-card{min-height:59px}
+}
