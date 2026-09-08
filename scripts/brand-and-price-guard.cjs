@@ -26,7 +26,10 @@ for (const fragment of [
   'final-approved-layout.css', 'VitePWA(', ['vite-plugin-', 'pwa'].join(''),
 ]) if (all.toLowerCase().includes(fragment.toLowerCase())) throw new Error(`Production guard failed: forbidden legacy fragment: ${fragment}`);
 
-if (!app.includes("currentStep === 'preview'")) throw new Error('Production guard failed: result preview step missing');
+if (app.includes("currentStep === 'preview'") || app.includes('previewResult')) throw new Error('Production guard failed: unpaid result preview is exposed');
+if (app.includes('approved-landing__top-cta')) throw new Error('Production guard failed: detached top start button returned');
+if (!app.includes("setCurrentStep('paywall')") || !app.includes('Ir para pagamento')) throw new Error('Production guard failed: quiz must go directly to payment');
+if (/json\([^)]*resultado_dominante/.test(sources.find(([file]) => file === 'api/quiz.ts')[1])) throw new Error('Production guard failed: quiz API exposes unpaid result');
 if (!app.includes('showLeadForm')) throw new Error('Production guard failed: lead form modal missing');
 if (!main.includes("import './brand-system.css';")) throw new Error('Production guard failed: unified brand stylesheet missing');
 
