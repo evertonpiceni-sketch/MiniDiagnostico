@@ -1,71 +1,14 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
-:root{
-  --cream:#fbf5e8;
-  --paper:#fffaf1;
-  --sage:#8ea087;
-  --sage-strong:#586f5c;
-  --lav:#b8a4c8;
-  --plum:#6f316c;
-  --plum-dark:#4f214d;
-  --gold:#c9a44e;
-  --ink:#28332f;
-  --muted:#68716c;
-  --line:rgba(91,106,94,.22);
-}
-
-*{box-sizing:border-box}
-html,body,#root{min-height:100%;margin:0}
-body{background:var(--cream);color:var(--ink);font-family:"DM Sans",Inter,sans-serif}
-button,a,input,textarea,summary{font:inherit}
-h1,h2,h3{font-family:"Playfair Display",Georgia,serif}
-.brand-shell{min-height:100vh;background:radial-gradient(circle at 15% 12%,rgba(201,164,78,.10),transparent 28%),linear-gradient(135deg,#fffaf0,#f4ead8);overflow-x:hidden;padding:0!important}
-
-.brand-page-card{background:rgba(255,250,241,.98)!important;border:1px solid rgba(185,158,104,.32)!important;border-radius:26px!important;box-shadow:0 24px 70px rgba(77,61,39,.14)!important}
-.brand-card-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid rgba(190,164,111,.22)}
-.brand-card-header img{width:92px!important;height:auto!important;object-fit:contain}
-.brand-card-header span{font-size:.8rem;font-weight:700;color:#4f5b55}
-.brand-card-header>svg{color:var(--plum);width:24px;height:24px}
-.brand-eyebrow{font-size:.76rem!important;font-weight:800!important;letter-spacing:.22em!important;color:var(--sage-strong)!important;margin:0 0 12px!important}
-.brand-back{display:inline-flex;align-items:center;gap:5px;margin:4px 0 18px;border:1px solid var(--line);border-radius:999px;background:white;padding:8px 14px;color:#546b59}
-.brand-back:disabled{opacity:.4;cursor:not-allowed}
-.brand-card-quote{text-align:center;font-family:Georgia,serif;font-style:italic;color:#987343;margin-top:20px}
-
-.quiz-card{width:min(620px,calc(100vw - 28px))!important;max-width:620px!important;padding:32px 38px 28px!important}
-.quiz-card h2{font-size:clamp(1.85rem,4vw,2.45rem)!important;line-height:1.08!important;color:#29332f!important}
-.quiz-card>.bg-stone-100{background:#eee7da!important}
-.quiz-card>.bg-stone-100>div{background:linear-gradient(90deg,var(--gold),var(--sage-strong))!important}
-.quiz-card .space-y-3 button{background:rgba(255,255,255,.82)!important;border-color:rgba(99,113,103,.28)!important;color:#3f4a45!important;border-radius:13px!important;box-shadow:none!important}
-.quiz-card .space-y-3 button:hover{background:#f0e5f0!important;border-color:rgba(111,49,108,.5)!important;color:#5c2858!important}
-.quiz-card .space-y-3 button[aria-pressed="true"]{background:#eee5f2!important;border:2px solid var(--plum)!important;color:var(--plum-dark)!important;font-weight:600!important;box-shadow:0 6px 18px rgba(85,34,82,.09)!important}
-
-.payment-card{width:min(560px,calc(100vw - 24px))!important;max-width:560px!important;padding:30px 34px!important;background:linear-gradient(180deg,#fffaf1,#faf3e6)!important}
-.payment-card>h2{font-size:2.3rem!important;color:#3d433f!important}
-.payment-card>.inline-flex.bg-emerald-50{background:#eef1e9!important;color:var(--sage-strong)!important;border:1px solid rgba(88,111,92,.16)}
-.result-preview{display:grid;justify-items:center;gap:5px;margin:14px auto 20px;padding:18px;border:1px solid rgba(184,163,200,.5);border-radius:17px;background:white;max-width:380px}
-.result-preview span{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#e9dced;color:var(--plum)}
-.result-preview strong{font-family:Georgia,serif;font-size:1.4rem;color:var(--plum)}
-.result-preview p{font-size:.8rem;line-height:1.5;color:#59635e}
-.payment-title{font-family:"Playfair Display",Georgia,serif!important;font-size:1.45rem!important;color:#3f433f!important;margin:8px 0 6px}
-.payment-card .flex.bg-stone-100{background:#eee7dc!important}
-.payment-card button,.payment-card a{border-radius:999px!important}
-.payment-card #btn-pagar-pix-asaas,.payment-card #btn-pagar-cartao-asaas,.payment-card .bg-emerald-600,.payment-card .bg-emerald-700,.payment-card .bg-teal-700,.payment-card .bg-purple-800{background:linear-gradient(135deg,var(--plum),var(--plum-dark))!important;color:#fff!important;box-shadow:0 12px 26px rgba(90,38,86,.17)!important}
-.payment-card .bg-emerald-50{background:#eef3ec!important;border-color:rgba(88,111,92,.22)!important}
-.payment-tab-active{box-shadow:0 8px 18px rgba(90,38,86,.1);color:var(--plum)!important;background:#fffaf5!important}
-
-.report-card{width:min(780px,calc(100vw - 24px))!important;max-width:780px!important;background:#fffaf1!important;border-color:rgba(190,164,111,.35)!important}
-.report-brand{text-align:center;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid rgba(190,164,111,.24)}
-.report-brand img{display:block;width:128px;height:auto;object-fit:contain;margin:0 auto 10px}
-.report-brand p{margin:0;font-family:"Playfair Display",Georgia,serif;font-size:1.45rem;color:var(--plum-dark)}
-.report-brand small{display:block;margin-top:4px;letter-spacing:.13em;text-transform:uppercase;color:var(--sage-strong);font-size:.66rem;font-weight:700}
-.report-card h1,.report-card h2,.report-card h3{color:#4f2850!important}
-.report-card .bg-emerald-700,.report-card .bg-teal-700{background:linear-gradient(135deg,var(--plum),var(--plum-dark))!important}
-.report-card a[href*="diagnostico-pdf"]{background:linear-gradient(135deg,var(--plum),var(--plum-dark))!important;box-shadow:0 12px 26px rgba(90,38,86,.16)!important;border-radius:999px!important}
-.report-card .bg-stone-100{background:#f3eadf!important;border:1px solid rgba(190,164,111,.2)}
-
-@media(max-width:900px){
-  .quiz-card{padding:25px 20px!important}
-  .payment-card{padding:25px 20px!important}
-  .report-card{padding:24px 20px!important}
-}
+:root{--cream:#fbf5e8;--paper:#fffaf1;--sage:#8ea087;--sage2:#586f5c;--lav:#b8a4c8;--plum:#6f316c;--plum2:#4f214d;--gold:#c9a44e;--ink:#28332f;--muted:#68716c;--line:rgba(91,106,94,.22)}
+*{box-sizing:border-box}html,body,#root{min-height:100%}body{margin:0;background:var(--cream);color:var(--ink);font-family:"DM Sans",Inter,sans-serif}button,a,input,textarea,summary{font:inherit}h1,h2,h3{font-family:"Playfair Display",Georgia,serif}.brand-shell{min-height:100vh;background:linear-gradient(135deg,#fffaf0,#f4ead8);overflow-x:hidden;padding:0!important}
+.brand-start-card{width:100%!important;max-width:none!important;min-height:100vh!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;display:grid!important;grid-template-columns:minmax(0,48%) minmax(0,52%);grid-template-rows:86px 1fr 110px;background:linear-gradient(90deg,var(--paper) 0 48%,#f7efdf 48% 100%)!important;position:relative;overflow:hidden}.brand-start-card>img#mini-diagnostico-brand-logo,.brand-start-content>img#mini-diagnostico-brand-logo{display:none!important}.brand-start-card:before{content:"JA ✦";position:absolute;left:5.5vw;top:18px;width:70px;height:70px;border:2px solid var(--gold);border-radius:50%;display:grid;place-items:center;font-family:Georgia,serif;font-style:italic;font-size:1.45rem;color:#7b5925;background:#fffaf1;z-index:12}.brand-start-card:after{content:"Janaína Araújo  •  TERAPEUTA INTEGRATIVA";position:absolute;left:calc(5.5vw + 84px);top:38px;font-family:Georgia,serif;font-size:.8rem;letter-spacing:.05em;color:#5e523e;z-index:12}
+.preview-nav{position:absolute;top:25px;right:5vw;z-index:13;display:flex;align-items:center}.preview-nav a{text-decoration:none}.preview-nav-cta{background:linear-gradient(135deg,var(--plum),var(--plum2));color:#fff!important;border-radius:999px;padding:11px 22px;box-shadow:0 10px 22px rgba(90,38,86,.18);font-size:.78rem;font-weight:700}
+.brand-start-content{grid-column:1;grid-row:2;align-self:center;padding:72px 5vw 100px 5.8vw;max-width:760px;position:relative;z-index:5}.brand-eyebrow{font-size:.76rem!important;font-weight:800!important;letter-spacing:.22em!important;color:var(--sage2)!important;margin:0 0 12px!important}.brand-start-content h1{font-size:clamp(3.25rem,5.2vw,5.55rem)!important;line-height:.95!important;color:#27312d!important;margin:0 0 22px!important;max-width:690px!important}.home-copy-block{max-width:610px;color:#4f5a55;font-size:1rem;line-height:1.68}.home-copy-block p{margin:0 0 .75rem}.brand-benefits{display:grid!important;grid-template-columns:repeat(3,145px);max-width:440px;margin:28px 0 24px!important}.brand-benefits span{display:flex;flex-direction:column;align-items:center;text-align:center;padding:4px 12px;border-right:1px solid var(--line)}.brand-benefits span:last-child{border:0}.brand-benefits svg{width:24px;height:24px;color:var(--sage2);margin-bottom:5px}.brand-benefits b{font-size:.78rem}.brand-benefits small{font-size:.62rem;color:var(--muted)}
+.brand-hero-art{grid-column:2;grid-row:1/4;min-height:100vh;position:relative;background:linear-gradient(135deg,#f3e3c1,#e4c177 46%,#78906f)!important}.brand-hero-art:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(255,248,211,.9),transparent 28%),linear-gradient(90deg,var(--paper),transparent 20%)}.brand-hero-art:after{content:"";position:absolute;inset:7% 5% 0 7%;background:url('/hero-golden-woman.webp') center/cover no-repeat;border-radius:48% 48% 0 0;box-shadow:0 20px 80px rgba(73,52,30,.18)}
+.lead-capture{max-width:365px;margin-top:10px}.lead-capture summary{list-style:none;display:flex;align-items:center;justify-content:center;min-height:52px;padding:12px 22px;border-radius:999px;background:linear-gradient(135deg,var(--plum),var(--plum2));color:white;font-weight:700;cursor:pointer;box-shadow:0 12px 28px rgba(91,37,87,.2)}.lead-capture summary::-webkit-details-marker{display:none}.lead-capture[open] summary{margin-bottom:10px}.lead-capture form{display:grid!important;gap:10px!important;padding:14px!important;border:1px solid var(--line)!important;border-radius:16px!important;background:rgba(255,255,255,.92)!important}.lead-capture label{display:block;font-size:.72rem;font-weight:700;color:#56635d;margin-bottom:4px}.lead-capture input{width:100%;min-height:46px;border:1px solid var(--line);border-radius:11px;padding:0 12px;background:white}.lead-capture button{min-height:48px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--plum),var(--plum2));color:white;font-weight:700}.preview-signature{position:absolute;left:5.8vw;bottom:-88px;display:flex;flex-direction:column}.preview-signature strong{font-family:"Brush Script MT","Segoe Script",cursive;font-size:2rem;font-weight:500}.preview-signature span{font-size:.55rem;letter-spacing:.18em;font-weight:800}.preview-instagram{position:absolute;left:20vw;bottom:-70px;color:var(--plum);font-size:.78rem;font-weight:700;text-decoration:none;border-left:1px solid var(--line);padding:9px 0 9px 22px}.preview-instagram:hover{text-decoration:underline}.preview-mantra{position:absolute!important;left:34vw;bottom:-87px!important;max-width:190px!important;font-family:Georgia,serif!important;font-style:italic!important;font-size:.75rem!important;line-height:1.5!important;color:#526059!important}
+.brand-page-card{background:rgba(255,250,241,.98)!important;border:1px solid rgba(185,158,104,.3)!important;border-radius:26px!important;box-shadow:0 24px 70px rgba(77,61,39,.14)!important}.quiz-card{width:min(620px,calc(100vw - 28px))!important;max-width:620px!important;padding:32px 38px 28px!important}.brand-card-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}.brand-card-header img{width:92px!important;border-radius:50%;background:#fff;padding:3px}.brand-card-header span{font-size:.8rem;font-weight:700;color:#4f5b55}.quiz-card h2{font-size:clamp(1.85rem,4vw,2.45rem)!important;line-height:1.08!important;color:#29332f!important}.quiz-card .space-y-3 button{background:rgba(255,255,255,.75)!important;border-color:rgba(99,113,103,.28)!important;color:#3f4a45!important;border-radius:12px!important}.quiz-card .space-y-3 button:hover{background:#f0e5f0!important;border-color:rgba(111,49,108,.5)!important;color:#5c2858!important}.quiz-card .bg-gradient-to-r{background:linear-gradient(90deg,var(--gold),var(--sage))!important}.brand-back{display:inline-flex;align-items:center;gap:5px;margin-top:18px;border:1px solid var(--line);border-radius:999px;background:white;padding:8px 14px;color:#546b59}.brand-card-quote{text-align:center;font-family:Georgia,serif;font-style:italic;color:#987343;margin-top:20px}
+.payment-card{width:min(560px,calc(100vw - 24px))!important;max-width:560px!important;padding:30px 34px!important;background:linear-gradient(180deg,#fffaf1,#faf3e6)!important}.payment-card>h2{font-size:2.3rem!important}.result-preview{display:grid;justify-items:center;gap:5px;margin:14px auto 20px;padding:18px;border:1px solid rgba(184,163,200,.5);border-radius:17px;background:white;max-width:380px}.result-preview span{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#e9dced;color:var(--plum)}.result-preview strong{font-family:Georgia,serif;font-size:1.4rem;color:var(--plum)}.result-preview p{font-size:.8rem;line-height:1.5;color:#59635e}.payment-card button,.payment-card a{border-radius:999px!important}.payment-card .bg-emerald-600,.payment-card .bg-emerald-700,.payment-card .bg-teal-700{background:linear-gradient(135deg,var(--plum),var(--plum2))!important}.result-card{background:#fffaf1!important;border-color:rgba(190,164,111,.35)!important}.result-card h1,.result-card h2,.result-card h3{color:#4f2850!important}.result-card .bg-emerald-700,.result-card .bg-teal-700{background:linear-gradient(135deg,var(--plum),var(--plum2))!important}
+@media(max-width:900px){.brand-start-card{display:block!important;padding-top:92px!important}.brand-start-card:before{left:24px;top:16px;width:60px;height:60px}.brand-start-card:after{left:96px;top:34px;font-size:.7rem}.preview-nav{right:22px;top:25px}.brand-start-content{padding:42px 26px 155px;max-width:none}.brand-start-content h1{font-size:clamp(2.75rem,11vw,4.6rem)!important}.brand-hero-art{min-height:520px}.preview-signature{position:static;margin-top:30px}.preview-instagram{position:static;display:inline-block;margin-top:16px;padding:8px 0;border-left:0}.preview-mantra{position:static!important;margin-top:16px!important}.brand-benefits{grid-template-columns:repeat(3,1fr);width:100%}.quiz-card{padding:25px 20px!important}.payment-card{padding:25px 20px!important}}
+@media(max-width:560px){.brand-start-card:after{display:none}.preview-nav{top:25px}.brand-start-content{padding-left:20px;padding-right:20px}.brand-start-content h1{font-size:2.8rem!important}.home-copy-block{font-size:.92rem}.brand-benefits{gap:0}.brand-benefits span{padding:3px 6px}.brand-hero-art{min-height:440px}.brand-hero-art:after{inset:4% 0 0 0;border-radius:38% 38% 0 0}}
