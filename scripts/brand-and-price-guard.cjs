@@ -19,6 +19,7 @@ for (const fragment of [
   'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', '/landing-approved-reference.webp',
   '/hero-approved-repaired.webp', 'Asaas', 'resultado_dominante',
   '/recover-access', '5521983928113', 'instagram.com/eujanainaaraujo',
+  'landing-instagram-link', 'viewBox="0 0 24 24"',
 ]) if (!all.includes(fragment)) throw new Error(`Production guard failed: missing fragment: ${fragment}`);
 
 const forbiddenPaymentProvider = ['str', 'ipe'].join('');
