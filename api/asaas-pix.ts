@@ -1,7 +1,8 @@
 import { createHash, createHmac } from 'node:crypto';
+import { enforceRateLimit } from './_rate-limit.js';
 
 type Req = { method?: string; body?: any; headers: Record<string, string | string[] | undefined> };
-type Res = { status: (code: number) => Res; json: (data: unknown) => void };
+type Res = { status: (code: number) => Res; json: (data: unknown) => void; setHeader: (name: string, value: string) => void };
 
 const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
 const ASAAS_API_KEY = clean(process.env.ASAAS_API_KEY);
@@ -169,7 +170,9 @@ function publicAsaasError(message: string) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+  if (!enforceRateLimit(req, res, 'asaas-pix', 10, 5 * 60_000)) return;
   const id = String(req.body?.quiz_session_id || '').trim();
   try {
     if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
