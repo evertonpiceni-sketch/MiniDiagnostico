@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { RESULT_CONTENT, type ResultPattern } from '../src/result-content.ts';
 
@@ -113,6 +114,19 @@ async function makePdf(result: any) {
   return Buffer.from(await document.save());
 }
 
+const approvedPdfFiles: Record<ResultPattern, URL> = {
+  MEDO: new URL('../public/result-pdf/medo.pdf', import.meta.url),
+  INSEGURANÇA: new URL('../public/result-pdf/inseguranca.pdf', import.meta.url),
+  PROCRASTINAÇÃO: new URL('../public/result-pdf/procrastinacao.pdf', import.meta.url),
+};
+
+async function makeApprovedPdf(result: any) {
+  const pattern = (Object.prototype.hasOwnProperty.call(RESULT_CONTENT, result.resultado_dominante)
+    ? result.resultado_dominante
+    : 'MEDO') as ResultPattern;
+  return readFile(approvedPdfFiles[pattern]);
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   try {
@@ -123,7 +137,10 @@ export default async function handler(req: Req, res: Res) {
     const result = rows?.[0];
     if (!result) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
     if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
-    const output = await makePdf(result);
+    // The downloadable document must preserve the approved visual result.
+    // The former programmatic renderer produced a generic multi-page report
+    // that did not match the result screen or the client's approved artwork.
+    const output = await makeApprovedPdf(result);
     res.status(200);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="mini-diagnostico-${id.slice(0, 8)}.pdf"`);
