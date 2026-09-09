@@ -1,4 +1,5 @@
 import { createHmac, randomUUID } from 'node:crypto';
+import { enforceRateLimit } from './_rate-limit.js';
 
 type VercelRequest = {
   method?: string;
@@ -187,6 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   res.setHeader('Cache-Control', 'private, no-store');
+  if (!enforceRateLimit(req, res, 'quiz-create', 8, 10 * 60_000)) return;
 
   try {
     const body = (req.body || {}) as Record<string, unknown>;
