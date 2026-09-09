@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-type Req = { method?: string; body?: any; query: Record<string, string | string[] | undefined> };
-type Res = { status: (code: number) => Res; json: (data: unknown) => void };
-const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
+import { enforceRateLimit } from '../../_rate-limit.js';
+type Req = { method?: string; body?: any; query: Record<string, string | string[] | undefined>; headers: Record<string, string | string[] | undefined> };
+type Res = { status: (code: number) => Res; json: (data: unknown) => void; setHeader: (name: string, value: string) => void };
+const clean = (v?: string) => (v || '').trim().replace(/^[\"'](.*)[\"']$/, '$1').trim();
 const ASAAS_API_KEY = clean(process.env.ASAAS_API_KEY);
 const ASAAS_API_URL = (clean(process.env.ASAAS_API_URL) || 'https://api.asaas.com/v3').replace(/\/$/, '');
 const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
@@ -24,7 +25,9 @@ async function verifyAsaas(id: string, paymentId: string) {
   return true;
 }
 export default async function handler(req: Req, res: Res) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+  if (!enforceRateLimit(req, res, 'verify-payment', 30, 5 * 60_000)) return;
   const id = String(req.query.id || '');
   if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
   const token = String(req.body?.token || '');
