@@ -27,3 +27,34 @@ export const OPCOES_RESPOSTA = [
     { label: 'Quase sempre', valor: 2 },
     { label: 'Sempre', valor: 3 },
 ];
+
+export type TieBreakQuestion = { texto: string; opcoes: { label: string; resultado: QuizResult }[] };
+
+export const getTiedResults = (respostas: Record<number, number>): QuizResult[] => {
+    const scores: Record<QuizResult, number> = { MEDO: 0, INSEGURANÇA: 0, PROCRASTINAÇÃO: 0 };
+    for (const pergunta of PERGUNTAS) scores[pergunta.categoria as QuizResult] += respostas[pergunta.id] || 0;
+    const max = Math.max(...Object.values(scores));
+    return (Object.keys(scores) as QuizResult[]).filter(categoria => scores[categoria] === max);
+};
+
+export const getTieBreakQuestion = (tied: QuizResult[]): TieBreakQuestion | null => {
+    const key = [...tied].sort().join('|');
+    if (tied.length === 3) return { texto: 'Quando você percebe que não está avançando como gostaria, o que costuma acontecer primeiro?', opcoes: [
+        { label: 'Penso no que pode dar errado e sinto vontade de recuar.', resultado: 'MEDO' },
+        { label: 'Começo a duvidar se sou capaz ou se estou preparada.', resultado: 'INSEGURANÇA' },
+        { label: 'Sei o que preciso fazer, mas acabo deixando para depois.', resultado: 'PROCRASTINAÇÃO' },
+    ] };
+    if (key === 'INSEGURANÇA|MEDO') return { texto: 'Quando você percebe que está diante de algo importante, o que costuma pesar mais?', opcoes: [
+        { label: 'O receio do que pode acontecer se eu avançar.', resultado: 'MEDO' },
+        { label: 'A dúvida se sou capaz de lidar com aquilo.', resultado: 'INSEGURANÇA' },
+    ] };
+    if (key === 'INSEGURANÇA|PROCRASTINAÇÃO') return { texto: 'O que costuma acontecer primeiro quando você precisa agir?', opcoes: [
+        { label: 'Começo a duvidar se estou preparada ou se vou conseguir.', resultado: 'INSEGURANÇA' },
+        { label: 'Sei que preciso fazer, mas vou deixando para depois.', resultado: 'PROCRASTINAÇÃO' },
+    ] };
+    if (key === 'MEDO|PROCRASTINAÇÃO') return { texto: 'Quando você não avança, o que mais se aproxima do que acontece com você?', opcoes: [
+        { label: 'Penso nos riscos ou no que pode dar errado e recuo.', resultado: 'MEDO' },
+        { label: 'Sei o que preciso fazer, mas continuo adiando.', resultado: 'PROCRASTINAÇÃO' },
+    ] };
+    return null;
+};

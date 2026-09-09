@@ -1,21 +1,136 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-type Req={method?:string;query:Record<string,string|string[]|undefined>};
-type Res={status:(c:number)=>Res;setHeader:(n:string,v:string)=>void;end:(b?:any)=>void;json:(d:unknown)=>void};
-const clean=(v?:string)=>(v||'').trim().replace(/^["'](.*)["']$/,'$1').trim();
-const DB_URL=clean(process.env.SUPABASE_URL).replace(/\/$/,'');
-const DB_KEY=[process.env.SUPABASE_SERVICE_ROLE_KEY,process.env.SUPABASE_SECRET_KEY].map(clean).find(k=>Boolean(k)&&!k.startsWith('sb_publishable_'))||'';
-const SECRET=clean(process.env.RESULT_TOKEN_SECRET);
-const validId=(id:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-function validToken(id:string,t:string){if(SECRET.length<32||!t)return false;const a=Buffer.from(createHmac('sha256',SECRET).update(`result:${id}`).digest('base64url')),b=Buffer.from(t);return a.length===b.length&&timingSafeEqual(a,b)}
-async function db(r:string){if(!DB_URL||!DB_KEY)throw new Error('DB_CONFIG');const x=await fetch(`${DB_URL}/rest/v1/${r}`,{headers:{apikey:DB_KEY,...(DB_KEY.startsWith('eyJ')?{Authorization:`Bearer ${DB_KEY}`}:{})}});if(!x.ok)throw new Error(`DB_${x.status}`);return x.json()}
-const ascii=(v:unknown)=>String(v??'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,'');
-const esc=(v:unknown)=>ascii(v).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
-const wrap=(s:string,n=78)=>{const w=ascii(s).split(/\s+/),a:string[]=[];let l='';for(const x of w){if((l+' '+x).trim().length>n){if(l)a.push(l);l=x}else l=(l+' '+x).trim()}if(l)a.push(l);return a};
-type Block={title:string;body:string;items?:string[]};
-const DATA:Record<string,{lead:string;blocks:Block[]}>= {
-'MEDO':{lead:'O medo pode tentar proteger voce, mas nao precisa decidir seus proximos passos.',blocks:[{title:'O QUE SIGNIFICA ESSE RESULTADO?',body:'O medo aparece quando sua mente antecipa riscos, perdas ou consequencias. Ele pode ser util como sinal de cuidado, mas quando cresce demais pode limitar escolhas e impedir movimentos importantes.'},{title:'SINAIS COMUNS EM VOCE',body:'',items:['Evitar decisoes por receio de errar','Antecipar cenarios negativos','Buscar garantias antes de agir','Tensao diante de mudancas','Duvidar da propria capacidade','Adiar conversas ou escolhas importantes']},{title:'O QUE ISSO PODE CAUSAR NA SUA VIDA?',body:'Pode aumentar ansiedade, limitar oportunidades, desgastar sua energia e reforcar a sensacao de estar preso mesmo quando existe um caminho possivel.'},{title:'SEU CAMINHO DE TRANSFORMACAO',body:'Reconheca o medo sem entregar a ele o comando. Diferencie perigo real de antecipacao e escolha um passo pequeno, seguro e possivel na direcao do que importa.'},{title:'PRATICAS SUGERIDAS PARA COMECAR HOJE',body:'',items:['Respire antes de decidir','Nomeie exatamente o que teme','Separe fatos de suposicoes','Escolha um pequeno passo seguro','Celebre cada movimento de coragem']}]},
-'INSEGURANCA':{lead:'Voce nao precisa ter todas as certezas para reconhecer o seu valor e seguir em frente.',blocks:[{title:'O QUE SIGNIFICA ESSE RESULTADO?',body:'A inseguranca pode aparecer como duvida constante sobre si, necessidade de validacao e autocobranca. Ela nao significa falta de capacidade: muitas vezes revela uma relacao exigente com as proprias escolhas.'},{title:'SINAIS COMUNS EM VOCE',body:'',items:['Rever decisoes muitas vezes','Comparar-se com outras pessoas','Buscar aprovacao antes de agir','Medo de decepcionar','Autocobranca elevada','Dificuldade de reconhecer conquistas']},{title:'O QUE ISSO PODE CAUSAR NA SUA VIDA?',body:'Pode gerar cansaco mental, indecisao, ansiedade, dependencia de validacao externa e dificuldade para perceber o quanto voce ja avancou.'},{title:'SEU CAMINHO DE TRANSFORMACAO',body:'Construa confianca por evidencias pequenas e reais. Observe o que voce ja consegue fazer, reduza comparacoes e permita-se decidir sem exigir certeza absoluta.'},{title:'PRATICAS SUGERIDAS PARA COMECAR HOJE',body:'',items:['Registre tres capacidades suas','Evite comparacoes automaticas','Tome uma pequena decisao sozinho','Troque autocritica por orientacao','Reconheca suas conquistas']}]},
-'PROCRASTINACAO':{lead:'Nao e preguica. E um sinal de que algo precisa ser compreendido. Voce pode avancar, no seu tempo, com mais leveza.',blocks:[{title:'O QUE SIGNIFICA ESSE RESULTADO?',body:'A procrastinacao e a tendencia de adiar tarefas ou decisoes mesmo sabendo que elas sao importantes. Pode estar ligada a desconforto, medo de falhar, perfeccionismo, pressao, inseguranca ou sobrecarga. Entender o que voce sente antes de adiar e mais importante do que simplesmente cobrar disciplina.'},{title:'SINAIS COMUNS EM VOCE',body:'',items:['Tarefas constantemente adiadas','Esperar o momento certo','Dificuldade para comecar','Muitas ideias e pouca execucao','Culpa depois de adiar','Autocobranca e frustracao','Sensacao de estar sempre atrasado']},{title:'O QUE ISSO PODE CAUSAR NA SUA VIDA?',body:'Acumulo de tarefas, ansiedade e estresse, oportunidades perdidas, impacto na autoestima, frustracao, dificuldade de manter constancia e cansaco mental e emocional.'},{title:'SEU CAMINHO DE TRANSFORMACAO',body:'Reduza o tamanho psicologico da tarefa. Pergunte: qual pequeno passo posso iniciar nos proximos dez minutos? A mudanca acontece quando voce compreende o que existe por tras do adiamento e cria condicoes mais leves, realistas e sustentaveis.'},{title:'PRATICAS SUGERIDAS PARA COMECAR HOJE',body:'',items:['Divida tarefas em pequenos passos','Use a tecnica dos 10 minutos','Retire distracoes','Celebre cada etapa concluida','Acolha a emocao antes de adiar','Seja gentil com voce']}]}}
-function pdf(q:any){const key=ascii(q.resultado_dominante||'MEDO').toUpperCase(),d=DATA[key]||DATA.MEDO,name=ascii(q.nome||'Cliente'),date=q.paid_at?new Date(q.paid_at):new Date();const ds=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo'}).format(date);let y=790;const ops:string[]=[];const txt=(s:string,x:number,size=10,font='F1',gap=14)=>{ops.push(`BT /${font} ${size} Tf ${x} ${y} Td (${esc(s)}) Tj ET`);y-=gap};const line=(x1:number,x2:number)=>ops.push(`0.78 0.68 0.78 RG ${x1} ${y} m ${x2} ${y} l S`);txt('JANAINA ARAUJO',48,22,'F2',22);txt('TERAPEUTA INTEGRATIVA',48,9,'F1',28);txt('MINI DIAGNOSTICO',48,28,'F2',25);txt('SUAS RESPOSTAS, SEU MAPA INTERIOR',48,11,'F2',17);txt('AUTOCONHECIMENTO  |  EQUILIBRIO  |  TRANSFORMACAO',48,8,'F1',22);line(48,547);y-=20;txt(`Ola, ${name}!`,48,15,'F2',19);txt('Aqui esta o seu resultado do Mini Diagnostico.',48,10,'F1',18);txt(`Data: ${ds}    Pagamento: confirmado`,48,9,'F1',26);ops.push(`0.96 0.93 0.96 rg 40 ${y-68} 515 78 re f`);y-=18;txt('SEU PADRAO PREDOMINANTE E:',58,10,'F2',18);txt(key,58,23,'F2',22);for(const l of wrap(d.lead,70))txt(l,58,10,'F1',13);y-=18;txt('"Conhecer a si mesmo e o primeiro passo para uma vida mais leve, consciente e alinhada."',48,10,'F3',28);for(const b of d.blocks){if(y<150){ops.push('');y=790}txt(b.title,48,12,'F2',18);for(const l of wrap(b.body,86))txt(l,48,9,'F1',12);for(const item of b.items||[]){for(const [i,l] of wrap(item,78).entries())txt(`${i?'  ':'- '}${l}`,55,9,'F1',12)}y-=9;line(48,547);y-=14}txt('LEMBRE-SE',48,12,'F2',18);for(const l of wrap(`${key==='PROCRASTINACAO'?'Procrastinar':key==='INSEGURANCA'?'Sentir inseguranca':'Sentir medo'} nao define quem voce e. E um padrao que pode ser compreendido e transformado.`,82))txt(l,48,9,'F1',12);y-=10;txt('JUNTOS SOMOS MELHORES',48,13,'F2',22);for(const l of wrap('Este Mini Diagnostico e uma ferramenta de autoconhecimento e nao constitui diagnostico medico ou psicologico. O resultado representa tendencias observadas nas suas respostas e pode servir como ponto de partida para reflexao ou acompanhamento profissional.',100))txt(l,48,7,'F1',10);
-const content=ops.join('\n'),objs=[`<< /Type /Catalog /Pages 2 0 R >>`,`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>`,`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`,`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>`,`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>`,`<< /Length ${Buffer.byteLength(content,'latin1')} >>\nstream\n${content}\nendstream`];let out='%PDF-1.4\n';const off=[0];objs.forEach((o,i)=>{off[i+1]=Buffer.byteLength(out,'latin1');out+=`${i+1} 0 obj\n${o}\nendobj\n`});const x=Buffer.byteLength(out,'latin1');out+=`xref\n0 8\n0000000000 65535 f \n`;for(let i=1;i<=7;i++)out+=`${String(off[i]).padStart(10,'0')} 00000 n \n`;out+=`trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${x}\n%%EOF`;return Buffer.from(out,'latin1')}
-export default async function handler(req:Req,res:Res){if(req.method!=='GET')return res.status(405).json({error:'Metodo nao permitido.'});try{const id=String(req.query.id||''),token=String(req.query.token||'');if(!validId(id))return res.status(400).json({error:'Sessao invalida.'});if(!validToken(id,token))return res.status(403).json({error:'Acesso ao PDF nao autorizado.'});const rows:any=await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at`),q=rows?.[0];if(!q)return res.status(404).json({error:'Diagnostico nao encontrado.'});if(q.payment_status!=='paid')return res.status(402).json({error:'Pagamento ainda nao confirmado.'});const out=pdf(q);res.status(200);res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="mini-diagnostico-${id.slice(0,8)}.pdf"`);res.setHeader('Cache-Control','private, no-store');return res.end(out)}catch(e){console.error('PDF diagnosis error',e);return res.status(500).json({error:'Nao foi possivel gerar o diagnostico em PDF.'})}}
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { RESULT_CONTENT, type ResultPattern } from '../src/result-content.ts';
+
+type Req = { method?: string; query: Record<string, string | string[] | undefined> };
+type Res = { status: (code: number) => Res; setHeader: (name: string, value: string) => void; end: (body?: any) => void; json: (data: unknown) => void };
+const clean = (value?: string) => (value || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
+const DB_URL = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
+const DB_KEY = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY].map(clean).find(key => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
+const SECRET = clean(process.env.RESULT_TOKEN_SECRET);
+const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+function validToken(id: string, token: string) { if (SECRET.length < 32 || !token) return false; const expected = Buffer.from(createHmac('sha256', SECRET).update(`result:${id}`).digest('base64url')); const supplied = Buffer.from(token); return expected.length === supplied.length && timingSafeEqual(expected, supplied); }
+async function db(resource: string) { if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG'); const response = await fetch(`${DB_URL}/rest/v1/${resource}`, { headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}) } }); if (!response.ok) throw new Error(`DB_${response.status}`); return response.json(); }
+
+const A4: [number, number] = [595.28, 841.89];
+const paper = rgb(0.992, 0.975, 0.925);
+const ink = rgb(0.18, 0.16, 0.14);
+const palettes: Record<ResultPattern, { accent: ReturnType<typeof rgb>; soft: ReturnType<typeof rgb> }> = {
+  MEDO: { accent: rgb(0.48, 0.29, 0.09), soft: rgb(0.95, 0.89, 0.79) },
+  INSEGURANÇA: { accent: rgb(0.42, 0.17, 0.47), soft: rgb(0.94, 0.88, 0.96) },
+  PROCRASTINAÇÃO: { accent: rgb(0.03, 0.37, 0.35), soft: rgb(0.89, 0.95, 0.94) },
+};
+const pdfText = (value: string) => value.replace(/→/g, '›').replace(/✓/g, '•').replace(/◇/g, '');
+function lines(text: string, font: PDFFont, size: number, width: number) {
+  const result: string[] = [];
+  for (const paragraph of pdfText(text).split('\n')) {
+    let line = '';
+    for (const word of paragraph.split(/\s+/)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, size) > width && line) { result.push(line); line = word; } else line = candidate;
+    }
+    if (line) result.push(line);
+  }
+  return result;
+}
+
+async function makePdf(result: any) {
+  const pattern = (Object.prototype.hasOwnProperty.call(RESULT_CONTENT, result.resultado_dominante) ? result.resultado_dominante : 'MEDO') as ResultPattern;
+  const content = RESULT_CONTENT[pattern];
+  const palette = palettes[pattern];
+  const document = await PDFDocument.create();
+  const regular = await document.embedFont(StandardFonts.Helvetica);
+  const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const italic = await document.embedFont(StandardFonts.HelveticaOblique);
+  let page!: PDFPage;
+  let y = 0;
+  const margin = 46;
+  const usable = A4[0] - margin * 2;
+
+  const addPage = (continuation = false) => {
+    page = document.addPage(A4);
+    page.drawRectangle({ x: 0, y: 0, width: A4[0], height: A4[1], color: paper });
+    page.drawRectangle({ x: 0, y: A4[1] - 12, width: A4[0], height: 12, color: palette.accent });
+    page.drawText('Janaína Araújo', { x: margin, y: A4[1] - 42, font: bold, size: 14, color: palette.accent });
+    page.drawText(continuation ? `MINI DIAGNÓSTICO • ${pattern}` : 'MINI DIAGNÓSTICO • SUAS RESPOSTAS, SEU MAPA INTERIOR', { x: margin, y: A4[1] - 57, font: regular, size: 7.5, color: ink });
+    y = A4[1] - 82;
+  };
+  const ensure = (height: number) => { if (y - height < 48) addPage(true); };
+  const drawWrapped = (text: string, options: { font?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; x?: number; width?: number; gap?: number } = {}) => {
+    const font = options.font || regular; const size = options.size || 10; const x = options.x ?? margin; const width = options.width ?? usable; const gap = options.gap ?? size * 1.38;
+    const wrapped = lines(text, font, size, width);
+    ensure(wrapped.length * gap);
+    for (const line of wrapped) { page.drawText(line, { x, y, font, size, color: options.color || ink }); y -= gap; }
+  };
+  const section = (title: string, paragraphs: string[], items: string[] = [], fill = rgb(1, 1, 1)) => {
+    const paragraphLines = paragraphs.flatMap(text => lines(text, regular, 9.3, usable - 28));
+    const itemLines = items.flatMap(text => lines(`• ${text}`, regular, 9.3, usable - 34));
+    const height = 39 + (paragraphLines.length + itemLines.length) * 13 + Math.max(0, paragraphs.length - 1) * 6;
+    ensure(height + 12);
+    const top = y;
+    page.drawRectangle({ x: margin, y: top - height, width: usable, height, color: fill, borderColor: palette.soft, borderWidth: 1 });
+    y -= 22;
+    page.drawText(title, { x: margin + 14, y, font: bold, size: 10, color: palette.accent });
+    y -= 19;
+    paragraphs.forEach((text, index) => { drawWrapped(text, { x: margin + 14, width: usable - 28, size: 9.3, gap: 13 }); if (index < paragraphs.length - 1) y -= 6; });
+    items.forEach(text => drawWrapped(`• ${text}`, { x: margin + 18, width: usable - 34, size: 9.3, gap: 13 }));
+    y = top - height - 12;
+  };
+
+  addPage();
+  const date = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(result.paid_at ? new Date(result.paid_at) : new Date());
+  drawWrapped(`Olá, ${String(result.nome || 'Cliente')}!`, { font: bold, size: 15, color: palette.accent, gap: 19 });
+  drawWrapped(`Seu resultado • ${date}`, { size: 8, color: rgb(0.4, 0.38, 0.35), gap: 17 });
+  y -= 4;
+  const heroLines = lines(content.intro, italic, 10.5, usable - 32);
+  const heroHeight = 73 + heroLines.length * 15;
+  page.drawRectangle({ x: margin, y: y - heroHeight, width: usable, height: heroHeight, color: palette.soft });
+  y -= 22;
+  page.drawText('SEU PADRÃO PREDOMINANTE É:', { x: margin + 16, y, font: bold, size: 8, color: palette.accent });
+  y -= 28;
+  page.drawText(pattern, { x: margin + 16, y, font: bold, size: pattern === 'PROCRASTINAÇÃO' ? 21 : 25, color: palette.accent });
+  y -= 24;
+  drawWrapped(content.intro, { x: margin + 16, width: usable - 32, font: italic, size: 10.5, gap: 15 });
+  y = y - 14;
+  section('INTERPRETAÇÃO DO SEU RESULTADO', content.interpretation);
+  if (content.cycle) section('O CICLO DO ADIAMENTO', [content.cycle], [], palette.soft);
+  section('SINAIS COMUNS', [], content.signs);
+  section('O QUE ISSO PODE CAUSAR', [], content.effects);
+  section('UMA PERGUNTA IMPORTANTE', [`“${content.question}”`, content.questionNote], [], palette.soft);
+  section('SEU CAMINHO DE TRANSFORMAÇÃO', content.path, [], rgb(0.93, 0.96, 0.91));
+  section('PRÁTICAS SUGERIDAS', [], content.practices, palette.soft);
+  ensure(88);
+  page.drawRectangle({ x: margin, y: y - 70, width: usable, height: 70, color: palette.accent });
+  y -= 24;
+  drawWrapped(`“${content.quote}”`, { x: margin + 22, width: usable - 44, font: italic, size: 12, color: rgb(1, 1, 1), gap: 16 });
+
+  const pages = document.getPages();
+  pages.forEach((current, index) => {
+    current.drawLine({ start: { x: margin, y: 34 }, end: { x: A4[0] - margin, y: 34 }, thickness: 0.7, color: palette.soft });
+    current.drawText('AUTOCONHECIMENTO • EQUILÍBRIO • TRANSFORMAÇÃO', { x: margin, y: 20, font: regular, size: 6.8, color: palette.accent });
+    current.drawText(`${index + 1}/${pages.length}`, { x: A4[0] - margin - 20, y: 20, font: regular, size: 7, color: palette.accent });
+  });
+  return Buffer.from(await document.save());
+}
+
+export default async function handler(req: Req, res: Res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
+  try {
+    const id = String(req.query.id || ''), token = String(req.query.token || '');
+    if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
+    if (!validToken(id, token)) return res.status(403).json({ error: 'Acesso ao PDF não autorizado.' });
+    const rows: any = await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,nome,score_medo,score_inseguranca,score_procrastinacao,resultado_dominante,payment_status,paid_at`);
+    const result = rows?.[0];
+    if (!result) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
+    if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
+    const output = await makePdf(result);
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="mini-diagnostico-${id.slice(0, 8)}.pdf"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.end(output);
+  } catch (error) {
+    console.error('PDF diagnosis error', error);
+    return res.status(500).json({ error: 'Não foi possível gerar o diagnóstico em PDF.' });
+  }
+}

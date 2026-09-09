@@ -121,7 +121,10 @@ function validateAnswers(value: unknown) {
   return answers;
 }
 
-function calculateScores(answers: Record<string, number>) {
+const RESULT_PATTERNS = ['MEDO', 'INSEGURANÇA', 'PROCRASTINAÇÃO'] as const;
+type ResultPattern = typeof RESULT_PATTERNS[number];
+
+export function calculateScores(answers: Record<string, number>, desempate?: unknown) {
   let medo = 0;
   let inseguranca = 0;
   let procrastinacao = 0;
@@ -130,13 +133,17 @@ function calculateScores(answers: Record<string, number>) {
   for (let i = 5; i <= 8; i += 1) inseguranca += answers[String(i)];
   for (let i = 9; i <= 12; i += 1) procrastinacao += answers[String(i)];
 
-  let resultado_dominante = 'MEDO';
-  let max = medo;
-  if (inseguranca > max) {
-    resultado_dominante = 'INSEGURANÇA';
-    max = inseguranca;
+  const scores: Record<ResultPattern, number> = { MEDO: medo, INSEGURANÇA: inseguranca, PROCRASTINAÇÃO: procrastinacao };
+  const max = Math.max(...Object.values(scores));
+  const tied = RESULT_PATTERNS.filter(pattern => scores[pattern] === max);
+  let resultado_dominante: ResultPattern;
+  if (tied.length === 1) resultado_dominante = tied[0];
+  else {
+    if (typeof desempate !== 'string' || !tied.includes(desempate as ResultPattern)) {
+      throw new Error('Responda à pergunta complementar para definir o resultado do empate.');
+    }
+    resultado_dominante = desempate as ResultPattern;
   }
-  if (procrastinacao > max) resultado_dominante = 'PROCRASTINAÇÃO';
 
   return {
     score_medo: medo,
@@ -146,12 +153,12 @@ function calculateScores(answers: Record<string, number>) {
   };
 }
 
-async function findDuplicate(whatsapp: string, answers: Record<string, number>) {
+async function findDuplicate(whatsapp: string, answers: Record<string, number>, resultado: ResultPattern) {
   const rows = await db<any[]>(
-    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,payment_status&order=created_at.desc&limit=20`,
+    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,resultado_dominante,payment_status&order=created_at.desc&limit=20`,
   );
   return rows.find(
-    (row) => String(row?.whatsapp || '') === whatsapp && JSON.stringify(row?.respostas || {}) === JSON.stringify(answers),
+    (row) => String(row?.whatsapp || '') === whatsapp && row?.resultado_dominante === resultado && JSON.stringify(row?.respostas || {}) === JSON.stringify(answers),
   ) || null;
 }
 
@@ -195,10 +202,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const nome = typeof body.nome === 'string' ? body.nome.trim().replace(/\s+/g, ' ') : '';
     const whatsapp = normalizeWhatsapp(body.whatsapp);
     const respostas = validateAnswers(body.respostas);
+    const scores = calculateScores(respostas, body.desempate);
 
     if (!nome || nome.length > 120) throw new Error('Nome inválido.');
 
-    const duplicate = await findDuplicate(whatsapp, respostas);
+    const duplicate = await findDuplicate(whatsapp, respostas, scores.resultado_dominante);
     if (duplicate?.quiz_session_id) {
       setRecoveryCookie(res, duplicate.quiz_session_id);
       return res.status(200).json({
@@ -214,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       nome,
       whatsapp,
       respostas,
-      ...calculateScores(respostas),
+      ...scores,
       payment_status: 'pending',
     };
 
