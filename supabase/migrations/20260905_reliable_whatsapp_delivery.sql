@@ -1,6 +1,6 @@
 -- Reliable paid-result delivery and access-token protection.
--- Existing paid rows remain readable through Stripe recovery, but new checkouts
--- receive a dedicated result token and WhatsApp delivery lifecycle.
+-- Existing paid rows remain readable, while new Asaas checkouts receive a
+-- dedicated result token and WhatsApp delivery lifecycle.
 
 alter table public.quiz_sessions
   add column if not exists result_access_token_hash text,

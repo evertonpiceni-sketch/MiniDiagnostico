@@ -11,7 +11,13 @@ create table if not exists public.quiz_sessions (
   payment_status text not null default 'pending' check (payment_status in ('pending', 'paid')),
   created_at timestamptz not null default now(),
   paid_at timestamptz,
-  stripe_checkout_session_id text unique,
+  asaas_payment_id text unique,
+  payment_method_selected text
+    check (payment_method_selected in ('pix_asaas', 'card_asaas')),
+  checkout_attempted_at timestamptz,
+  checkout_error_code text,
+  checkout_error_message text,
+  checkout_error_at timestamptz,
   email_sent_at timestamptz,
   result_access_token_hash text,
   whatsapp_delivery_status text not null default 'pending'
@@ -28,6 +34,9 @@ alter table public.quiz_sessions enable row level security;
 
 create index if not exists quiz_sessions_created_at_idx on public.quiz_sessions (created_at desc);
 create index if not exists quiz_sessions_payment_status_idx on public.quiz_sessions (payment_status);
+create unique index if not exists quiz_sessions_asaas_payment_id_uidx
+  on public.quiz_sessions (asaas_payment_id)
+  where asaas_payment_id is not null;
 create index if not exists quiz_sessions_whatsapp_delivery_idx
   on public.quiz_sessions (payment_status, whatsapp_delivery_status, whatsapp_claimed_at);
 create unique index if not exists quiz_sessions_whatsapp_message_id_idx

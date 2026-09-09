@@ -13,8 +13,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "npm run test:payments && npm run test:rate-limit && npm run test:admin-auth",
+    "test": "npm run test:payments && npm run test:result-delivery && npm run test:rate-limit && npm run test:admin-auth",
     "test:payments": "node --test tests/payment.test.mjs",
+    "test:result-delivery": "node --test tests/result-delivery.test.mjs",
     "test:rate-limit": "node --test tests/rate-limit.test.mjs",
     "test:admin-auth": "node --test tests/admin-auth.test.mjs"
   },
