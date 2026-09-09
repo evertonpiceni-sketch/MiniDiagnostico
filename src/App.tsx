@@ -170,19 +170,15 @@ export default function App() {
 
   return <div className="brand-shell min-h-screen flex flex-col items-center justify-center text-stone-800 font-sans"><Toaster position="top-center"/><AnimatePresence mode="wait">
     {currentStep === 'inicio' && <motion.main key="inicio" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="approved-landing">
-      <img className="approved-landing__art" src="/landing-approved-reference.webp" alt="Mini Diagnóstico Janaína Araújo"/>
-      <section className="approved-mobile">
-        <img className="approved-mobile__logo" src="/ja-logo-approved.webp" alt="Janaína Araújo — Terapeuta Integrativa"/>
-        <p className="approved-mobile__eyebrow">MINI DIAGNÓSTICO</p>
+      <header className="landing-header"><img src="/ja-logo-approved.webp" alt="Janaína Araújo — Terapeuta Integrativa"/><nav><a href="#inicio">Início</a><a href="#sobre">Sobre</a><a href="#beneficios">Benefícios</a><a href="#faq">FAQ</a><button type="button" onClick={()=>setShowLeadForm(true)}>Começar</button></nav><Menu className="landing-menu"/></header>
+      <section className="landing-copy" id="inicio">
+        <p className="landing-eyebrow">MINI DIAGNÓSTICO</p>
         <h1>Descubra o que está bloqueando o seu bem-estar emocional</h1>
-        <p>Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p>
-        <div className="approved-mobile__benefits"><span><Sparkles/><b>Rápido</b><small>2 minutos</small></span><span><ShieldCheck/><b>Seguro</b><small>e confidencial</small></span><span><MonitorSmartphone/><b>100%</b><small>online</small></span></div>
-        <img className="approved-mobile__hero" src="/hero-approved-repaired.webp" alt="Mulher em momento de serenidade e autoconhecimento"/>
-        <div className="approved-mobile__signature"><b>Janaína Araújo</b><small>TERAPEUTA INTEGRATIVA</small></div>
-        <p className="approved-mobile__quote">O primeiro passo para a sua cura começa com o autoconhecimento.</p>
+        <p className="landing-description">Responda a 12 perguntas e receba um relatório personalizado com a sua principal área de atenção emocional: medo, insegurança ou procrastinação.</p>
+        <div className="landing-benefits" id="beneficios"><span><Sparkles/><b>Rápido</b><small>2 minutos</small></span><span><ShieldCheck/><b>Seguro</b><small>e confidencial</small></span><span><MonitorSmartphone/><b>100%</b><small>online</small></span></div>
+        <button type="button" className="landing-cta" onClick={()=>setShowLeadForm(true)}>Iniciar meu diagnóstico <ArrowRight/></button>
       </section>
-      <button type="button" className="approved-landing__main-cta" onClick={()=>setShowLeadForm(true)}>Iniciar meu diagnóstico <ArrowRight/></button>
-      <a className="landing-instagram-link" href="https://instagram.com/eujanainaaraujo" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Janaína Araújo"><Instagram/> <span>@eujanainaaraujo</span></a>
+      <footer className="landing-footer"><div className="landing-signature"><b>Janaína Araújo</b><small>TERAPEUTA INTEGRATIVA</small></div><a href="https://instagram.com/eujanainaaraujo" target="_blank" rel="noopener noreferrer" aria-label="Instagram de Janaína Araújo"><Instagram/> @eujanainaaraujo</a><p>O primeiro passo para a sua cura<br/>começa com o autoconhecimento.</p></footer>
       {showLeadForm && <div className="lead-modal" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title"><form onSubmit={handleStart} className="lead-modal__card">
         <button type="button" className="lead-modal__close" aria-label="Fechar" onClick={()=>setShowLeadForm(false)}><X/></button>
         <img src="/ja-logo-approved.webp" alt="Janaína Araújo"/><p className="brand-eyebrow">MINI DIAGNÓSTICO</p><h2 id="lead-modal-title">Vamos começar?</h2><p>Informe seus dados para iniciar as 12 perguntas.</p>

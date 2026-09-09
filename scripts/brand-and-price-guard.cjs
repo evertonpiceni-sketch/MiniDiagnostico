@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const files = [
-  'src/App.tsx', 'src/main.tsx', 'src/index.css', 'src/brand-system.css', 'src/ambient-audio.ts',
+  'src/App.tsx', 'src/main.tsx', 'src/index.css', 'src/brand-system.css', 'src/exact-reference.css', 'src/ambient-audio.ts',
   'api/checkout.ts', 'api/asaas-pix.ts', 'api/asaas-webhook.ts', 'api/quiz.ts',
   'api/quiz/[id].ts', 'api/quiz/[id]/verify-payment.ts', 'api/diagnostico-pdf.ts',
   'api/quiz/[id]/recover-access.ts',
@@ -16,7 +16,7 @@ for (const fragment of [
   'Descubra o que está bloqueando o seu bem-estar emocional', 'Responda a 12 perguntas',
   '2 minutos', 'Seus dados estão seguros e protegidos.', 'R$ 9,90',
   'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX',
-  'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', '/landing-approved-reference.webp',
+  'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', 'exact-reference.css',
   '/hero-approved-repaired.webp', 'Asaas', 'resultado_dominante',
   '/recover-access', '5521983928113', 'instagram.com/eujanainaaraujo',
   'landing-instagram-link', 'viewBox="0 0 24 24"',
