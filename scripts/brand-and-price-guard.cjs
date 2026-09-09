@@ -13,8 +13,8 @@ const app = sources.find(([file]) => file === 'src/App.tsx')[1];
 const main = sources.find(([file]) => file === 'src/main.tsx')[1];
 
 for (const fragment of [
-  'Descubra o que está te impedindo de avançar', 'Responda a 12 perguntas',
-  '5 minutos', 'Seus dados estão seguros e protegidos.', 'R$ 9,90',
+  'Descubra o que está bloqueando o seu bem-estar emocional', 'Responda a 12 perguntas',
+  '2 minutos', 'Seus dados estão seguros e protegidos.', 'R$ 9,90',
   'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX',
   'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', '/landing-approved-reference.webp',
   '/hero-approved-repaired.webp', 'Asaas', 'resultado_dominante',

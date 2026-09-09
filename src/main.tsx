@@ -8,6 +8,7 @@ import './index.css';
 import './brand-system.css';
 import './approved-layout.css';
 import './result-report.css';
+import './reference-fidelity.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
