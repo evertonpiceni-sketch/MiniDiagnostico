@@ -1,7 +1,8 @@
 import { createHash, createHmac } from 'node:crypto';
+import { enforceRateLimit } from './_rate-limit.js';
 type Req = { method?: string; body?: any; headers: Record<string, string | string[] | undefined> };
-type Res = { status: (code: number) => Res; json: (data: unknown) => void };
-const clean = (v?: string) => (v || '').trim().replace(/^["'](.*)["']$/, '$1').trim();
+type Res = { status: (code: number) => Res; json: (data: unknown) => void; setHeader: (name: string, value: string) => void };
+const clean = (v?: string) => (v || '').trim().replace(/^[\"'](.*)[\"']$/, '$1').trim();
 const ASAAS_API_KEY = clean(process.env.ASAAS_API_KEY);
 const ASAAS_API_URL = (clean(process.env.ASAAS_API_URL) || 'https://api.asaas.com/v3').replace(/\/$/, '');
 const RESULT_TOKEN_SECRET = clean(process.env.RESULT_TOKEN_SECRET);
@@ -17,7 +18,9 @@ async function asaas<T>(path: string, init: RequestInit = {}): Promise<T> { if (
 function todayBrazil() { const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const map = Object.fromEntries(parts.map(p => [p.type, p.value])); return `${map.year}-${map.month}-${map.day}`; }
 async function findOrCreateCustomer(quiz: any) { const found = await asaas<any>(`/customers?externalReference=${encodeURIComponent(quiz.quiz_session_id)}&limit=1`); const existing = Array.isArray(found?.data) ? found.data[0] : null; if (existing?.id) return String(existing.id); const mobilePhone = String(quiz.whatsapp || '').replace(/\D/g, '').replace(/^55/, ''); const created = await asaas<any>('/customers', { method: 'POST', body: JSON.stringify({ name: String(quiz.nome || 'Cliente Mini Diagnóstico').slice(0, 100), mobilePhone: mobilePhone || undefined, externalReference: quiz.quiz_session_id, notificationDisabled: true }) }); if (!created?.id) throw new Error('ASAAS_CUSTOMER_ID_MISSING'); return String(created.id); }
 export default async function handler(req: Req, res: Res) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+  if (!enforceRateLimit(req, res, 'card-checkout', 8, 10 * 60_000)) return;
   const id = String(req.body?.quiz_session_id || '').trim(); if (!validId(id)) return res.status(400).json({ error: 'Sessão do diagnóstico inválida.' });
   try {
     if (!ASAAS_API_KEY) throw new Error('ASAAS_NOT_CONFIGURED');
