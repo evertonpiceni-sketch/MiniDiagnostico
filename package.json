@@ -13,8 +13,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "npm run test:payments",
-    "test:payments": "node --test tests/payment.test.mjs"
+    "test": "npm run test:payments && npm run test:rate-limit",
+    "test:payments": "node --test tests/payment.test.mjs",
+    "test:rate-limit": "node --test tests/rate-limit.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
