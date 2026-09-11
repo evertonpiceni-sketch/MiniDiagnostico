@@ -28,15 +28,12 @@ async function db(resource: string, dbUrl: string, dbKey: string) {
 const pdfPaths: Record<string, string> = {
   MEDO: '/result-pdf/medo.pdf',
   'INSEGURANÇA': '/result-pdf/inseguranca.pdf',
-  'PROCRASTINAÇÃO': '/result-pdf/procrastinacao.pdf',
 };
 
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
 
   try {
-    // Read environment only when the request is already inside the handler.
-    // This keeps module startup minimal so Vercel can always report failures.
     const dbUrl = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
     const dbKey = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
       .map(clean)
@@ -57,11 +54,16 @@ export default async function handler(req: Req, res: Res) {
     if (!result) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
     if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
-    const pdfPath = pdfPaths[String(result.resultado_dominante)] || pdfPaths.MEDO;
+    const pattern = String(result.resultado_dominante);
+    if (pattern === 'PROCRASTINAÇÃO') {
+      // Procrastinação is rendered from the approved on-screen result.
+      // Never redirect this result to the obsolete static PDF.
+      res.status(409);
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.json({ error: 'PDF estático de procrastinação desativado. Use o resultado exibido para salvar em PDF.' });
+    }
 
-    // The approved PDFs are public static assets. Redirecting to the selected
-    // file avoids importing/rendering PDF libraries in a Serverless Function,
-    // while payment/token validation remains protected here.
+    const pdfPath = pdfPaths[pattern] || pdfPaths.MEDO;
     res.status(302);
     res.setHeader('Location', pdfPath);
     res.setHeader('Cache-Control', 'private, no-store');
