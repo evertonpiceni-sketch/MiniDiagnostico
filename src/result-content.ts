@@ -46,8 +46,8 @@ export const RESULT_CONTENT: Record<ResultPattern, ResultContent> = {
     intro: 'Não é preguiça. Muitas vezes, adiar é uma forma de evitar o desconforto que existe por trás da ação.',
     interpretation: [
       'A procrastinação nem sempre significa preguiça, falta de disciplina ou desorganização. Muitas vezes, você sabe exatamente o que precisa fazer, mas existe uma distância entre saber e começar.',
-      'Em muitos casos, procrastinar funciona como uma forma de evitar algum desconforto associado à ação: receio de errar, de se expor, de lidar com algo difícil ou até com as consequências de conseguir aquilo que deseja.',
-      'Enquanto você não começa, sente um alívio momentâneo. Depois podem surgir cobrança, culpa e ansiedade.',
+      'Em muitos casos, a procrastinação funciona como uma forma de evitar algum desconforto associado à ação. Enquanto você não começa, também não precisa enfrentar esse desconforto.',
+      'Esse adiamento pode trazer um alívio momentâneo. Depois surgem cobrança, culpa e mais dificuldade para começar, reforçando o próprio ciclo da procrastinação.',
     ],
     cycle: 'adiamento → alívio momentâneo → cobrança → culpa → mais dificuldade para começar',
     signs: ['Adiar tarefas importantes', 'Esperar o “momento certo”', 'Começar e ter dificuldade para concluir', 'Fazer tarefas menores enquanto evita a prioridade', 'Precisar da urgência para finalmente agir'],
