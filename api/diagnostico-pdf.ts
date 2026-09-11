@@ -25,6 +25,7 @@ async function db(resource: string, dbUrl: string, dbKey: string) {
 const pdfPaths: Record<string, string> = {
   MEDO: '/result-pdf/medo.pdf',
   'INSEGURANÇA': '/result-pdf/inseguranca.pdf',
+  'PROCRASTINAÇÃO': '/result-pdf/procrastinacao.pdf',
 };
 
 export default async function handler(req: Req, res: Res) {
@@ -44,15 +45,9 @@ export default async function handler(req: Req, res: Res) {
     if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
     const pattern = String(result.resultado_dominante);
-    if (pattern === 'PROCRASTINAÇÃO') {
-      const resultUrl = `/resultado?session_id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}&print_pdf=1`;
-      res.status(200);
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'private, no-store');
-      return res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagnóstico — Procrastinação</title><style>html,body{margin:0;width:100%;height:100%;background:#fff}iframe{border:0;width:100%;height:100vh}@media print{iframe{height:100vh}}</style></head><body><iframe id="report" src="${resultUrl}" title="Diagnóstico"></iframe><script>const f=document.getElementById('report');f.addEventListener('load',()=>{setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){window.print()}},1400)})</script></body></html>`);
-    }
+    const pdfPath = pdfPaths[pattern];
+    if (!pdfPath) return res.status(422).json({ error: 'Resultado sem PDF configurado.' });
 
-    const pdfPath = pdfPaths[pattern] || pdfPaths.MEDO;
     res.status(302);
     res.setHeader('Location', pdfPath);
     res.setHeader('Cache-Control', 'private, no-store');
