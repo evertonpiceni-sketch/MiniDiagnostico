@@ -16,10 +16,7 @@ function validToken(id: string, token: string, secret: string) {
 async function db(resource: string, dbUrl: string, dbKey: string) {
   if (!dbUrl || !dbKey) throw new Error('DB_CONFIG');
   const response = await fetch(`${dbUrl}/rest/v1/${resource}`, {
-    headers: {
-      apikey: dbKey,
-      ...(dbKey.startsWith('eyJ') ? { Authorization: `Bearer ${dbKey}` } : {}),
-    },
+    headers: { apikey: dbKey, ...(dbKey.startsWith('eyJ') ? { Authorization: `Bearer ${dbKey}` } : {}) },
   });
   if (!response.ok) throw new Error(`DB_${response.status}`);
   return response.json();
@@ -32,35 +29,27 @@ const pdfPaths: Record<string, string> = {
 
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
-
   try {
     const dbUrl = clean(process.env.SUPABASE_URL).replace(/\/$/, '');
-    const dbKey = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY]
-      .map(clean)
-      .find(key => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
+    const dbKey = [process.env.SUPABASE_SERVICE_ROLE_KEY, process.env.SUPABASE_SECRET_KEY].map(clean).find(key => Boolean(key) && !key.startsWith('sb_publishable_')) || '';
     const secret = clean(process.env.RESULT_TOKEN_SECRET);
-
     const id = String(req.query.id || '');
     const token = String(req.query.token || '');
     if (!validId(id)) return res.status(400).json({ error: 'Sessão inválida.' });
     if (!validToken(id, token, secret)) return res.status(403).json({ error: 'Acesso ao PDF não autorizado.' });
 
-    const rows: any = await db(
-      `quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,resultado_dominante,payment_status`,
-      dbUrl,
-      dbKey,
-    );
+    const rows: any = await db(`quiz_sessions?quiz_session_id=eq.${encodeURIComponent(id)}&select=quiz_session_id,resultado_dominante,payment_status`, dbUrl, dbKey);
     const result = rows?.[0];
     if (!result) return res.status(404).json({ error: 'Diagnóstico não encontrado.' });
     if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
     const pattern = String(result.resultado_dominante);
     if (pattern === 'PROCRASTINAÇÃO') {
-      // Procrastinação is rendered from the approved on-screen result.
-      // Never redirect this result to the obsolete static PDF.
-      res.status(409);
+      const resultUrl = `/resultado?session_id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}&print_pdf=1`;
+      res.status(200);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'private, no-store');
-      return res.json({ error: 'PDF estático de procrastinação desativado. Use o resultado exibido para salvar em PDF.' });
+      return res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagnóstico — Procrastinação</title><style>html,body{margin:0;width:100%;height:100%;background:#fff}iframe{border:0;width:100%;height:100vh}@media print{iframe{height:100vh}}</style></head><body><iframe id="report" src="${resultUrl}" title="Diagnóstico"></iframe><script>const f=document.getElementById('report');f.addEventListener('load',()=>{setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){window.print()}},1400)})</script></body></html>`);
     }
 
     const pdfPath = pdfPaths[pattern] || pdfPaths.MEDO;
