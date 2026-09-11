@@ -52,9 +52,9 @@ export const getTieBreakQuestion = (tied: QuizResult[]): TieBreakQuestion | null
         { label: 'Começo a duvidar se estou preparada ou se vou conseguir.', resultado: 'INSEGURANÇA' },
         { label: 'Sei que preciso fazer, mas vou deixando para depois.', resultado: 'PROCRASTINAÇÃO' },
     ] };
-    if (key === 'MEDO|PROCRASTINAÇÃO') return { texto: 'Quando você não avança, o que mais se aproxima do que acontece com você?', opcoes: [
-        { label: 'Penso nos riscos ou no que pode dar errado e recuo.', resultado: 'MEDO' },
-        { label: 'Sei o que preciso fazer, mas continuo adiando.', resultado: 'PROCRASTINAÇÃO' },
+    if (key === 'MEDO|PROCRASTINAÇÃO') return { texto: 'Quando você percebe que está diante de algo importante, o que costuma pesar mais?', opcoes: [
+        { label: 'O medo de avançar.', resultado: 'MEDO' },
+        { label: 'O desconforto da ação, e por isso acabo adiando.', resultado: 'PROCRASTINAÇÃO' },
     ] };
     return null;
 };
