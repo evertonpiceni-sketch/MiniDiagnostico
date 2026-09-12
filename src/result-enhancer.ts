@@ -21,8 +21,23 @@ function enhance() {
   const download = card.querySelector<HTMLAnchorElement>('.result-pdf');
   download?.addEventListener('click', event => {
     event.preventDefault();
+
+    // Export the exact approved on-screen card. We scale the complete card as
+    // one unit to the printable A4 box instead of restyling/reflowing sections.
+    // 210 x 297 mm at 96 CSS px/in, with a small safety margin for Chrome's
+    // print rounding (especially Android), guarantees the footer stays on page 1.
+    const a4WidthPx = (210 / 25.4) * 96;
+    const a4HeightPx = (297 / 25.4) * 96;
+    const cardWidth = card.getBoundingClientRect().width || 760;
+    const cardHeight = card.scrollHeight || card.getBoundingClientRect().height;
+    const scale = Math.min(a4WidthPx / cardWidth, a4HeightPx / cardHeight, 1) * 0.985;
+
+    card.style.setProperty('--pdf-scale', String(scale));
     card.classList.add('pdf-printing');
-    const cleanup = () => card.classList.remove('pdf-printing');
+    const cleanup = () => {
+      card.classList.remove('pdf-printing');
+      card.style.removeProperty('--pdf-scale');
+    };
     window.addEventListener('afterprint', cleanup, { once: true });
     window.print();
     window.setTimeout(cleanup, 1800);
