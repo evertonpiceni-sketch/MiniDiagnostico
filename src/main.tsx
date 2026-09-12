@@ -10,6 +10,7 @@ import './approved-layout.css';
 import './result-report.css';
 import './reference-fidelity.css';
 import './exact-reference.css';
+import './result-final.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
