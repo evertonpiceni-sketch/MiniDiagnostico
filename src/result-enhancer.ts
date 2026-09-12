@@ -29,6 +29,20 @@ async function renderPdf(canvas: HTMLCanvasElement, url: string) {
   }
 }
 
+async function downloadPdf(url: string, pattern: ResultPattern) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Falha ao baixar PDF: ${response.status}`);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = `mini-diagnostico-${pattern.toLowerCase().replace('ç', 'c').replace('ã', 'a')}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+}
+
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
   if (!card || card.dataset.approved === '1') return;
@@ -42,9 +56,16 @@ function enhance() {
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
-  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" target="_blank" rel="noopener noreferrer" hidden>Abrir resultado ${pattern}</a><a class="artwork-hotspot artwork-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer" aria-label="Quero aprofundar meu resultado com Janaína"></a><a class="artwork-hotspot artwork-pdf" href="${pdf}" download aria-label="Baixar meu resultado em PDF"></a></div>`;
+  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" target="_blank" rel="noopener noreferrer" hidden>Abrir resultado ${pattern}</a><a class="artwork-hotspot artwork-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer" aria-label="Quero aprofundar meu resultado com Janaína"></a><button class="artwork-hotspot artwork-pdf" type="button" aria-label="Baixar meu resultado em PDF"></button></div>`;
   const canvas = card.querySelector<HTMLCanvasElement>('.approved-artwork');
   if (canvas) void renderPdf(canvas, pdf);
+  const download = card.querySelector<HTMLButtonElement>('.artwork-pdf');
+  download?.addEventListener('click', () => {
+    void downloadPdf(pdf, pattern).catch((error) => {
+      console.error(error);
+      window.location.href = pdf;
+    });
+  });
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
