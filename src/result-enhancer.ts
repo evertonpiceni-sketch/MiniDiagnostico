@@ -39,23 +39,15 @@ function enhance() {
   const message = `Olá, Janaína! Meu nome é ${name} e meu padrão predominante foi ${pattern}.\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
   const pdf = artwork[pattern];
   const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
+  const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
+  const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}&name=${encodeURIComponent(name)}`;
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
-  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" hidden>Abrir resultado ${pattern}</a><button class="artwork-hotspot artwork-whatsapp" type="button" aria-label="Quero aprofundar meu resultado com Janaína"></button><button class="artwork-hotspot artwork-pdf" type="button" aria-label="Baixar meu resultado em PDF"></button></div>`;
+  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" hidden>Abrir resultado ${pattern}</a><a class="artwork-hotspot artwork-whatsapp" href="${whatsapp}" aria-label="Quero aprofundar meu resultado com Janaína"></a><a class="artwork-hotspot artwork-pdf" href="${downloadUrl}" download="${filename}" aria-label="Baixar meu resultado em PDF"></a></div>`;
 
   const canvas = card.querySelector<HTMLCanvasElement>('.approved-artwork');
   if (canvas) void renderPdf(canvas, pdf);
-
-  card.querySelector<HTMLButtonElement>('.artwork-whatsapp')?.addEventListener('click', () => {
-    window.location.assign(whatsapp);
-  });
-
-  card.querySelector<HTMLButtonElement>('.artwork-pdf')?.addEventListener('click', () => {
-    const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
-    const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}`;
-    window.location.assign(downloadUrl);
-  });
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
