@@ -29,20 +29,6 @@ async function renderPdf(canvas: HTMLCanvasElement, url: string) {
   }
 }
 
-async function downloadPdf(url: string, pattern: ResultPattern) {
-  const response = await fetch(url, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Falha ao baixar PDF: ${response.status}`);
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = `mini-diagnostico-${pattern.toLowerCase().replace('ç', 'c').replace('ã', 'a')}.pdf`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-}
-
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
   if (!card || card.dataset.approved === '1') return;
@@ -52,19 +38,23 @@ function enhance() {
   const name = greeting.replace(/^Olá,\s*/, '').replace(/\.$/, '');
   const message = `Olá, Janaína! Meu nome é ${name} e meu padrão predominante foi ${pattern}.\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
   const pdf = artwork[pattern];
-  const whatsapp = `https://api.whatsapp.com/send?phone=5521983928113&text=${encodeURIComponent(message)}`;
+  const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
-  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" target="_blank" rel="noopener noreferrer" hidden>Abrir resultado ${pattern}</a><a class="artwork-hotspot artwork-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer" aria-label="Quero aprofundar meu resultado com Janaína"></a><button class="artwork-hotspot artwork-pdf" type="button" aria-label="Baixar meu resultado em PDF"></button></div>`;
+  card.innerHTML = `<div class="approved-artwork-result"><canvas class="approved-artwork" aria-label="Resultado ${pattern}"></canvas><a class="artwork-fallback" href="${pdf}" hidden>Abrir resultado ${pattern}</a><button class="artwork-hotspot artwork-whatsapp" type="button" aria-label="Quero aprofundar meu resultado com Janaína"></button><button class="artwork-hotspot artwork-pdf" type="button" aria-label="Baixar meu resultado em PDF"></button></div>`;
+
   const canvas = card.querySelector<HTMLCanvasElement>('.approved-artwork');
   if (canvas) void renderPdf(canvas, pdf);
-  const download = card.querySelector<HTMLButtonElement>('.artwork-pdf');
-  download?.addEventListener('click', () => {
-    void downloadPdf(pdf, pattern).catch((error) => {
-      console.error(error);
-      window.location.href = pdf;
-    });
+
+  card.querySelector<HTMLButtonElement>('.artwork-whatsapp')?.addEventListener('click', () => {
+    window.location.assign(whatsapp);
+  });
+
+  card.querySelector<HTMLButtonElement>('.artwork-pdf')?.addEventListener('click', () => {
+    const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
+    const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}`;
+    window.location.assign(downloadUrl);
   });
 }
 
