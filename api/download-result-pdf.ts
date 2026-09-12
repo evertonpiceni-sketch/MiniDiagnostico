@@ -14,9 +14,16 @@ function addWhatsAppLink(pdf: PDFDocument, url: string) {
   if (!page) return;
   const { width, height } = page.getSize();
   const rect = PDFArray.withContext(pdf.context);
-  [width * 0.13, height * (1 - 0.79 - 0.056), width * 0.87, height * (1 - 0.79)].forEach(value => rect.push(PDFNumber.of(value)));
+  [width * 0.10, height * 0.145, width * 0.90, height * 0.235].forEach(value => rect.push(PDFNumber.of(value)));
   const action = pdf.context.obj({ S: PDFName.of('URI'), URI: PDFString.of(url) });
-  const annotation = pdf.context.obj({ Type: PDFName.of('Annot'), Subtype: PDFName.of('Link'), Rect: rect, Border: [0, 0, 0], A: action });
+  const annotation = pdf.context.obj({
+    Type: PDFName.of('Annot'),
+    Subtype: PDFName.of('Link'),
+    Rect: rect,
+    Border: [0, 0, 0],
+    H: PDFName.of('I'),
+    A: action,
+  });
   const annotationRef = pdf.context.register(annotation);
   const existing = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
   const annots = existing || PDFArray.withContext(pdf.context);
@@ -37,7 +44,8 @@ export default async function handler(req: Req, res: Res) {
   const proto = host.includes('localhost') ? 'http' : 'https';
   const identity = name ? `Meu nome é ${name} e meu padrão predominante foi ${pattern}.` : `Meu padrão predominante foi ${pattern}.`;
   const message = `Olá, Janaína! ${identity}\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
-  const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
+  // A página HTTPS completa do WhatsApp é mais compatível com visualizadores PDF móveis do que o redirecionador wa.me.
+  const whatsapp = `https://api.whatsapp.com/send?phone=5521983928113&text=${encodeURIComponent(message)}`;
 
   try {
     const response = await fetch(`${proto}://${host}${pdfPath}`, { cache: 'no-store' });
