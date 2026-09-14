@@ -1,41 +1,16 @@
 import { RESULT_CONTENT, type ResultPattern } from './result-content';
 
-const artwork: Record<ResultPattern, string> = {
-  MEDO: '/result-pdf/medo.pdf',
-  INSEGURANÇA: '/result-pdf/inseguranca.pdf',
-  PROCRASTINAÇÃO: '/result-pdf/procrastinacao.pdf',
+const heroArtwork: Record<ResultPattern, string> = {
+  MEDO: '/result-assets/medo-hero-clean.jpg',
+  INSEGURANÇA: '/result-assets/inseguranca-hero-clean.jpg',
+  PROCRASTINAÇÃO: '/result-assets/procrastinacao-hero-clean.jpg',
 };
-
-async function renderHero(canvas: HTMLCanvasElement, pattern: ResultPattern) {
-  try {
-    const pdfjs = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/build/pdf.min.mjs');
-    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/build/pdf.worker.min.mjs';
-    const doc = await pdfjs.getDocument(artwork[pattern]).promise;
-    const page = await doc.getPage(1);
-    const base = page.getViewport({ scale: 1 });
-    const targetWidth = 1200;
-    const viewport = page.getViewport({ scale: targetWidth / base.width });
-    const source = document.createElement('canvas');
-    source.width = Math.round(viewport.width);
-    source.height = Math.round(viewport.height);
-    const sourceCtx = source.getContext('2d', { alpha: false });
-    if (!sourceCtx) return;
-    await page.render({ canvasContext: sourceCtx, viewport }).promise;
-    const cropHeight = Math.max(1, Math.round(source.height * 0.31));
-    canvas.width = source.width;
-    canvas.height = cropHeight;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
-    ctx.drawImage(source, 0, 0, source.width, cropHeight, 0, 0, canvas.width, canvas.height);
-    canvas.dataset.ready = '1';
-  } catch (error) {
-    console.error('Falha ao renderizar cabeçalho do resultado', error);
-  }
-}
 
 const icon = (kind: string) => {
   const icons: Record<string, string> = {
+    opening: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 8v48M8 32h48"/></svg>',
     interpretation: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M25 55c-2-10-10-12-10-26C15 14 25 6 37 7c12 1 19 10 18 21-1 9-6 13-12 16v11"/><path d="M31 20c7-6 16-2 16 6M27 31c7 4 13 3 18 0"/></svg>',
+    cycle: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 23a22 22 0 0 1 38-7l4 6M52 41a22 22 0 0 1-38 7l-4-6"/><path d="M45 22h9v-9M19 42h-9v9"/></svg>',
     signs: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="23" cy="20" r="8"/><circle cx="43" cy="19" r="7"/><path d="M8 50c1-13 7-20 16-20 10 0 15 7 17 20M35 50c1-11 6-17 13-17 8 0 12 6 13 17"/></svg>',
     effects: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 52h10V39H10zm17 0h10V29H27zm17 0h10V16H44z"/><path d="M9 32l13-10 10 4 18-16"/></svg>',
     question: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="24"/><path d="M25 25c1-6 13-8 17-2 5 8-6 10-8 16"/><circle cx="33" cy="47" r="2.5"/></svg>',
@@ -64,21 +39,21 @@ function enhance() {
   const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
   const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
   const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}&name=${encodeURIComponent(name)}`;
-  const cycle = content.cycle ? `<div class="result-cycle">${escapeHtml(content.cycle)}</div>` : '';
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
   card.innerHTML = `<article class="result-poster">
-    <div class="result-hero"><canvas class="result-hero-canvas" aria-label="Mini Diagnóstico — ${pattern}"></canvas></div>
+    <div class="result-hero"><img class="result-hero-image" src="${heroArtwork[pattern]}" alt="Mini Diagnóstico — ${pattern}" decoding="async"></div>
     <header class="result-heading">
       <div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div>
       <h2>${pattern}</h2>
-      <p>${escapeHtml(content.intro)}</p>
     </header>
     <div class="result-sections">
-      ${section('interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation) + cycle)}
-      ${section('signs','SINAIS COMUNS', list(content.signs), 'compact')}
-      ${section('effects','O QUE ISSO PODE CAUSAR', list(content.effects), 'compact')}
+      ${section('opening','ABERTURA', `<p>${escapeHtml(content.intro)}</p>`, 'opening compact')}
+      ${section('interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
+      ${content.cycle ? section('cycle','CICLO EM DESTAQUE', `<div class="result-cycle">${escapeHtml(content.cycle)}</div>`, 'cycle compact') : ''}
+      ${section('signs','SINAIS', list(content.signs), 'compact')}
+      ${section('effects','EFEITOS', list(content.effects), 'compact')}
       ${section('question','UMA PERGUNTA IMPORTANTE', `<p>${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`, 'question compact')}
       ${section('path','CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path), 'path compact')}
       ${section('practices','PRÁTICAS', list(content.practices), 'compact')}
@@ -90,9 +65,6 @@ function enhance() {
       <footer class="result-footer">JANAÍNA ARAÚJO • TERAPEUTA INTEGRATIVA • JUNTOS SOMOS MELHORES</footer>
     </div>
   </article>`;
-
-  const heroCanvas = card.querySelector<HTMLCanvasElement>('.result-hero-canvas');
-  if (heroCanvas) void renderHero(heroCanvas, pattern);
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
