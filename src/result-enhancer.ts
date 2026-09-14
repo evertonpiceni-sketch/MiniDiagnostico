@@ -1,37 +1,10 @@
 import { RESULT_CONTENT, type ResultPattern } from './result-content';
 
-const artwork: Record<ResultPattern, string> = {
-  MEDO: '/result-pdf/medo.pdf',
-  INSEGURANÇA: '/result-pdf/inseguranca.pdf',
-  PROCRASTINAÇÃO: '/result-pdf/procrastinacao.pdf',
+const heroArtwork: Record<ResultPattern, string> = {
+  MEDO: '/result-assets/medo-hero.jpg',
+  INSEGURANÇA: '/result-assets/inseguranca-hero.jpg',
+  PROCRASTINAÇÃO: '/result-assets/procrastinacao-hero.jpg',
 };
-
-async function renderHero(canvas: HTMLCanvasElement, pattern: ResultPattern) {
-  try {
-    const pdfjs = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/build/pdf.min.mjs');
-    pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/build/pdf.worker.min.mjs';
-    const doc = await pdfjs.getDocument(artwork[pattern]).promise;
-    const page = await doc.getPage(1);
-    const base = page.getViewport({ scale: 1 });
-    const targetWidth = 1200;
-    const viewport = page.getViewport({ scale: targetWidth / base.width });
-    const source = document.createElement('canvas');
-    source.width = Math.round(viewport.width);
-    source.height = Math.round(viewport.height);
-    const sourceCtx = source.getContext('2d', { alpha: false });
-    if (!sourceCtx) return;
-    await page.render({ canvasContext: sourceCtx, viewport }).promise;
-    const cropHeight = Math.max(1, Math.round(source.height * 0.31));
-    canvas.width = source.width;
-    canvas.height = cropHeight;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return;
-    ctx.drawImage(source, 0, 0, source.width, cropHeight, 0, 0, canvas.width, canvas.height);
-    canvas.dataset.ready = '1';
-  } catch (error) {
-    console.error('Falha ao renderizar cabeçalho do resultado', error);
-  }
-}
 
 const icon = (kind: string) => {
   const icons: Record<string, string> = {
@@ -70,7 +43,7 @@ function enhance() {
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
   card.innerHTML = `<article class="result-poster">
-    <div class="result-hero"><canvas class="result-hero-canvas" aria-label="Mini Diagnóstico — ${pattern}"></canvas></div>
+    <div class="result-hero"><img class="result-hero-image" src="${heroArtwork[pattern]}" alt="Mini Diagnóstico — ${pattern}" decoding="async"></div>
     <header class="result-heading">
       <div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div>
       <h2>${pattern}</h2>
@@ -92,9 +65,6 @@ function enhance() {
       <footer class="result-footer">JANAÍNA ARAÚJO • TERAPEUTA INTEGRATIVA • JUNTOS SOMOS MELHORES</footer>
     </div>
   </article>`;
-
-  const heroCanvas = card.querySelector<HTMLCanvasElement>('.result-hero-canvas');
-  if (heroCanvas) void renderHero(heroCanvas, pattern);
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
