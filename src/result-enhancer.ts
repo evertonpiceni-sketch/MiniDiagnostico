@@ -1,9 +1,9 @@
 import { RESULT_CONTENT, type ResultPattern } from './result-content';
 
 const heroArtwork: Record<ResultPattern, string> = {
-  MEDO: '/result-assets/medo-hero.jpg',
-  INSEGURANÇA: '/result-assets/inseguranca-hero.jpg',
-  PROCRASTINAÇÃO: '/result-assets/procrastinacao-hero.jpg',
+  MEDO: '/result-assets/medo-hero-clean.jpg',
+  INSEGURANÇA: '/result-assets/inseguranca-hero-clean.jpg',
+  PROCRASTINAÇÃO: '/result-assets/procrastinacao-hero-clean.jpg',
 };
 
 const icon = (kind: string) => {
