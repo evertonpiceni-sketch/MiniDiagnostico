@@ -44,7 +44,7 @@ function enhance() {
       ${section('interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
       ${content.cycle ? section('cycle','CICLO', `<div class="result-cycle-text">${escapeHtml(content.cycle)}</div>`) : ''}
       <div class="result-pair">${section('signs','SINAIS COMUNS', list(content.signs))}${section('effects','O QUE ISSO PODE CAUSAR', list(content.effects))}</div>
-      ${section('question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`)}
+      ${pattern === 'MEDO' ? '' : section('question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`)}
       ${section('path','SEU CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path))}
       ${section('practices','PRÁTICAS SUGERIDAS', list(content.practices))}
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
