@@ -37,7 +37,10 @@ if (/json\([^)]*resultado_dominante/.test(sources.find(([file]) => file === 'api
 if (!app.includes('showLeadForm')) throw new Error('Production guard failed: lead form modal missing');
 if (!main.includes("import './brand-system.css';")) throw new Error('Production guard failed: unified brand stylesheet missing');
 if (!main.includes("import './result-clean-final.css';")) throw new Error('Production guard failed: isolated final result stylesheet missing');
-if (main.includes("import './exact-reference.css';") || main.includes("import './final-approved-layout.css';")) throw new Error('Production guard failed: legacy result stylesheet reactivated');
+for (const stylesheet of ['result-report.css', 'reference-fidelity.css', 'exact-reference.css', 'landing-approved-exact.css', 'result-final.css']) {
+  if (!main.includes(`import './${stylesheet}';`)) throw new Error(`Production guard failed: approved global stylesheet missing: ${stylesheet}`);
+}
+if (main.indexOf("import './result-clean-final.css';") < main.indexOf("import './result-final.css';")) throw new Error('Production guard failed: final result override must load after approved global styles');
 
 for (const [file, minBytes, magic] of [
   ['public/landing-approved-reference.webp', 100_000, 'WEBP'],
@@ -55,4 +58,4 @@ if (!isJpeg) {
   throw new Error('Production guard failed: invalid JPEG structure: public/result-assets/medo-hero-clean.jpg');
 }
 
-console.log('Production guard passed: approved identity, isolated final result layer, canonical result content, clean MEDO hero, Asaas-only payments, R$ 9,90, protected result and valid assets.');
+console.log('Production guard passed: approved landing styles preserved, isolated final result layer, canonical result content, clean MEDO hero, Asaas-only payments, R$ 9,90, protected result and valid assets.');
