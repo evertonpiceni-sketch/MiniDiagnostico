@@ -17,7 +17,7 @@ for (const fragment of [
   '2 minutos', 'Seus dados estão seguros e protegidos.', 'R$ 9,90',
   'WhatsApp', '/api/checkout', '/api/asaas-pix', 'CREDIT_CARD', 'PIX',
   'RESULT_TOKEN_SECRET', '/ja-logo-approved.webp', 'result-clean-final.css',
-  '/result-assets/medo-hero-clean.jpg', '/hero-approved-repaired.webp', 'Asaas', 'resultado_dominante',
+  '/result-assets/medo-hero-clean.jpg', 'Asaas', 'resultado_dominante',
   '/recover-access', '5521983928113', 'instagram.com/eujanainaaraujo',
   'landing-instagram-link', 'viewBox="0 0 24 24"',
   'O medo nem sempre impede você de querer avançar.',
@@ -41,7 +41,6 @@ if (main.includes("import './exact-reference.css';") || main.includes("import '.
 
 for (const [file, minBytes, magic] of [
   ['public/landing-approved-reference.webp', 100_000, 'WEBP'],
-  ['public/hero-approved-repaired.webp', 50_000, 'WEBP'],
   ['public/ja-logo-approved.webp', 3_000, 'WEBP'],
 ]) {
   const asset = fs.readFileSync(file);
@@ -50,4 +49,9 @@ for (const [file, minBytes, magic] of [
   }
 }
 
-console.log('Production guard passed: approved identity, isolated final result layer, canonical result content, Asaas-only payments, R$ 9,90, protected result and valid assets.');
+const medoHero = fs.readFileSync('public/result-assets/medo-hero-clean.jpg');
+if (medoHero.length < 50_000 || medoHero.subarray(0, 2).toString('hex') !== 'ffd8') {
+  throw new Error('Production guard failed: corrupt asset: public/result-assets/medo-hero-clean.jpg');
+}
+
+console.log('Production guard passed: approved identity, isolated final result layer, canonical result content, clean MEDO hero, Asaas-only payments, R$ 9,90, protected result and valid assets.');
