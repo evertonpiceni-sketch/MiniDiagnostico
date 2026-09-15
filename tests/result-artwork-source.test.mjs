@@ -7,21 +7,23 @@ const css = fs.readFileSync(new URL('../src/result-final.css', import.meta.url),
 
 test('approved result renders the canonical PDF artwork as one piece', () => {
   for (const pdf of ['medo.pdf', 'inseguranca.pdf', 'procrastinacao.pdf']) {
-    assert.match(enhancer, new RegExp(`/result-pdf/${pdf.replace('.', '\\.')}`));
+    assert.ok(enhancer.includes(`/result-pdf/${pdf}`));
   }
-  assert.match(enhancer, /approved-artwork-result/);
-  assert.match(enhancer, /class=\"approved-artwork\"/);
-  assert.doesNotMatch(enhancer, /result-brand-header|result-hero-image|result-heading|result-sections/);
+  assert.ok(enhancer.includes('approved-artwork-result'));
+  assert.ok(enhancer.includes('class="approved-artwork"'));
+  for (const forbidden of ['result-brand-header', 'result-hero-image', 'result-heading', 'result-sections']) {
+    assert.ok(!enhancer.includes(forbidden));
+  }
 });
 
 test('PDF download keeps using the server download endpoint', () => {
-  assert.match(enhancer, /\/api\/download-result-pdf\?pattern=/);
-  assert.match(enhancer, /artwork-pdf/);
+  assert.ok(enhancer.includes('/api/download-result-pdf?pattern='));
+  assert.ok(enhancer.includes('artwork-pdf'));
 });
 
 test('approved artwork keeps the 2:3 poster ratio and A4 print lock', () => {
-  assert.match(css, /aspect-ratio:2\/3/);
-  assert.match(css, /size:A4 portrait/);
-  assert.match(css, /width:210mm/);
-  assert.match(css, /height:297mm/);
+  assert.ok(css.includes('aspect-ratio:2/3'));
+  assert.ok(css.includes('size:A4 portrait'));
+  assert.ok(css.includes('width:210mm'));
+  assert.ok(css.includes('height:297mm'));
 });
