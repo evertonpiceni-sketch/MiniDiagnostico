@@ -1,0 +1,8 @@
+/* Final result layer.
+   Deliberately isolated from the historical result CSS stack.
+   Build MEDO here first; only after visual audit should shared rules be extended
+   to INSEGURANÇA and PROCRASTINAÇÃO. */
+
+.report-card[data-approved="1"] {
+  isolation: isolate;
+}
