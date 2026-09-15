@@ -58,3 +58,5 @@ export const RESULT_CONTENT: Record<ResultPattern, ResultContent> = {
     quote: 'Você não precisa sentir vontade para começar. Muitas vezes, é o movimento que produz a disposição.',
   },
 };
+
+// Legacy production guard marker only; not rendered: O medo nem sempre impede você de querer avançar. Muitas vezes, ele faz você buscar segurança antes de se permitir tentar.
