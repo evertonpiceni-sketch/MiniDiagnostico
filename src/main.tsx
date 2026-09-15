@@ -12,6 +12,7 @@ import './reference-fidelity.css';
 import './exact-reference.css';
 import './landing-approved-exact.css';
 import './result-final.css';
+import './result-approved-layout-fix.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
