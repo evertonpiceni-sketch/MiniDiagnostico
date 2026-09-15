@@ -15,7 +15,17 @@ const patternPhrase: Record<ResultPattern, string> = {
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] || ch));
 const list = (items: string[]) => `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
 const paragraphs = (items: string[]) => items.map(item => `<p>${escapeHtml(item)}</p>`).join('');
-const section = (kind: string, title: string, body: string) => `<section class="result-section result-${kind}"><h3><span class="result-section-icon" aria-hidden="true"></span>${title}</h3>${body}</section>`;
+const sectionIcon = (kind: string) => {
+  const icons: Record<string,string> = {
+    interpretation: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M25 55c-2-10-10-12-10-26C15 14 25 6 37 7c12 1 19 10 18 21-1 9-6 13-12 16v11"/><path d="M31 20c7-6 16-2 16 6M27 31c7 4 13 3 18 0"/></svg>',
+    signs: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M10 43h44L42 25l-8 8-8-17-8 17-8-8z"/></svg>',
+    effects: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 7 58 55H6L32 7z"/><path d="M32 22v17M32 47v1"/></svg>',
+    path: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 48c14-2 21-11 26-25 4 11 1 24-9 31"/><path d="M20 55c4-16 14-28 31-37"/></svg>',
+    practices: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 54V31"/><path d="M32 32C19 32 11 24 9 13c12 1 20 7 23 19M32 32c13 0 21-8 23-19-12 1-20 7-23 19"/><path d="M18 47c7 0 12 3 14 7M46 47c-7 0-12 3-14 7"/></svg>'
+  };
+  return icons[kind] || '';
+};
+const section = (kind: string, title: string, body: string) => `<section class="result-section result-${kind}"><h3><span class="result-section-icon" aria-hidden="true">${sectionIcon(kind)}</span>${title}</h3>${body}</section>`;
 
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
