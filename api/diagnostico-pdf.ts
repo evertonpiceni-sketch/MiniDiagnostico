@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 type Req = { method?: string; query: Record<string, string | string[] | undefined> };
 type Res = { status: (code: number) => Res; setHeader: (name: string, value: string) => void; end: (body?: any) => void; json: (data: unknown) => void };
@@ -23,9 +25,9 @@ async function db(resource: string, dbUrl: string, dbKey: string) {
 }
 
 const pdfPaths: Record<string, string> = {
-  MEDO: '/result-pdf/medo.pdf',
-  'INSEGURANÇA': '/result-pdf/inseguranca.pdf',
-  'PROCRASTINAÇÃO': '/result-pdf/procrastinacao.pdf',
+  MEDO: 'medo.pdf',
+  'INSEGURANÇA': 'inseguranca.pdf',
+  'PROCRASTINAÇÃO': 'procrastinacao.pdf',
 };
 
 export default async function handler(req: Req, res: Res) {
@@ -45,13 +47,15 @@ export default async function handler(req: Req, res: Res) {
     if (result.payment_status !== 'paid') return res.status(402).json({ error: 'Pagamento ainda não confirmado.' });
 
     const pattern = String(result.resultado_dominante);
-    const pdfPath = pdfPaths[pattern];
-    if (!pdfPath) return res.status(422).json({ error: 'Resultado sem PDF configurado.' });
+    const pdfFile = pdfPaths[pattern];
+    if (!pdfFile) return res.status(422).json({ error: 'Resultado sem PDF configurado.' });
 
-    res.status(302);
-    res.setHeader('Location', pdfPath);
+    const pdf = await readFile(join(process.cwd(), 'public', 'result-pdf', pdfFile));
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="mini-diagnostico-${pdfFile}"`);
     res.setHeader('Cache-Control', 'private, no-store');
-    return res.end();
+    return res.end(pdf);
   } catch (error) {
     console.error('PDF endpoint error', error);
     return res.status(500).json({ error: 'Não foi possível preparar o diagnóstico em PDF.' });
