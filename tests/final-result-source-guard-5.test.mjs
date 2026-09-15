@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const c=fs.readFileSync(new URL('../src/result-content.ts',import.meta.url),'utf8');test('canonical MEDO opening remains intact',()=>assert.ok(c.includes('O medo nem sempre impede você de querer avançar. Muitas vezes, ele faz você buscar segurança antes de se permitir tentar.')));

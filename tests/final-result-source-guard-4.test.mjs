@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const m=fs.readFileSync(new URL('../src/main.tsx',import.meta.url),'utf8');test('clean final CSS is loaded last',()=>{assert.ok(m.includes("import './result-clean-final.css';"));});

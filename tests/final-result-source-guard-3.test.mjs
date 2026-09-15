@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const e=fs.readFileSync(new URL('../src/result-enhancer.ts',import.meta.url),'utf8');test('legacy logo is not rendered',()=>assert.equal(e.includes('src="/ja-logo.webp'),false));

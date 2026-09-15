@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const e=fs.readFileSync(new URL('../src/result-enhancer.ts',import.meta.url),'utf8');test('approved transparent logo is rendered',()=>assert.ok(e.match(/ja-logo-approved\.webp/g)?.length===2));
