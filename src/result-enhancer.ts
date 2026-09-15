@@ -15,7 +15,7 @@ const patternPhrase: Record<ResultPattern, string> = {
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] || ch));
 const list = (items: string[]) => `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
 const paragraphs = (items: string[]) => items.map(item => `<p>${escapeHtml(item)}</p>`).join('');
-const section = (kind: string, title: string, body: string, extra = '') => `<section class="result-section result-${kind} ${extra}"><h3>${title}</h3>${body}</section>`;
+const section = (kind: string, title: string, body: string) => `<section class="result-section result-${kind}"><h3><span class="result-section-icon" aria-hidden="true"></span>${title}</h3>${body}</section>`;
 
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
@@ -37,10 +37,10 @@ function enhance() {
     <header class="result-hero">
       <img class="result-hero-image" src="${heroArtwork[pattern]}" alt="" decoding="async">
       <div class="result-brand"><img src="/ja-logo-approved.webp" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
-      <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}</p>
+      <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}<span class="result-heart" aria-hidden="true">♡</span></p>
       <div class="result-heading"><div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div><h2>${pattern}</h2><p>${escapeHtml(content.intro)}</p></div>
     </header>
-    <div class="result-sections">
+    <main class="result-sections">
       ${section('interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
       ${content.cycle ? section('cycle','CICLO', `<div class="result-cycle-text">${escapeHtml(content.cycle)}</div>`) : ''}
       <div class="result-pair">${section('signs','SINAIS COMUNS', list(content.signs))}${section('effects','O QUE ISSO PODE CAUSAR', list(content.effects))}</div>
@@ -50,7 +50,7 @@ function enhance() {
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
       <div class="result-actions"><a class="result-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer">QUERO APROFUNDAR MEU RESULTADO COM JANAÍNA</a><a class="result-download" href="${downloadUrl}" download="${filename}">BAIXAR MEU RESULTADO EM PDF</a></div>
       <footer class="result-footer"><img src="/ja-logo-approved.webp" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO · EQUILÍBRIO · TRANSFORMAÇÃO</small></footer>
-    </div>
+    </main>
   </article>`;
 }
 
