@@ -36,3 +36,68 @@
 .report-card[data-pattern="MEDO"] .result-footer{display:grid!important;grid-template-columns:54px 1fr auto!important;align-items:center!important;gap:11px!important;margin:0!important;padding:19px 2px 0!important;border-top:1px solid rgba(91,68,56,.16)!important;background:transparent!important;color:#59453a!important}.report-card[data-pattern="MEDO"] .result-footer>img{display:block!important;width:52px!important;height:52px!important;object-fit:contain!important;margin:0!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;filter:brightness(1.08) saturate(1.12)!important}.report-card[data-pattern="MEDO"] .result-footer>div{display:flex!important;flex-direction:column!important;align-items:flex-start!important}.report-card[data-pattern="MEDO"] .result-footer strong{font-family:Georgia,serif!important;font-size:17px!important;font-weight:500!important}.report-card[data-pattern="MEDO"] .result-footer span,.report-card[data-pattern="MEDO"] .result-footer small{font-family:Arial,sans-serif!important;font-size:8px!important;letter-spacing:.1em!important}
 
 @media(max-width:680px){.report-card[data-pattern="MEDO"] .result-hero{min-height:540px}.report-card[data-pattern="MEDO"] .result-hero-image{height:100%!important}.report-card[data-pattern="MEDO"] .result-hero:after{top:275px;bottom:0}.report-card[data-pattern="MEDO"] .result-brand{top:14px!important;left:14px!important;gap:7px!important}.report-card[data-pattern="MEDO"] .result-brand>img{width:47px!important;height:47px!important}.report-card[data-pattern="MEDO"] .result-brand strong{font-size:19px!important}.report-card[data-pattern="MEDO"] .result-brand small{font-size:5.5px!important;letter-spacing:.1em!important}.report-card[data-pattern="MEDO"] .result-phrase{top:17px!important;right:13px!important;width:145px!important;font-size:10.5px!important}.report-card[data-pattern="MEDO"] .result-heading{left:20px!important;right:20px!important;bottom:48px!important}.report-card[data-pattern="MEDO"] .result-heading h2{font-size:46px!important}.report-card[data-pattern="MEDO"] .result-heading>p{font-size:13.5px!important;line-height:1.48!important}.report-card[data-pattern="MEDO"] .result-sections{padding:6px 14px 27px!important}.report-card[data-pattern="MEDO"] .result-section{padding:21px 19px!important;border-radius:19px!important}.report-card[data-pattern="MEDO"] .result-pair{grid-template-columns:1fr!important}.report-card[data-pattern="MEDO"] .result-actions{grid-template-columns:1fr!important}.report-card[data-pattern="MEDO"] .result-footer{grid-template-columns:48px 1fr!important}.report-card[data-pattern="MEDO"] .result-footer>small{grid-column:1/-1;text-align:center}}
+
+
+/* Fidelity pass — MEDO approved reference */
+.report-card[data-pattern="MEDO"] .result-hero:after{
+  background:linear-gradient(180deg,rgba(248,243,235,0) 0%,rgba(248,243,235,.08) 18%,rgba(91,63,47,.18) 55%,rgba(72,49,37,.62) 100%)!important
+}
+.report-card[data-pattern="MEDO"] .result-brand{top:22px!important;left:28px!important}
+.report-card[data-pattern="MEDO"] .result-brand>img{
+  width:74px!important;height:74px!important;object-fit:cover!important;object-position:20% 50%!important;
+  border-radius:50%!important;mix-blend-mode:multiply!important;filter:contrast(1.12) saturate(1.16)!important
+}
+.report-card[data-pattern="MEDO"] .result-brand strong{font-size:31px!important;color:#2f2b33!important}
+.report-card[data-pattern="MEDO"] .result-brand small{font-size:7.8px!important;color:#423b3a!important}
+.report-card[data-pattern="MEDO"] .result-heading{bottom:30px!important;color:#fff!important}
+.report-card[data-pattern="MEDO"] .result-eyebrow{color:#fff!important;text-shadow:0 1px 4px rgba(0,0,0,.28)!important}
+.report-card[data-pattern="MEDO"] .result-heading h2{color:#fff7e9!important;text-shadow:0 2px 7px rgba(0,0,0,.34)!important}
+.report-card[data-pattern="MEDO"] .result-heading>p{color:#fff!important;font-weight:700!important;text-shadow:0 1px 5px rgba(0,0,0,.36)!important}
+.report-card[data-pattern="MEDO"] .result-sections{background:#fff7e8!important;padding-top:16px!important}
+.report-card[data-pattern="MEDO"] .result-section{border-color:rgba(176,137,78,.18)!important;box-shadow:0 5px 14px rgba(77,55,40,.05)!important}
+.report-card[data-pattern="MEDO"] .result-interpretation{background:#fffaf2!important}
+.report-card[data-pattern="MEDO"] .result-signs{background:#f8ead7!important}
+.report-card[data-pattern="MEDO"] .result-effects{background:#f4e6d1!important}
+.report-card[data-pattern="MEDO"] .result-path{background:#dfeadd!important}
+.report-card[data-pattern="MEDO"] .result-practices{background:#eee3f1!important}
+.report-card[data-pattern="MEDO"] .result-section h3{
+  display:flex!important;align-items:center!important;gap:10px!important;font-size:14px!important;color:#5c4538!important
+}
+.report-card[data-pattern="MEDO"] .result-section-icon{
+  display:inline-grid!important;place-items:center!important;flex:0 0 28px!important;width:28px!important;height:28px!important;color:#604731!important
+}
+.report-card[data-pattern="MEDO"] .result-section-icon svg{
+  width:26px!important;height:26px!important;fill:none!important;stroke:currentColor!important;stroke-width:3!important;stroke-linecap:round!important;stroke-linejoin:round!important
+}
+.report-card[data-pattern="MEDO"] .result-signs .result-section-icon{color:#3d342c!important}
+.report-card[data-pattern="MEDO"] .result-effects .result-section-icon{color:#7d4a22!important}
+.report-card[data-pattern="MEDO"] .result-path .result-section-icon{color:#0f5a47!important}
+.report-card[data-pattern="MEDO"] .result-practices .result-section-icon{color:#6f2a75!important}
+.report-card[data-pattern="MEDO"] .result-signs li:before,
+.report-card[data-pattern="MEDO"] .result-effects li:before{
+  content:'•'!important;color:#8a5c27!important;font-size:18px!important;top:-2px!important
+}
+.report-card[data-pattern="MEDO"] .result-practices li:before{
+  content:'✓'!important;color:#6d2b78!important
+}
+.report-card[data-pattern="MEDO"] .result-final-quote{
+  position:relative!important;background:#5b3927!important;color:#fff8ee!important;border-radius:14px!important;
+  padding:28px 58px!important;font-size:21px!important;box-shadow:none!important
+}
+.report-card[data-pattern="MEDO"] .result-final-quote:before,
+.report-card[data-pattern="MEDO"] .result-final-quote:after{
+  position:absolute!important;color:#f0c45d!important;font-family:Georgia,serif!important;font-size:48px!important;line-height:1!important
+}
+.report-card[data-pattern="MEDO"] .result-final-quote:before{content:'“'!important;left:20px!important;top:12px!important}
+.report-card[data-pattern="MEDO"] .result-final-quote:after{content:'”'!important;right:20px!important;bottom:0!important}
+.report-card[data-pattern="MEDO"] .result-actions{grid-template-columns:1fr!important;gap:10px!important;margin-bottom:26px!important}
+.report-card[data-pattern="MEDO"] .result-actions a{min-height:56px!important;border-radius:12px!important;font-size:13px!important}
+.report-card[data-pattern="MEDO"] .result-whatsapp{
+  background:#109858!important;color:#fff!important;border:0!important;box-shadow:none!important
+}
+.report-card[data-pattern="MEDO"] .result-download{
+  background:#fff!important;color:#1f2331!important;border:1.5px solid #344054!important
+}
+.report-card[data-pattern="MEDO"] .result-footer{
+  padding:18px 6px 2px!important;background:#fff7e8!important;border-top:0!important
+}
