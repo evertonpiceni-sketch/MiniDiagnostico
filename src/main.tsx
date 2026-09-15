@@ -7,7 +7,11 @@ import App from './App.tsx';
 import './index.css';
 import './brand-system.css';
 import './approved-layout.css';
+import './result-report.css';
+import './reference-fidelity.css';
+import './exact-reference.css';
 import './landing-approved-exact.css';
+import './result-final.css';
 import './result-clean-final.css';
 
 createRoot(document.getElementById('root')!).render(
