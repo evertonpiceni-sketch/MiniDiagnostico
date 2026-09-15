@@ -15,13 +15,12 @@ export type ResultContent = {
 
 export const RESULT_CONTENT: Record<ResultPattern, ResultContent> = {
   MEDO: {
-    intro: 'O medo nem sempre impede você de querer avançar. Muitas vezes, ele faz você buscar segurança antes de se permitir tentar.',
+    intro: 'O medo é uma forma de proteção. A diferença está em não deixar que ele defina todos os seus caminhos.',
     interpretation: [
-      'O medo nem sempre aparece como uma sensação evidente de estar com medo. Muitas vezes, ele se manifesta como excesso de análise, necessidade de prever o que pode dar errado, dificuldade para tomar decisões, busca por garantias ou tendência a permanecer no conhecido.',
-      'Seu sistema pode ter aprendido que avançar significa se expor ao risco. Por isso, antes de agir, você tenta encontrar segurança, controle ou certeza. O problema é que algumas decisões não oferecem essa garantia — e tentar eliminar todo risco pode acabar mantendo você parada.',
+      'Suas respostas sugerem que o medo pode estar ocupando um espaço importante na sua vida, como forma de evitar riscos e situações novas. Ele pode aparecer como preocupação excessiva, antecipação de problemas, dificuldade para tomar decisões ou necessidade de ter certeza antes de avançar.',
     ],
     signs: ['Pensamentos que começam com “e se...?”', 'Tendência a imaginar o pior cenário', 'Necessidade de controle', 'Evita oportunidades por receio das consequências'],
-    effects: ['Autocrítica e tensão constante', 'Dificuldade em tomar decisões', 'Perda de oportunidades', 'Sensação de estagnação', 'Desgaste emocional'],
+    effects: ['Ansiedade e tensão constante', 'Dificuldade em tomar decisões', 'Perda de oportunidades', 'Sensação de estagnação', 'Desgaste emocional'],
     question: 'O que você faria hoje se não precisasse ter certeza de que vai dar certo?',
     questionNote: 'Observe a primeira resposta que surgir antes que sua mente comece a explicar por que ainda não é possível.',
     path: ['Desenvolver segurança interna antes de exigir de si coragem absoluta. Em vez de esperar o medo desaparecer, experimente se perguntar:', '“Qual é o menor passo seguro que posso dar mesmo sentindo medo?”'],
