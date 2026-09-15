@@ -1,8 +1,334 @@
-/* Final result layer.
-   Deliberately isolated from the historical result CSS stack.
-   Build MEDO here first; only after visual audit should shared rules be extended
-   to INSEGURANÇA and PROCRASTINAÇÃO. */
+/* Final result layer — single authority for result presentation.
+   MEDO is built and audited first. Historical result rules are neutralized
+   inside the isolated poster instead of being extended with more patches. */
 
 .report-card[data-approved="1"] {
   isolation: isolate;
+  width: min(100%, 920px) !important;
+  max-width: 920px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.report-card[data-approved="1"] .result-poster,
+.report-card[data-approved="1"] .result-poster * {
+  box-sizing: border-box;
+}
+
+/* MEDO — reference palette and geometry */
+.report-card[data-pattern="MEDO"] .result-poster {
+  --ink: #4a352c;
+  --muted: #715f55;
+  --paper: #f8f3eb;
+  --cream: #f1e4cf;
+  --cream-2: #fbf8f2;
+  --green: #e4ead9;
+  --green-ink: #4e6148;
+  --lavender: #ece5ee;
+  --quote: #5a4034;
+  width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 0;
+  box-shadow: 0 18px 48px rgba(70, 48, 37, .12);
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.report-card[data-pattern="MEDO"] .result-hero {
+  position: relative;
+  min-height: 760px;
+  padding: 0;
+  overflow: hidden;
+  background: #eadbc7;
+}
+
+.report-card[data-pattern="MEDO"] .result-hero-image {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 500px !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 420px;
+  height: 190px;
+  background: linear-gradient(to bottom, rgba(248,243,235,0), var(--paper) 58%);
+  pointer-events: none;
+}
+
+.report-card[data-pattern="MEDO"] .result-brand {
+  position: absolute !important;
+  z-index: 3;
+  top: 30px !important;
+  left: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-brand > img {
+  width: 54px !important;
+  height: 54px !important;
+  object-fit: contain !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-brand > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.report-card[data-pattern="MEDO"] .result-brand strong {
+  font-size: 30px !important;
+  line-height: 1 !important;
+  font-weight: 500 !important;
+  letter-spacing: -.02em !important;
+  color: #4a352c !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-brand small {
+  font-family: Arial, sans-serif !important;
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  letter-spacing: .18em !important;
+  color: #6c5549 !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-phrase {
+  position: absolute !important;
+  z-index: 3;
+  top: 40px !important;
+  right: 42px !important;
+  width: 260px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #60493d !important;
+  background: transparent !important;
+  border: 0 !important;
+  font-family: 'Segoe Print', 'Bradley Hand', cursive !important;
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+  text-align: right !important;
+  font-style: normal !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-heading {
+  position: absolute !important;
+  z-index: 4;
+  left: 56px !important;
+  right: 56px !important;
+  bottom: 38px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-eyebrow {
+  margin: 0 0 5px !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: .19em !important;
+  color: #765b4b !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-heading h2 {
+  margin: 0 0 14px !important;
+  color: #49342b !important;
+  font-size: clamp(48px, 8vw, 74px) !important;
+  line-height: .95 !important;
+  font-weight: 500 !important;
+  letter-spacing: -.025em !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-heading > p {
+  max-width: 690px !important;
+  margin: 0 auto !important;
+  color: #5e4b41 !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 16px !important;
+  line-height: 1.55 !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-sections {
+  display: block !important;
+  padding: 8px 52px 46px !important;
+  background: var(--paper) !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-section {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 0 22px !important;
+  padding: 30px 34px !important;
+  border: 0 !important;
+  border-radius: 26px !important;
+  box-shadow: none !important;
+  background: var(--cream-2) !important;
+  color: var(--ink) !important;
+  text-align: left !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-section h3 {
+  margin: 0 0 17px !important;
+  color: #664c3e !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+  font-weight: 800 !important;
+  letter-spacing: .13em !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-section p,
+.report-card[data-pattern="MEDO"] .result-section li {
+  color: #56483f !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 15px !important;
+  line-height: 1.62 !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-section p {
+  margin: 0 0 13px !important;
+}
+.report-card[data-pattern="MEDO"] .result-section p:last-child { margin-bottom: 0 !important; }
+.report-card[data-pattern="MEDO"] .result-section ul { margin: 0 !important; padding: 0 0 0 20px !important; }
+.report-card[data-pattern="MEDO"] .result-section li { margin: 0 0 8px !important; padding-left: 3px !important; }
+
+.report-card[data-pattern="MEDO"] .result-interpretation {
+  background: #fffdf9 !important;
+  border: 1px solid rgba(112,82,64,.12) !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-pair {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 20px !important;
+  margin: 0 0 22px !important;
+}
+.report-card[data-pattern="MEDO"] .result-pair .result-section { margin: 0 !important; }
+.report-card[data-pattern="MEDO"] .result-signs { background: #f3e5d1 !important; }
+.report-card[data-pattern="MEDO"] .result-effects { background: #eee0ce !important; }
+.report-card[data-pattern="MEDO"] .result-question { background: #f8f1e6 !important; }
+.report-card[data-pattern="MEDO"] .result-question-text { font-family: Georgia, serif !important; font-size: 20px !important; line-height: 1.45 !important; font-style: italic !important; color: #503a30 !important; }
+.report-card[data-pattern="MEDO"] .result-path { background: var(--green) !important; }
+.report-card[data-pattern="MEDO"] .result-path h3 { color: var(--green-ink) !important; }
+.report-card[data-pattern="MEDO"] .result-practices { background: var(--lavender) !important; }
+
+.report-card[data-pattern="MEDO"] .result-final-quote {
+  margin: 0 0 25px !important;
+  padding: 30px 42px !important;
+  border: 0 !important;
+  border-radius: 25px !important;
+  background: var(--quote) !important;
+  color: #fffaf4 !important;
+  font-family: Georgia, serif !important;
+  font-size: 21px !important;
+  line-height: 1.45 !important;
+  font-style: italic !important;
+  text-align: center !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-actions {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  margin: 0 0 30px !important;
+}
+.report-card[data-pattern="MEDO"] .result-actions a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 52px !important;
+  padding: 13px 16px !important;
+  border-radius: 999px !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  letter-spacing: .05em !important;
+  text-align: center !important;
+  text-decoration: none !important;
+}
+.report-card[data-pattern="MEDO"] .result-whatsapp { background: #60735c !important; color: white !important; }
+.report-card[data-pattern="MEDO"] .result-download { background: transparent !important; color: #5b4438 !important; border: 1px solid #8d776b !important; }
+
+.report-card[data-pattern="MEDO"] .result-footer {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 13px !important;
+  padding: 22px 4px 0 !important;
+  margin: 0 !important;
+  border-top: 1px solid rgba(91,68,56,.18) !important;
+  background: transparent !important;
+  color: #5b4438 !important;
+}
+.report-card[data-pattern="MEDO"] .result-footer > img {
+  width: 46px !important;
+  height: 46px !important;
+  object-fit: contain !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.report-card[data-pattern="MEDO"] .result-footer > div { display: flex !important; flex-direction: column !important; align-items: flex-start !important; }
+.report-card[data-pattern="MEDO"] .result-footer strong { font-family: Georgia, serif !important; font-size: 18px !important; font-weight: 500 !important; }
+.report-card[data-pattern="MEDO"] .result-footer span,
+.report-card[data-pattern="MEDO"] .result-footer small { font-family: Arial, sans-serif !important; font-size: 9px !important; letter-spacing: .11em !important; }
+
+@media (max-width: 680px) {
+  .report-card[data-pattern="MEDO"] .result-hero { min-height: 660px; }
+  .report-card[data-pattern="MEDO"] .result-hero-image { height: 410px !important; }
+  .report-card[data-pattern="MEDO"] .result-hero::after { top: 330px; }
+  .report-card[data-pattern="MEDO"] .result-brand { top: 20px !important; left: 20px !important; }
+  .report-card[data-pattern="MEDO"] .result-brand > img { width: 42px !important; height: 42px !important; }
+  .report-card[data-pattern="MEDO"] .result-brand strong { font-size: 22px !important; }
+  .report-card[data-pattern="MEDO"] .result-brand small { font-size: 7px !important; }
+  .report-card[data-pattern="MEDO"] .result-phrase { top: 22px !important; right: 18px !important; width: 155px !important; font-size: 13px !important; }
+  .report-card[data-pattern="MEDO"] .result-heading { left: 24px !important; right: 24px !important; bottom: 28px !important; }
+  .report-card[data-pattern="MEDO"] .result-heading h2 { font-size: 52px !important; }
+  .report-card[data-pattern="MEDO"] .result-heading > p { font-size: 14px !important; }
+  .report-card[data-pattern="MEDO"] .result-sections { padding: 4px 16px 28px !important; }
+  .report-card[data-pattern="MEDO"] .result-section { padding: 24px 21px !important; border-radius: 21px !important; }
+  .report-card[data-pattern="MEDO"] .result-pair { grid-template-columns: 1fr !important; }
+  .report-card[data-pattern="MEDO"] .result-actions { grid-template-columns: 1fr !important; }
+  .report-card[data-pattern="MEDO"] .result-footer { grid-template-columns: auto 1fr !important; }
+  .report-card[data-pattern="MEDO"] .result-footer > small { grid-column: 1 / -1; text-align: center; }
 }
