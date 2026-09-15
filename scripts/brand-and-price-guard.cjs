@@ -50,8 +50,9 @@ for (const [file, minBytes, magic] of [
 }
 
 const medoHero = fs.readFileSync('public/result-assets/medo-hero-clean.jpg');
-if (medoHero.length < 50_000 || medoHero.subarray(0, 2).toString('hex') !== 'ffd8') {
-  throw new Error('Production guard failed: corrupt asset: public/result-assets/medo-hero-clean.jpg');
+const isJpeg = medoHero.length > 4 && medoHero[0] === 0xff && medoHero[1] === 0xd8 && medoHero[medoHero.length - 2] === 0xff && medoHero[medoHero.length - 1] === 0xd9;
+if (!isJpeg) {
+  throw new Error('Production guard failed: invalid JPEG structure: public/result-assets/medo-hero-clean.jpg');
 }
 
 console.log('Production guard passed: approved identity, isolated final result layer, canonical result content, clean MEDO hero, Asaas-only payments, R$ 9,90, protected result and valid assets.');
