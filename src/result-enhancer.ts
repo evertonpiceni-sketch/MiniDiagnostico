@@ -36,7 +36,7 @@ function enhance() {
   card.innerHTML = `<article class="result-poster">
     <header class="result-hero">
       <img class="result-hero-image" src="${heroArtwork[pattern]}" alt="" decoding="async">
-      <div class="result-brand"><img src="/ja-logo-approved.webp" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
+      <div class="result-brand"><img src="/ja-logo.webp" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
       <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}</p>
       <div class="result-heading"><div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div><h2>${pattern}</h2><p>${escapeHtml(content.intro)}</p></div>
     </header>
@@ -49,7 +49,7 @@ function enhance() {
       ${section('practices','PRÁTICAS SUGERIDAS', list(content.practices))}
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
       <div class="result-actions"><a class="result-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer">QUERO APROFUNDAR MEU RESULTADO COM JANAÍNA</a><a class="result-download" href="${downloadUrl}" download="${filename}">BAIXAR MEU RESULTADO EM PDF</a></div>
-      <footer class="result-footer"><img src="/ja-logo-approved.webp" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO · EQUILÍBRIO · TRANSFORMAÇÃO</small></footer>
+      <footer class="result-footer"><img src="/ja-logo.webp" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO · EQUILÍBRIO · TRANSFORMAÇÃO</small></footer>
     </div>
   </article>`;
 }
