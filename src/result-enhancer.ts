@@ -38,11 +38,12 @@ function enhance() {
   const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
   const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
   const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}&name=${encodeURIComponent(name)}`;
+  const signposts = pattern === 'PROCRASTINAÇÃO' ? '<div class="approved-signposts" aria-hidden="true"><span>PLANEJAR</span><span>COMEÇAR</span><span>CONQUISTAR</span></div>' : '';
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
   card.innerHTML = `<article class="result-poster">
-    <div class="result-hero"><img class="result-hero-image" src="${heroArtwork[pattern]}" alt="Mini Diagnóstico — ${pattern}" decoding="async"></div>
+    <div class="result-hero"><img class="result-hero-image" src="${heroArtwork[pattern]}" alt="Mini Diagnóstico — ${pattern}" decoding="async">${signposts}</div>
     <header class="result-heading">
       <div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div>
       <h2>${pattern}</h2>
@@ -51,8 +52,10 @@ function enhance() {
     <div class="result-sections">
       ${section('interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
       ${content.cycle ? section('cycle','CICLO EM DESTAQUE', `<div class="result-cycle">${escapeHtml(content.cycle)}</div>`, 'cycle compact') : ''}
-      ${section('signs','SINAIS', list(content.signs), 'compact')}
-      ${section('effects','EFEITOS', list(content.effects), 'compact')}
+      <div class="result-pair">
+        ${section('signs','SINAIS', list(content.signs), 'compact')}
+        ${section('effects','EFEITOS', list(content.effects), 'compact')}
+      </div>
       ${section('question','UMA PERGUNTA IMPORTANTE', `<p>${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`, 'question compact')}
       ${section('path','CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path), 'path compact')}
       ${section('practices','PRÁTICAS', list(content.practices), 'compact')}
