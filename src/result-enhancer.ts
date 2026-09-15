@@ -41,6 +41,7 @@ function enhance() {
   const title = card.querySelector('h2')?.textContent || '';
   const pattern: ResultPattern = title.includes('MEDO') ? 'MEDO' : title.includes('INSEGURANÇA') ? 'INSEGURANÇA' : 'PROCRASTINAÇÃO';
   const content = RESULT_CONTENT[pattern];
+  const logo = pattern === 'MEDO' ? '/result-assets/medo-logo-approved.png' : '/ja-logo-approved.webp';
   const greeting = Array.from(card.querySelectorAll('p')).find(p => p.textContent?.trim().startsWith('Olá,'))?.textContent || 'Olá.';
   const name = greeting.replace(/^Olá,\s*/, '').replace(/\.$/, '').trim();
   const message = `Olá, Janaína! Meu nome é ${name || 'participante'} e meu padrão predominante foi ${pattern}.\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
@@ -53,7 +54,7 @@ function enhance() {
   card.innerHTML = `<article class="result-poster">
     <header class="result-hero">
       <img class="result-hero-image" src="${heroArtwork[pattern]}" alt="" decoding="async">
-      <div class="result-brand"><img src="/ja-logo-approved.webp" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
+      <div class="result-brand"><img src="${logo}" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
       <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}<span class="result-heart" aria-hidden="true">♡</span></p>
       <div class="result-heading"><div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div><h2>${pattern}</h2><p>${escapeHtml(content.intro)}</p></div>
     </header>
@@ -69,7 +70,7 @@ function enhance() {
         <a class="result-whatsapp" href="${whatsapp}" target="_blank" rel="noopener noreferrer"><span class="result-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 11.7a8 8 0 0 1-11.8 7l-4.2 1.1 1.1-4A8 8 0 1 1 20 11.7Z"/><path d="M8.2 8.2c.4 3 2.7 5.4 5.7 5.9M14.4 14c.5 0 1.3-.7 1.5-1.2"/></svg></span><span>QUERO APROFUNDAR MEU<br>RESULTADO COM JANAÍNA</span></a>
         <a class="result-download" href="${downloadUrl}" download="${filename}"><span class="result-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v11m0 0-4-4m4 4 4-4M5 18v3h14v-3"/></svg></span><span>BAIXAR MEU RESULTADO EM PDF</span></a>
       </div>
-      <footer class="result-footer"><img src="/ja-logo-approved.webp" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO&nbsp;&nbsp;·&nbsp;&nbsp;EQUILÍBRIO&nbsp;&nbsp;·&nbsp;&nbsp;TRANSFORMAÇÃO<br><b>JUNTOS SOMOS MELHORES ♡</b></small></footer>
+      <footer class="result-footer"><img src="${logo}" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO&nbsp;&nbsp;·&nbsp;&nbsp;EQUILÍBRIO&nbsp;&nbsp;·&nbsp;&nbsp;TRANSFORMAÇÃO<br><b>JUNTOS SOMOS MELHORES ♡</b></small></footer>
     </main>
   </article>`;
 }

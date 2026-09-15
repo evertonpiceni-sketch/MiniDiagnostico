@@ -23,7 +23,7 @@ export const RESULT_CONTENT: Record<ResultPattern, ResultContent> = {
     effects: ['Ansiedade e tensão constante', 'Dificuldade em tomar decisões', 'Perda de oportunidades', 'Sensação de estagnação', 'Desgaste emocional'],
     question: 'O que você faria hoje se não precisasse ter certeza de que vai dar certo?',
     questionNote: 'Observe a primeira resposta que surgir antes que sua mente comece a explicar por que ainda não é possível.',
-    path: ['Desenvolver segurança interna antes de exigir de si coragem absoluta. Em vez de esperar o medo desaparecer, experimente se perguntar:', '“Qual é o menor passo seguro que posso dar mesmo sentindo medo?”'],
+    path: ['Desenvolver segurança interna antes de exigir de si coragem absoluta. Em vez de esperar o medo desaparecer, experimente se perguntar: “Qual é o menor passo seguro que posso dar mesmo sentindo medo?”'],
     practices: ['Respiração consciente (3 minutos, 2x ao dia)', 'Identifique o que o medo está tentando proteger', 'Faça pequenas ações fora da sua zona de conforto', 'Registre seus avanços, por menores que sejam'],
     quote: 'Coragem não é a ausência do medo, mas a decisão de seguir em frente, mesmo sentindo.',
   },
