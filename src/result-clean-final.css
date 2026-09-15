@@ -3,8 +3,8 @@
 
 .report-card[data-approved="1"]{
   isolation:isolate;
-  width:min(100%,720px)!important;
-  max-width:720px!important;
+  width:min(100%,520px)!important;
+  max-width:520px!important;
   margin:0 auto!important;
   padding:0!important;
   border:0!important;
@@ -30,7 +30,7 @@
 /* HERO — same vertical proportion as approved card */
 .report-card[data-pattern="MEDO"] .result-hero{
   position:relative;
-  min-height:520px;
+  min-height:625px;
   overflow:hidden;
   background:#eadbc5;
 }
@@ -41,7 +41,7 @@
   height:100%!important;
   max-width:none!important;
   object-fit:cover!important;
-  object-position:center 48%!important;
+  object-position:center 50%!important;
   margin:0!important;
   border:0!important;
   border-radius:0!important;
@@ -92,7 +92,7 @@
 .report-card[data-pattern="MEDO"] .result-brand strong{
   color:#252735!important;
   font-family:Georgia,'Times New Roman',serif!important;
-  font-size:28px!important;
+  font-size:24px!important;
   line-height:1!important;
   font-weight:700!important;
   white-space:nowrap!important;
@@ -110,11 +110,11 @@
   z-index:3;
   top:88px!important;
   right:28px!important;
-  width:190px!important;
+  width:155px!important;
   margin:0!important;
   color:#242633!important;
   font-family:'Segoe Print','Bradley Hand',cursive!important;
-  font-size:16px!important;
+  font-size:14px!important;
   line-height:1.2!important;
   font-style:italic!important;
   text-align:right!important;
@@ -127,7 +127,7 @@
   z-index:3;
   left:32px!important;
   right:32px!important;
-  bottom:24px!important;
+  bottom:28px!important;
   margin:0!important;
   text-align:center!important;
 }
@@ -144,17 +144,17 @@
   margin:0 0 8px!important;
   color:#fff8ed!important;
   font-family:Georgia,'Times New Roman',serif!important;
-  font-size:56px!important;
+  font-size:52px!important;
   line-height:.95!important;
   font-weight:700!important;
   letter-spacing:.01em!important;
   text-shadow:0 2px 7px rgba(0,0,0,.38)!important;
 }
 .report-card[data-pattern="MEDO"] .result-heading>p{
-  max-width:590px!important;
+  max-width:430px!important;
   margin:0 auto!important;
   color:#fff!important;
-  font-size:13px!important;
+  font-size:12.5px!important;
   line-height:1.35!important;
   font-weight:700!important;
   text-shadow:0 1px 4px rgba(0,0,0,.36)!important;
@@ -165,13 +165,13 @@
   position:relative;
   z-index:2;
   margin:0!important;
-  padding:12px 14px 22px!important;
+  padding:12px 11px 20px!important;
   background:#fff8eb!important;
 }
 .report-card[data-pattern="MEDO"] .result-section{
   width:100%!important;
   margin:0 0 10px!important;
-  padding:15px 16px!important;
+  padding:14px 13px!important;
   border:1px solid rgba(167,128,69,.18)!important;
   border-radius:13px!important;
   background:#fffaf3!important;
@@ -185,7 +185,7 @@
   gap:8px!important;
   margin:0 0 8px!important;
   color:#4c4038!important;
-  font-size:12px!important;
+  font-size:12.2px!important;
   line-height:1.15!important;
   font-weight:800!important;
   letter-spacing:.05em!important;
@@ -237,8 +237,8 @@
   color:#8a5a26!important;
   font-size:15px!important;
 }
-.report-card[data-pattern="MEDO"] .result-path{background:#e2ecd9!important}
-.report-card[data-pattern="MEDO"] .result-practices{background:#efe4f2!important}
+.report-card[data-pattern="MEDO"] .result-path{background:#e4efdf!important}
+.report-card[data-pattern="MEDO"] .result-practices{background:#efe3f2!important}
 .report-card[data-pattern="MEDO"] .result-practices li:before{
   content:'✓'!important;
   color:#6e2a78!important;
@@ -307,7 +307,7 @@
   display:flex!important;
   align-items:center!important;
   justify-content:center!important;
-  min-height:48px!important;
+  min-height:50px!important;
   padding:10px 14px!important;
   border-radius:9px!important;
   font-size:11px!important;
@@ -318,7 +318,7 @@
   text-decoration:none!important;
 }
 .report-card[data-pattern="MEDO"] .result-whatsapp{
-  background:#10965b!important;
+  background:#07965b!important;
   color:#fff!important;
   border:0!important;
 }
@@ -368,9 +368,9 @@
 }
 
 /* responsive keeps the same poster identity */
-@media(max-width:740px){
+@media(max-width:540px){
   .report-card[data-approved="1"]{width:100%!important}
-  .report-card[data-pattern="MEDO"] .result-hero{min-height:500px}
+  .report-card[data-pattern="MEDO"] .result-hero{min-height:590px}
   .report-card[data-pattern="MEDO"] .result-brand{top:14px!important;left:14px!important;gap:7px!important}
   .report-card[data-pattern="MEDO"] .result-brand>img{width:52px!important;height:52px!important}
   .report-card[data-pattern="MEDO"] .result-brand strong{font-size:22px!important}
