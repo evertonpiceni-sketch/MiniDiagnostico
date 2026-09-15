@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';const e=fs.readFileSync(new URL('../src/result-enhancer.ts',import.meta.url),'utf8');test('result content remains single source',()=>assert.ok(e.startsWith("import { RESULT_CONTENT")));
