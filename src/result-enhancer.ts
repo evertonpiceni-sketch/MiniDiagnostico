@@ -6,6 +6,12 @@ const heroArtwork: Record<ResultPattern, string> = {
   PROCRASTINAÇÃO: '/result-assets/procrastinacao-hero-clean.jpg',
 };
 
+const heroSignposts: Record<ResultPattern, string[]> = {
+  MEDO: ['SENTIR', 'COMPREENDER', 'SEGUIR'],
+  INSEGURANÇA: ['RECONHECER', 'CONFIAR', 'AVANÇAR'],
+  PROCRASTINAÇÃO: ['PLANEJAR', 'COMEÇAR', 'CONQUISTAR'],
+};
+
 const icon = (kind: string) => {
   const icons: Record<string, string> = {
     interpretation: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M25 55c-2-10-10-12-10-26C15 14 25 6 37 7c12 1 19 10 18 21-1 9-6 13-12 16v11"/><path d="M31 20c7-6 16-2 16 6M27 31c7 4 13 3 18 0"/></svg>',
@@ -38,7 +44,7 @@ function enhance() {
   const whatsapp = `https://wa.me/5521983928113?text=${encodeURIComponent(message)}`;
   const filename = `mini-diagnostico-${pattern.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}.pdf`;
   const downloadUrl = `/api/download-result-pdf?pattern=${encodeURIComponent(pattern)}&filename=${encodeURIComponent(filename)}&name=${encodeURIComponent(name)}`;
-  const signposts = pattern === 'PROCRASTINAÇÃO' ? '<div class="approved-signposts" aria-hidden="true"><span>PLANEJAR</span><span>COMEÇAR</span><span>CONQUISTAR</span></div>' : '';
+  const signposts = `<div class="approved-signposts" aria-hidden="true">${heroSignposts[pattern].map(word => `<span>${word}</span>`).join('')}</div>`;
 
   card.dataset.approved = '1';
   card.dataset.pattern = pattern;
