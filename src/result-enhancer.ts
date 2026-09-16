@@ -133,7 +133,7 @@ function addPdfLink(pdf: PDFDocument, pageIndex: number, rect: { x: number; y: n
   if (!existing) page.node.set(PDFName.of('Annots'), annots);
 }
 
-async function downloadMedoPdf(card: HTMLElement, filename: string, whatsapp: string) {
+async function downloadResultPdf(card: HTMLElement, filename: string, whatsapp: string) {
   const poster = card.querySelector<HTMLElement>('.result-poster');
   if (!poster) throw new Error('RESULT_POSTER_NOT_FOUND');
 
@@ -216,27 +216,25 @@ function enhance() {
     </main>
   </article>`;
 
-  if (pattern === 'MEDO') {
-    const download = card.querySelector<HTMLAnchorElement>('.result-download');
-    if (download) {
-      download.href = '#';
-      download.removeAttribute('download');
-      download.addEventListener('click', async event => {
-        event.preventDefault();
-        if (download.dataset.generating === '1') return;
-        download.dataset.generating = '1';
-        download.setAttribute('aria-busy', 'true');
-        try {
-          await downloadMedoPdf(card, filename, whatsapp);
-        } catch (error) {
-          console.error('MEDO PDF generation error', error);
-          window.alert('Não foi possível gerar o PDF agora. Atualize a página e tente novamente.');
-        } finally {
-          delete download.dataset.generating;
-          download.removeAttribute('aria-busy');
-        }
-      });
-    }
+  const download = card.querySelector<HTMLAnchorElement>('.result-download');
+  if (download) {
+    download.href = '#';
+    download.removeAttribute('download');
+    download.addEventListener('click', async event => {
+      event.preventDefault();
+      if (download.dataset.generating === '1') return;
+      download.dataset.generating = '1';
+      download.setAttribute('aria-busy', 'true');
+      try {
+        await downloadResultPdf(card, filename, whatsapp);
+      } catch (error) {
+        console.error(pattern + ' PDF generation error', error);
+        window.alert('Não foi possível gerar o PDF agora. Atualize a página e tente novamente.');
+      } finally {
+        delete download.dataset.generating;
+        download.removeAttribute('aria-busy');
+      }
+    });
   }
 }
 
