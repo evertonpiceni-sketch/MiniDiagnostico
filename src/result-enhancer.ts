@@ -73,8 +73,18 @@ async function captureResultPng(poster: HTMLElement) {
   clone.style.maxWidth = 'none';
   clone.style.margin = '0';
 
+  // Preserve the exact ancestor selectors used by the approved result CSS.
+  const wrapper = document.createElement('div');
+  wrapper.className = 'report-card';
+  wrapper.dataset.approved = '1';
+  wrapper.dataset.pattern = poster.closest<HTMLElement>('.report-card')?.dataset.pattern || 'MEDO';
+  wrapper.style.width = width + 'px';
+  wrapper.style.maxWidth = 'none';
+  wrapper.style.margin = '0';
+  wrapper.appendChild(clone);
+
   const css = collectCssText();
-  const serialized = new XMLSerializer().serializeToString(clone);
+  const serialized = new XMLSerializer().serializeToString(wrapper);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <foreignObject width="100%" height="100%">
       <div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${serialized}</div>
