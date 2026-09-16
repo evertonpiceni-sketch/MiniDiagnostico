@@ -34,6 +34,16 @@ const sectionIcon = (pattern: ResultPattern, kind: string) => {
 };
 const section = (pattern: ResultPattern, kind: string, title: string, body: string) => `<section class="result-section result-${kind}"><h3><span class="result-section-icon" aria-hidden="true">${sectionIcon(pattern, kind)}</span>${title}</h3>${body}</section>`;
 
+// Keep the five definitive stages, with the approved line-icon cycle treatment.
+const cycleIcons = [
+  '<circle cx="24" cy="24" r="19"/><path d="M24 11v14l9 5"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M15 27q9 13 18 0M17 17v1M31 17v1"/>',
+  '<rect x="10" y="5" width="28" height="38" rx="4"/><path d="M17 14h14M17 22h14M17 30h14"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M15 33q9-13 18 0M17 17v1M31 17v1"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M13 30l8-10 7 7 7-13M29 14h6v6"/>',
+];
+const cycleMarkup = (text: string) => text.split(' → ').map((stage, index) => `<span class="result-cycle-stage"><svg viewBox="0 0 48 48" aria-hidden="true">${cycleIcons[index]}</svg><span>${escapeHtml(stage)}</span></span>`).join(' <span class="result-cycle-arrow">→</span> ');
+
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
   if (!card || card.dataset.approved === '1') return;
@@ -41,7 +51,7 @@ function enhance() {
   const title = card.querySelector('h2')?.textContent || '';
   const pattern: ResultPattern = title.includes('MEDO') ? 'MEDO' : title.includes('INSEGURANÇA') ? 'INSEGURANÇA' : 'PROCRASTINAÇÃO';
   const content = RESULT_CONTENT[pattern];
-  const logo = pattern === 'MEDO' ? '/result-assets/medo-logo-approved.png' : '/ja-logo-approved.webp';
+  const logo = pattern === 'MEDO' ? '/result-assets/medo-logo-approved.png' : '/result-assets/logo-reference.png';
   const greeting = Array.from(card.querySelectorAll('p')).find(p => p.textContent?.trim().startsWith('Olá,'))?.textContent || 'Olá.';
   const name = greeting.replace(/^Olá,\s*/, '').replace(/\.$/, '').trim();
   const message = `Olá, Janaína! Meu nome é ${name || 'participante'} e meu padrão predominante foi ${pattern}.\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
@@ -54,14 +64,16 @@ function enhance() {
   card.innerHTML = `<article class="result-poster">
     <header class="result-hero">
       <img class="result-hero-image" src="${heroArtwork[pattern]}" alt="" decoding="async">
+      ${pattern === 'PROCRASTINAÇÃO' ? '<div class="result-sign-labels" aria-label="PLANEJAR, COMEÇAR, CONQUISTAR"><span>PLANEJAR</span><span>COMEÇAR</span><span>CONQUISTAR</span></div>' : ''}
       <div class="result-brand"><img src="${logo}" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
       <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}<span class="result-heart" aria-hidden="true">♡</span></p>
       <div class="result-heading"><div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div><h2>${pattern}</h2><p>${escapeHtml(content.intro)}</p></div>
     </header>
     <main class="result-sections">
       ${section(pattern,'interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
-      ${content.cycle ? section(pattern,'cycle','CICLO EM DESTAQUE', `<div class="result-cycle-text">${escapeHtml(content.cycle)}</div>`) : ''}
+      ${content.cycle ? section(pattern,'cycle','CICLO DA PROCRASTINAÇÃO', `<div class="result-cycle-text">${cycleMarkup(content.cycle)}</div>`) : ''}
       <div class="result-pair">${section(pattern,'signs','SINAIS COMUNS', list(content.signs))}${section(pattern,'effects','O QUE ISSO PODE CAUSAR', list(content.effects))}</div>
+      ${pattern !== 'MEDO' ? section(pattern,'question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`) : ''}
       ${section(pattern,'path','SEU CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path))}
       ${section(pattern,'practices','PRÁTICAS SUGERIDAS', list(content.practices))}
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
