@@ -61,66 +61,55 @@ function collectCssText() {
   }).join('\n');
 }
 
+async function loadHtml2Canvas() {
+  const existing = (window as any).html2canvas;
+  if (existing) return existing as (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+
+  await new Promise<void>((resolve, reject) => {
+    const previous = document.querySelector<HTMLScriptElement>('script[data-html2canvas="1"]');
+    if (previous) {
+      previous.addEventListener('load', () => resolve(), { once: true });
+      previous.addEventListener('error', () => reject(new Error('HTML2CANVAS_LOAD')), { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.async = true;
+    script.dataset.html2canvas = '1';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('HTML2CANVAS_LOAD'));
+    document.head.appendChild(script);
+  });
+
+  const loaded = (window as any).html2canvas;
+  if (!loaded) throw new Error('HTML2CANVAS_MISSING');
+  return loaded as (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+}
+
 async function captureResultPng(poster: HTMLElement) {
   await waitForImages(poster);
   await document.fonts?.ready;
 
-  const rect = poster.getBoundingClientRect();
-  const width = Math.ceil(Math.max(rect.width, poster.scrollWidth));
-  const height = Math.ceil(Math.max(rect.height, poster.scrollHeight));
-  const clone = poster.cloneNode(true) as HTMLElement;
-  clone.style.width = width + 'px';
-  clone.style.maxWidth = 'none';
-  clone.style.margin = '0';
+  const html2canvas = await loadHtml2Canvas();
+  const canvas = await html2canvas(poster, {
+    backgroundColor: '#ffffff',
+    scale: Math.min(2, window.devicePixelRatio || 1.5),
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    windowWidth: document.documentElement.clientWidth,
+  });
 
-  // Preserve the exact ancestor selectors used by the approved result CSS.
-  const wrapper = document.createElement('div');
-  wrapper.className = 'report-card';
-  wrapper.dataset.approved = '1';
-  wrapper.dataset.pattern = poster.closest<HTMLElement>('.report-card')?.dataset.pattern || 'MEDO';
-  wrapper.style.width = width + 'px';
-  wrapper.style.maxWidth = 'none';
-  wrapper.style.margin = '0';
-  wrapper.appendChild(clone);
-
-  const css = collectCssText();
-  const serialized = new XMLSerializer().serializeToString(wrapper);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <foreignObject width="100%" height="100%">
-      <div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${serialized}</div>
-    </foreignObject>
-  </svg>`;
-
-  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  try {
-    const image = new Image();
-    image.decoding = 'async';
-    const loaded = new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error('RESULT_CAPTURE_IMAGE'));
-    });
-    image.src = url;
-    await loaded;
-
-    const scale = Math.min(2, 8192 / Math.max(width, height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('RESULT_CAPTURE_CANVAS');
-    context.scale(scale, scale);
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0, width, height);
-
-    const pngBlob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(value => value ? resolve(value) : reject(new Error('RESULT_CAPTURE_PNG')), 'image/png', 1)
-    );
-    return { bytes: new Uint8Array(await pngBlob.arrayBuffer()), width, height };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const pngBlob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(value => value ? resolve(value) : reject(new Error('RESULT_CAPTURE_PNG')), 'image/png', 1)
+  );
+  return {
+    bytes: new Uint8Array(await pngBlob.arrayBuffer()),
+    width: canvas.width,
+    height: canvas.height,
+  };
 }
 
 function addPdfLink(pdf: PDFDocument, pageIndex: number, rect: { x: number; y: number; width: number; height: number }, url: string) {
@@ -241,7 +230,7 @@ function enhance() {
           await downloadMedoPdf(card, filename, whatsapp);
         } catch (error) {
           console.error('MEDO PDF generation error', error);
-          window.location.href = downloadUrl;
+          window.alert('Não foi possível gerar o PDF agora. Atualize a página e tente novamente.');
         } finally {
           delete download.dataset.generating;
           download.removeAttribute('aria-busy');
