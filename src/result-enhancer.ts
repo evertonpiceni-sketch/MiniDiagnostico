@@ -1,3 +1,4 @@
+import { PDFArray, PDFDocument, PDFName, PDFNumber, PDFString } from 'pdf-lib';
 import { RESULT_CONTENT, type ResultPattern } from './result-content';
 
 const heroArtwork: Record<ResultPattern, string> = {
@@ -44,6 +45,137 @@ const cycleIcons = [
 ];
 const cycleMarkup = (text: string) => text.split(' → ').map((stage, index) => `<span class="result-cycle-stage"><svg viewBox="0 0 48 48" aria-hidden="true">${cycleIcons[index]}</svg><span>${escapeHtml(stage)}</span></span>`).join(' <span class="result-cycle-arrow">→</span> ');
 
+
+async function waitForImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll('img'));
+  await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise<void>(resolve => {
+    img.addEventListener('load', () => resolve(), { once: true });
+    img.addEventListener('error', () => resolve(), { once: true });
+  })));
+}
+
+function collectCssText() {
+  return Array.from(document.styleSheets).map(sheet => {
+    try { return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'); }
+    catch { return ''; }
+  }).join('\n');
+}
+
+async function captureResultPng(poster: HTMLElement) {
+  await waitForImages(poster);
+  await document.fonts?.ready;
+
+  const rect = poster.getBoundingClientRect();
+  const width = Math.ceil(Math.max(rect.width, poster.scrollWidth));
+  const height = Math.ceil(Math.max(rect.height, poster.scrollHeight));
+  const clone = poster.cloneNode(true) as HTMLElement;
+  clone.style.width = width + 'px';
+  clone.style.maxWidth = 'none';
+  clone.style.margin = '0';
+
+  const css = collectCssText();
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <foreignObject width="100%" height="100%">
+      <div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${serialized}</div>
+    </foreignObject>
+  </svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = 'async';
+    const loaded = new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('RESULT_CAPTURE_IMAGE'));
+    });
+    image.src = url;
+    await loaded;
+
+    const scale = Math.min(2, 8192 / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('RESULT_CAPTURE_CANVAS');
+    context.scale(scale, scale);
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    const pngBlob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(value => value ? resolve(value) : reject(new Error('RESULT_CAPTURE_PNG')), 'image/png', 1)
+    );
+    return { bytes: new Uint8Array(await pngBlob.arrayBuffer()), width, height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function addPdfLink(pdf: PDFDocument, pageIndex: number, rect: { x: number; y: number; width: number; height: number }, url: string) {
+  const page = pdf.getPages()[pageIndex];
+  if (!page) return;
+  const box = PDFArray.withContext(pdf.context);
+  [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height].forEach(value => box.push(PDFNumber.of(value)));
+  const action = pdf.context.obj({ S: PDFName.of('URI'), URI: PDFString.of(url) });
+  const annotation = pdf.context.obj({
+    Type: PDFName.of('Annot'),
+    Subtype: PDFName.of('Link'),
+    Rect: box,
+    Border: [0, 0, 0],
+    H: PDFName.of('I'),
+    A: action,
+  });
+  const annotationRef = pdf.context.register(annotation);
+  const existing = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+  const annots = existing || PDFArray.withContext(pdf.context);
+  annots.push(annotationRef);
+  if (!existing) page.node.set(PDFName.of('Annots'), annots);
+}
+
+async function downloadMedoPdf(card: HTMLElement, filename: string, whatsapp: string) {
+  const poster = card.querySelector<HTMLElement>('.result-poster');
+  if (!poster) throw new Error('RESULT_POSTER_NOT_FOUND');
+
+  const whatsappButton = poster.querySelector<HTMLElement>('.result-whatsapp');
+  const posterRect = poster.getBoundingClientRect();
+  const whatsappRect = whatsappButton?.getBoundingClientRect();
+  const capture = await captureResultPng(poster);
+
+  const pdf = await PDFDocument.create();
+  const pageWidth = capture.width * 0.75;
+  const pageHeight = capture.height * 0.75;
+  const page = pdf.addPage([pageWidth, pageHeight]);
+  const png = await pdf.embedPng(capture.bytes);
+  page.drawImage(png, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+
+  if (whatsappRect) {
+    const scaleX = pageWidth / posterRect.width;
+    const scaleY = pageHeight / posterRect.height;
+    addPdfLink(pdf, 0, {
+      x: (whatsappRect.left - posterRect.left) * scaleX,
+      y: pageHeight - (whatsappRect.bottom - posterRect.top) * scaleY,
+      width: whatsappRect.width * scaleX,
+      height: whatsappRect.height * scaleY,
+    }, whatsapp);
+  }
+
+  const bytes = await pdf.save();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
   if (!card || card.dataset.approved === '1') return;
@@ -84,6 +216,29 @@ function enhance() {
       <footer class="result-footer"><img src="${logo}" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO&nbsp;&nbsp;·&nbsp;&nbsp;EQUILÍBRIO&nbsp;&nbsp;·&nbsp;&nbsp;TRANSFORMAÇÃO<br><b>JUNTOS SOMOS MELHORES ♡</b></small></footer>
     </main>
   </article>`;
+
+  if (pattern === 'MEDO') {
+    const download = card.querySelector<HTMLAnchorElement>('.result-download');
+    if (download) {
+      download.href = '#';
+      download.removeAttribute('download');
+      download.addEventListener('click', async event => {
+        event.preventDefault();
+        if (download.dataset.generating === '1') return;
+        download.dataset.generating = '1';
+        download.setAttribute('aria-busy', 'true');
+        try {
+          await downloadMedoPdf(card, filename, whatsapp);
+        } catch (error) {
+          console.error('MEDO PDF generation error', error);
+          window.location.href = downloadUrl;
+        } finally {
+          delete download.dataset.generating;
+          download.removeAttribute('aria-busy');
+        }
+      });
+    }
+  }
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
