@@ -71,9 +71,9 @@ function enhance() {
     </header>
     <main class="result-sections">
       ${section(pattern,'interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
-      ${content.cycle ? section(pattern,'cycle','CICLO DA PROCRASTINAÇÃO', `<div class="result-cycle-text">${cycleMarkup(content.cycle)}</div>`) : ''}
+      ${content.cycle ? section(pattern,'cycle','CICLO EM DESTAQUE', `<div class="result-cycle-text">${cycleMarkup(content.cycle)}</div>`) : ''}
       <div class="result-pair">${section(pattern,'signs','SINAIS COMUNS', list(content.signs))}${section(pattern,'effects','O QUE ISSO PODE CAUSAR', list(content.effects))}</div>
-      ${pattern !== 'MEDO' ? section(pattern,'question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`) : ''}
+      ${section(pattern,'question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`)}
       ${section(pattern,'path','SEU CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path))}
       ${section(pattern,'practices','PRÁTICAS SUGERIDAS', list(content.practices))}
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
