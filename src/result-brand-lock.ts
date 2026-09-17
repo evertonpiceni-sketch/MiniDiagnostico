@@ -1,4 +1,4 @@
-const APPROVED_RESULT_LOGO = '/result-assets/logo-reference.png';
+const APPROVED_RESULT_LOGO = '/ja-logo-approved.webp';
 
 function lockApprovedResultLogo() {
   document
