@@ -1,3 +1,4 @@
+import { PDFArray, PDFDocument, PDFName, PDFNumber, PDFString } from 'pdf-lib';
 import { RESULT_CONTENT, type ResultPattern } from './result-content';
 
 const heroArtwork: Record<ResultPattern, string> = {
@@ -34,6 +35,146 @@ const sectionIcon = (pattern: ResultPattern, kind: string) => {
 };
 const section = (pattern: ResultPattern, kind: string, title: string, body: string) => `<section class="result-section result-${kind}"><h3><span class="result-section-icon" aria-hidden="true">${sectionIcon(pattern, kind)}</span>${title}</h3>${body}</section>`;
 
+// Keep the five definitive stages, with the approved line-icon cycle treatment.
+const cycleIcons = [
+  '<circle cx="24" cy="24" r="19"/><path d="M24 11v14l9 5"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M15 27q9 13 18 0M17 17v1M31 17v1"/>',
+  '<rect x="10" y="5" width="28" height="38" rx="4"/><path d="M17 14h14M17 22h14M17 30h14"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M15 33q9-13 18 0M17 17v1M31 17v1"/>',
+  '<circle cx="24" cy="24" r="19"/><path d="M13 30l8-10 7 7 7-13M29 14h6v6"/>',
+];
+const cycleMarkup = (text: string) => text.split(' → ').map((stage, index) => `<span class="result-cycle-stage"><svg viewBox="0 0 48 48" aria-hidden="true">${cycleIcons[index]}</svg><span>${escapeHtml(stage)}</span></span>`).join(' <span class="result-cycle-arrow">→</span> ');
+
+
+async function waitForImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll('img'));
+  await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise<void>(resolve => {
+    img.addEventListener('load', () => resolve(), { once: true });
+    img.addEventListener('error', () => resolve(), { once: true });
+  })));
+}
+
+function collectCssText() {
+  return Array.from(document.styleSheets).map(sheet => {
+    try { return Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'); }
+    catch { return ''; }
+  }).join('\n');
+}
+
+async function loadHtml2Canvas() {
+  const existing = (window as any).html2canvas;
+  if (existing) return existing as (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+
+  await new Promise<void>((resolve, reject) => {
+    const previous = document.querySelector<HTMLScriptElement>('script[data-html2canvas="1"]');
+    if (previous) {
+      previous.addEventListener('load', () => resolve(), { once: true });
+      previous.addEventListener('error', () => reject(new Error('HTML2CANVAS_LOAD')), { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.async = true;
+    script.dataset.html2canvas = '1';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('HTML2CANVAS_LOAD'));
+    document.head.appendChild(script);
+  });
+
+  const loaded = (window as any).html2canvas;
+  if (!loaded) throw new Error('HTML2CANVAS_MISSING');
+  return loaded as (element: HTMLElement, options?: Record<string, unknown>) => Promise<HTMLCanvasElement>;
+}
+
+async function captureResultPng(poster: HTMLElement) {
+  await waitForImages(poster);
+  await document.fonts?.ready;
+
+  const html2canvas = await loadHtml2Canvas();
+  const canvas = await html2canvas(poster, {
+    backgroundColor: '#ffffff',
+    scale: Math.min(2, window.devicePixelRatio || 1.5),
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    windowWidth: document.documentElement.clientWidth,
+  });
+
+  const pngBlob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(value => value ? resolve(value) : reject(new Error('RESULT_CAPTURE_PNG')), 'image/png', 1)
+  );
+  return {
+    bytes: new Uint8Array(await pngBlob.arrayBuffer()),
+    width: canvas.width,
+    height: canvas.height,
+  };
+}
+
+function addPdfLink(pdf: PDFDocument, pageIndex: number, rect: { x: number; y: number; width: number; height: number }, url: string) {
+  const page = pdf.getPages()[pageIndex];
+  if (!page) return;
+  const box = PDFArray.withContext(pdf.context);
+  [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height].forEach(value => box.push(PDFNumber.of(value)));
+  const action = pdf.context.obj({ S: PDFName.of('URI'), URI: PDFString.of(url) });
+  const annotation = pdf.context.obj({
+    Type: PDFName.of('Annot'),
+    Subtype: PDFName.of('Link'),
+    Rect: box,
+    Border: [0, 0, 0],
+    H: PDFName.of('I'),
+    A: action,
+  });
+  const annotationRef = pdf.context.register(annotation);
+  const existing = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+  const annots = existing || PDFArray.withContext(pdf.context);
+  annots.push(annotationRef);
+  if (!existing) page.node.set(PDFName.of('Annots'), annots);
+}
+
+async function downloadResultPdf(card: HTMLElement, filename: string, whatsapp: string) {
+  const poster = card.querySelector<HTMLElement>('.result-poster');
+  if (!poster) throw new Error('RESULT_POSTER_NOT_FOUND');
+
+  const whatsappButton = poster.querySelector<HTMLElement>('.result-whatsapp');
+  const posterRect = poster.getBoundingClientRect();
+  const whatsappRect = whatsappButton?.getBoundingClientRect();
+  const capture = await captureResultPng(poster);
+
+  const pdf = await PDFDocument.create();
+  const pageWidth = capture.width * 0.75;
+  const pageHeight = capture.height * 0.75;
+  const page = pdf.addPage([pageWidth, pageHeight]);
+  const png = await pdf.embedPng(capture.bytes);
+  page.drawImage(png, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+
+  if (whatsappRect) {
+    const scaleX = pageWidth / posterRect.width;
+    const scaleY = pageHeight / posterRect.height;
+    addPdfLink(pdf, 0, {
+      x: (whatsappRect.left - posterRect.left) * scaleX,
+      y: pageHeight - (whatsappRect.bottom - posterRect.top) * scaleY,
+      width: whatsappRect.width * scaleX,
+      height: whatsappRect.height * scaleY,
+    }, whatsapp);
+  }
+
+  const bytes = await pdf.save();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
 function enhance() {
   const card = document.querySelector<HTMLElement>('.report-card');
   if (!card || card.dataset.approved === '1') return;
@@ -41,7 +182,7 @@ function enhance() {
   const title = card.querySelector('h2')?.textContent || '';
   const pattern: ResultPattern = title.includes('MEDO') ? 'MEDO' : title.includes('INSEGURANÇA') ? 'INSEGURANÇA' : 'PROCRASTINAÇÃO';
   const content = RESULT_CONTENT[pattern];
-  const logo = pattern === 'MEDO' ? '/result-assets/medo-logo-approved.png' : '/ja-logo-approved.webp';
+  const logo = pattern === 'MEDO' ? '/result-assets/medo-logo-approved.png' : '/result-assets/logo-reference.png';
   const greeting = Array.from(card.querySelectorAll('p')).find(p => p.textContent?.trim().startsWith('Olá,'))?.textContent || 'Olá.';
   const name = greeting.replace(/^Olá,\s*/, '').replace(/\.$/, '').trim();
   const message = `Olá, Janaína! Meu nome é ${name || 'participante'} e meu padrão predominante foi ${pattern}.\n\nFiz o Mini Diagnóstico e gostaria de aprofundar meu resultado: ${pattern}.\n\nVim pelo Mini Diagnóstico — Janaína Araújo.`;
@@ -54,14 +195,16 @@ function enhance() {
   card.innerHTML = `<article class="result-poster">
     <header class="result-hero">
       <img class="result-hero-image" src="${heroArtwork[pattern]}" alt="" decoding="async">
+      ${pattern === 'PROCRASTINAÇÃO' ? '<div class="result-sign-labels" aria-label="PLANEJAR, COMEÇAR, CONQUISTAR"><span>PLANEJAR</span><span>COMEÇAR</span><span>CONQUISTAR</span></div>' : ''}
       <div class="result-brand"><img src="${logo}" alt="Janaína Araújo"><div><strong>Mini Diagnóstico</strong><small>SUAS RESPOSTAS, SEU MAPA INTERIOR</small></div></div>
       <p class="result-phrase">${escapeHtml(patternPhrase[pattern])}<span class="result-heart" aria-hidden="true">♡</span></p>
       <div class="result-heading"><div class="result-eyebrow">SEU PADRÃO PREDOMINANTE É:</div><h2>${pattern}</h2><p>${escapeHtml(content.intro)}</p></div>
     </header>
     <main class="result-sections">
       ${section(pattern,'interpretation','INTERPRETAÇÃO DO SEU RESULTADO', paragraphs(content.interpretation))}
-      ${content.cycle ? section(pattern,'cycle','CICLO EM DESTAQUE', `<div class="result-cycle-text">${escapeHtml(content.cycle)}</div>`) : ''}
+      ${content.cycle ? section(pattern,'cycle','CICLO EM DESTAQUE', `<div class="result-cycle-text">${cycleMarkup(content.cycle)}</div>`) : ''}
       <div class="result-pair">${section(pattern,'signs','SINAIS COMUNS', list(content.signs))}${section(pattern,'effects','O QUE ISSO PODE CAUSAR', list(content.effects))}</div>
+      ${section(pattern,'question','UMA PERGUNTA IMPORTANTE', `<p class="result-question-text">${escapeHtml(content.question)}</p><p>${escapeHtml(content.questionNote)}</p>`)}
       ${section(pattern,'path','SEU CAMINHO DE TRANSFORMAÇÃO', paragraphs(content.path))}
       ${section(pattern,'practices','PRÁTICAS SUGERIDAS', list(content.practices))}
       <blockquote class="result-final-quote">${escapeHtml(content.quote)}</blockquote>
@@ -72,6 +215,27 @@ function enhance() {
       <footer class="result-footer"><img src="${logo}" alt=""><div><strong>Janaína Araújo</strong><span>TERAPEUTA INTEGRATIVA</span></div><small>AUTOCONHECIMENTO&nbsp;&nbsp;·&nbsp;&nbsp;EQUILÍBRIO&nbsp;&nbsp;·&nbsp;&nbsp;TRANSFORMAÇÃO<br><b>JUNTOS SOMOS MELHORES ♡</b></small></footer>
     </main>
   </article>`;
+
+  const download = card.querySelector<HTMLAnchorElement>('.result-download');
+  if (download) {
+    download.href = '#';
+    download.removeAttribute('download');
+    download.addEventListener('click', async event => {
+      event.preventDefault();
+      if (download.dataset.generating === '1') return;
+      download.dataset.generating = '1';
+      download.setAttribute('aria-busy', 'true');
+      try {
+        await downloadResultPdf(card, filename, whatsapp);
+      } catch (error) {
+        console.error(pattern + ' PDF generation error', error);
+        window.alert('Não foi possível gerar o PDF agora. Atualize a página e tente novamente.');
+      } finally {
+        delete download.dataset.generating;
+        download.removeAttribute('aria-busy');
+      }
+    });
+  }
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });

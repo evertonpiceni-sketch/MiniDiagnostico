@@ -1,0 +1,184 @@
+/* PADRONIZAÇÃO VISUAL FINAL — PROJETO INTEIRO
+   Atua somente na linguagem visual compartilhada.
+   Conteúdo, perguntas, lógica, pagamentos, Asaas, WhatsApp e fluxo permanecem intactos. */
+
+:root {
+  --ja-cream:#fffaf0;
+  --ja-cream-soft:#f8f1e6;
+  --ja-ink:#203638;
+  --ja-sage:#7f9278;
+  --ja-plum:#71306d;
+  --ja-plum-dark:#552252;
+  --ja-gold:#c69a43;
+  --ja-line:rgba(166,132,68,.22);
+  --ja-shadow:0 18px 50px rgba(66,49,38,.10);
+  --ja-radius:20px;
+}
+
+/* Fundo e atmosfera consistentes entre as etapas intermediárias. */
+.journey-page,
+.brand-shell:has(>.payment-card) {
+  background:
+    radial-gradient(circle at 10% 8%,rgba(127,146,120,.11),transparent 28%),
+    radial-gradient(circle at 90% 92%,rgba(198,154,67,.10),transparent 30%),
+    var(--ja-cream) !important;
+}
+
+/* Cards do fluxo com o mesmo acabamento. */
+.lead-modal__card,
+.brand-page-card,
+.payment-card {
+  border:1px solid var(--ja-line) !important;
+  border-radius:var(--ja-radius) !important;
+  background:rgba(255,250,240,.985) !important;
+  box-shadow:var(--ja-shadow) !important;
+}
+
+/* Cabeçalhos do fluxo: mesma cadência visual. */
+.brand-card-header {
+  min-height:76px;
+  align-items:center !important;
+  gap:16px !important;
+}
+
+.quiz-card .brand-card-header,
+.payment-card .brand-card-header {
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(166,132,68,.16);
+}
+
+/* Ações com mesma linguagem de forma e peso. */
+.primary-action,
+.secondary-action,
+.payment-card button,
+.report-card[data-approved="1"] .result-actions a {
+  border-radius:999px !important;
+}
+
+.primary-action,
+.payment-card #btn-pagar-pix-asaas,
+.payment-card #btn-pagar-cartao-asaas,
+.payment-card .bg-emerald-700,
+.payment-card .bg-purple-800 {
+  background:linear-gradient(135deg,var(--ja-plum),var(--ja-plum-dark)) !important;
+}
+
+/* Resultados: manter identidade aprovada, apenas aproximando proporção e respiro. */
+.report-card[data-approved="1"] {
+  width:min(100%,820px) !important;
+  max-width:820px !important;
+  margin:0 auto !important;
+}
+
+.report-card[data-approved="1"] .result-hero {
+  min-height:520px !important;
+}
+
+.report-card[data-approved="1"] .result-brand {
+  left:4.2% !important;
+  right:4.2% !important;
+  top:2.8% !important;
+}
+
+.report-card[data-approved="1"] .result-brand strong {
+  font-size:clamp(24px,3.5vw,34px) !important;
+}
+
+.report-card[data-approved="1"] .result-brand small {
+  letter-spacing:.11em !important;
+}
+
+.report-card[data-approved="1"] .result-heading {
+  left:6% !important;
+  right:6% !important;
+  bottom:4.5% !important;
+}
+
+.report-card[data-approved="1"] .result-sections {
+  padding-left:3.2% !important;
+  padding-right:3.2% !important;
+}
+
+.report-card[data-approved="1"] .result-section {
+  border-radius:16px !important;
+  box-shadow:0 2px 10px rgba(45,35,25,.035) !important;
+}
+
+.report-card[data-approved="1"] .result-actions {
+  margin-left:7% !important;
+  margin-right:7% !important;
+}
+
+.report-card[data-approved="1"] .result-footer {
+  margin-top:16px !important;
+  padding-top:12px !important;
+  padding-bottom:10px !important;
+}
+
+/* Mantém o PDF visualmente igual ao resultado online, sem criar um layout paralelo. */
+.report-card[data-approved="1"].pdf-printing,
+.report-card[data-approved="1"] .result-poster {
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+
+@media (max-width:700px) {
+  .journey-page,
+  .brand-shell:has(>.payment-card) {
+    padding:10px !important;
+  }
+
+  .lead-modal__card,
+  .brand-page-card,
+  .payment-card {
+    border-radius:18px !important;
+  }
+
+  .brand-card-header {
+    min-height:66px;
+    gap:12px !important;
+  }
+
+  .report-card[data-approved="1"] {
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  .report-card[data-approved="1"] .result-hero {
+    min-height:485px !important;
+  }
+
+  /* PROCRASTINAÇÃO — preservar a altura responsiva original do hero.
+     As palavras PLANEJAR / COMEÇAR / CONQUISTAR são sobreposições calibradas
+     para as placas da imagem e perdem o alinhamento quando o min-height genérico
+     estica o hero no celular. */
+  .report-card[data-pattern="PROCRASTINAÇÃO"] .result-hero {
+    min-height:0 !important;
+  }
+
+  .report-card[data-approved="1"] .result-brand {
+    left:4% !important;
+    right:4% !important;
+    top:2.6% !important;
+  }
+
+  .report-card[data-approved="1"] .result-brand strong {
+    font-size:clamp(21px,6.7vw,27px) !important;
+  }
+
+  .report-card[data-approved="1"] .result-heading {
+    left:4% !important;
+    right:4% !important;
+    bottom:3.4% !important;
+  }
+
+  .report-card[data-approved="1"] .result-sections {
+    padding-left:2.5% !important;
+    padding-right:2.5% !important;
+  }
+
+  .report-card[data-approved="1"] .result-actions {
+    margin-left:4% !important;
+    margin-right:4% !important;
+  }
+}

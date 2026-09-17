@@ -45,17 +45,19 @@ export default function App() {
   const fetchTechnicalResult = async (sessionId: string) => {
     const adminToken = sessionStorage.getItem('admin_token') || '';
     const adminRole = sessionStorage.getItem('admin_role') || '';
-    if (!adminToken || adminRole !== 'test') {
-      window.location.replace('/admin-test.html');
-      return;
-    }
     try {
+      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
+      if (adminToken && adminRole === 'test') headers.Authorization = `Bearer ${adminToken}`;
       const response = await fetch('/api/admin-test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+        headers,
         body: JSON.stringify({ quiz_session_id: sessionId }),
       });
       const data = await response.json().catch(() => ({}));
+      if (response.status === 401 && (!adminToken || adminRole !== 'test')) {
+        window.location.replace('/admin-test.html');
+        return;
+      }
       if (!response.ok || !data.result) throw new Error(data.error || 'Não foi possível carregar o resultado de teste.');
       setIsTechnicalResult(true);
       setResultado(data.result);

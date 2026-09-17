@@ -1,4 +1,4 @@
-import { PDFArray, PDFDocument, PDFName, PDFNumber, PDFString } from 'pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFString } from 'pdf-lib';
 
 type Req = { method?: string; query: Record<string, string | string[] | undefined>; headers?: Record<string, string | string[] | undefined> };
 type Res = { status: (code: number) => Res; setHeader: (name: string, value: string) => void; end: (body?: any) => void; json: (data: unknown) => void };
@@ -31,6 +31,22 @@ function addWhatsAppLink(pdf: PDFDocument, url: string) {
   if (!existing) page.node.set(PDFName.of('Annots'), annots);
 }
 
+// New exports retain the actual button rectangles. Update their target in place.
+function updateExportedWhatsAppLink(pdf: PDFDocument, url: string) {
+  for (const page of pdf.getPages()) {
+    const annots = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+    if (!annots) continue;
+    for (let index = 0; index < annots.size(); index++) {
+      const annotation = annots.lookup(index, PDFDict);
+      const action = annotation.lookupMaybe(PDFName.of('A'), PDFDict);
+      const uri = action?.lookupMaybe(PDFName.of('URI'), PDFString)?.decodeText();
+      if (uri && (uri.startsWith('https://wa.me/') || uri.startsWith('https://api.whatsapp.com/'))) {
+        action!.set(PDFName.of('URI'), PDFString.of(url));
+      }
+    }
+  }
+}
+
 export default async function handler(req: Req, res: Res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
   const pattern = String(req.query.pattern || '').toUpperCase();
@@ -51,7 +67,8 @@ export default async function handler(req: Req, res: Res) {
     const response = await fetch(`${proto}://${host}${pdfPath}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`PDF_${response.status}`);
     const pdf = await PDFDocument.load(await response.arrayBuffer());
-    addWhatsAppLink(pdf, whatsapp);
+    if (pattern === 'MEDO') addWhatsAppLink(pdf, whatsapp);
+    else updateExportedWhatsAppLink(pdf, whatsapp);
     const bytes = Buffer.from(await pdf.save());
     const finalName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
