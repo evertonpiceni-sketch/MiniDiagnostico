@@ -1,5 +1,5 @@
-const APPROVED_TOP_LOGO = '/ja-logo-approved.webp';
-const APPROVED_FOOTER_LOGO = '/ja-logo-approved.webp';
+const APPROVED_TOP_LOGO = '/result-assets/ja-logo-everton-approved.svg';
+const APPROVED_FOOTER_LOGO = '/result-assets/ja-logo-everton-approved.svg';
 
 function lockApprovedResultLogo() {
   document
