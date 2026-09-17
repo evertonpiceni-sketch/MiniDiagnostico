@@ -181,3 +181,20 @@
   padding-left: 2.7cqw !important;
   padding-right: 2.7cqw !important;
 }
+
+/* MEDO — ajuste pontual da quebra de texto para manter “exposição” dentro da caixa SINAIS COMUNS. */
+.report-card[data-pattern="MEDO"] .result-signs li,
+.report-card[data-pattern="MEDO"] .result-effects li {
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  min-width: 0 !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-pair > .result-section {
+  min-width: 0 !important;
+}
+
+.report-card[data-pattern="MEDO"] .result-signs {
+  overflow: hidden;
+}
