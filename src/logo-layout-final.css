@@ -1,115 +1,98 @@
-/* AJUSTE FINAL DO LOGO — somente proporção, tamanho e alinhamento.
-   Todo o restante do projeto permanece congelado. */
+/* LOGO OFICIAL — proporção, tamanho e alinhamento finais.
+   Referência: composição visual aprovada por Everton.
+   Não altera conteúdo, cores da marca nem estrutura funcional. */
 
-/* Regra base: nunca deformar, cortar ou recolorir a marca. */
 .approved-landing .landing-header > img,
 .lead-modal__card > img,
 .brand-card-header > img,
 .report-card[data-approved="1"] .result-brand > img,
 .report-card[data-approved="1"] .result-footer > img {
-  display: block !important;
-  height: auto !important;
-  max-height: none !important;
-  object-fit: contain !important;
-  object-position: center !important;
-  flex: 0 0 auto !important;
-  filter: none !important;
-  mix-blend-mode: normal !important;
-  background: transparent !important;
-  opacity: 1 !important;
+  display:block !important;
+  width:auto;
+  height:auto !important;
+  max-height:none !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  flex:0 0 auto !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  background:transparent !important;
+  opacity:1 !important;
 }
 
-/* Página inicial — presença leve, com respiro e sem dominar o cabeçalho. */
+/* Tela inicial — marca menor, leve e com bastante respiro. */
 .approved-landing .landing-header > img {
-  width: clamp(108px, 9vw, 126px) !important;
-  max-width: 126px !important;
-  margin: 0 !important;
+  width:clamp(104px,8vw,118px) !important;
+  max-width:118px !important;
+  margin:0 !important;
 }
 
-/* Cadastro/modal — centralizado e proporcional. */
+/* Cadastro/modal — mesma escala visual, centralizada. */
 .lead-modal__card > img {
-  width: clamp(104px, 24vw, 118px) !important;
-  max-width: 118px !important;
-  margin: 0 auto 12px !important;
+  width:clamp(100px,22vw,112px) !important;
+  max-width:112px !important;
+  margin:0 auto 14px !important;
 }
 
-/* Perguntas, desempate e pagamento — mesmo eixo e mesma leitura visual. */
+/* Perguntas, desempate e pagamento — leitura consistente e discreta. */
 .brand-card-header > img {
-  width: clamp(96px, 14vw, 112px) !important;
-  max-width: 112px !important;
-  margin: 0 !important;
-  align-self: center !important;
+  width:clamp(92px,12vw,104px) !important;
+  max-width:104px !important;
+  margin:0 !important;
+  align-self:center !important;
 }
 
-/* Resultados — logo no topo proporcional ao conjunto "Mini Diagnóstico". */
+/* Resultados — logo pequeno, à esquerda, ao lado de “Mini Diagnóstico”. */
 .report-card[data-approved="1"] .result-brand {
-  grid-template-columns: clamp(82px, 10vw, 104px) minmax(0, 1fr) !important;
-  align-items: center !important;
+  grid-template-columns:clamp(68px,8vw,78px) minmax(0,1fr) !important;
+  align-items:center !important;
+  gap:10px !important;
 }
 .report-card[data-approved="1"] .result-brand > img {
-  width: clamp(82px, 10vw, 104px) !important;
-  max-width: 104px !important;
-  margin: 0 !important;
-  justify-self: start !important;
+  width:clamp(68px,8vw,78px) !important;
+  max-width:78px !important;
+  margin:0 !important;
+  justify-self:start !important;
 }
 
-/* Rodapé dos resultados — mesma marca, em escala secundária. */
+/* Rodapé — assinatura secundária, proporcional e discreta. */
 .report-card[data-approved="1"] .result-footer {
-  grid-template-columns: clamp(58px, 7vw, 72px) auto 1fr !important;
-  align-items: center !important;
+  grid-template-columns:clamp(44px,5.5vw,52px) auto 1fr !important;
+  align-items:center !important;
+  gap:8px !important;
 }
 .report-card[data-approved="1"] .result-footer > img {
-  width: clamp(58px, 7vw, 72px) !important;
-  max-width: 72px !important;
-  margin: 0 !important;
-  justify-self: start !important;
+  width:clamp(44px,5.5vw,52px) !important;
+  max-width:52px !important;
+  margin:0 !important;
+  justify-self:start !important;
 }
 
-@media (max-width: 700px) {
-  .approved-landing .landing-header > img {
-    width: 104px !important;
-    max-width: 104px !important;
-  }
-
-  .lead-modal__card > img {
-    width: 102px !important;
-    max-width: 102px !important;
-  }
-
-  .brand-card-header > img {
-    width: 94px !important;
-    max-width: 94px !important;
-  }
+@media (max-width:700px) {
+  .approved-landing .landing-header > img { width:100px !important; max-width:100px !important; }
+  .lead-modal__card > img { width:98px !important; max-width:98px !important; }
+  .brand-card-header > img { width:90px !important; max-width:90px !important; }
 
   .report-card[data-approved="1"] .result-brand {
-    grid-template-columns: 78px minmax(0, 1fr) !important;
-    gap: 10px !important;
+    grid-template-columns:64px minmax(0,1fr) !important;
+    gap:9px !important;
   }
   .report-card[data-approved="1"] .result-brand > img {
-    width: 78px !important;
-    max-width: 78px !important;
+    width:64px !important;
+    max-width:64px !important;
   }
 
   .report-card[data-approved="1"] .result-footer {
-    grid-template-columns: 54px auto 1fr !important;
+    grid-template-columns:42px auto 1fr !important;
   }
   .report-card[data-approved="1"] .result-footer > img {
-    width: 54px !important;
-    max-width: 54px !important;
+    width:42px !important;
+    max-width:42px !important;
   }
 }
 
-@media (max-width: 390px) {
-  .brand-card-header > img {
-    width: 88px !important;
-    max-width: 88px !important;
-  }
-
-  .report-card[data-approved="1"] .result-brand {
-    grid-template-columns: 72px minmax(0, 1fr) !important;
-  }
-  .report-card[data-approved="1"] .result-brand > img {
-    width: 72px !important;
-    max-width: 72px !important;
-  }
+@media (max-width:390px) {
+  .brand-card-header > img { width:86px !important; max-width:86px !important; }
+  .report-card[data-approved="1"] .result-brand { grid-template-columns:60px minmax(0,1fr) !important; }
+  .report-card[data-approved="1"] .result-brand > img { width:60px !important; max-width:60px !important; }
 }
