@@ -216,26 +216,10 @@ function enhance() {
     </main>
   </article>`;
 
-  const download = card.querySelector<HTMLAnchorElement>('.result-download');
-  if (download) {
-    download.href = '#';
-    download.removeAttribute('download');
-    download.addEventListener('click', async event => {
-      event.preventDefault();
-      if (download.dataset.generating === '1') return;
-      download.dataset.generating = '1';
-      download.setAttribute('aria-busy', 'true');
-      try {
-        await downloadResultPdf(card, filename, whatsapp);
-      } catch (error) {
-        console.error(pattern + ' PDF generation error', error);
-        window.alert('Não foi possível gerar o PDF agora. Atualize a página e tente novamente.');
-      } finally {
-        delete download.dataset.generating;
-        download.removeAttribute('aria-busy');
-      }
-    });
-  }
+  // Keep the approved static PDF as the single delivery source.
+  // The anchor above already points to /api/download-result-pdf, which serves
+  // the approved file for the selected pattern. Do not regenerate a new PDF
+  // from the live DOM here, otherwise layout/logo/sign positions can diverge.
 }
 
 new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
