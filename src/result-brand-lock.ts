@@ -1,11 +1,21 @@
-const APPROVED_RESULT_LOGO = '/ja-logo-approved.webp';
+const APPROVED_TOP_LOGO = '/result-assets/ja-logo-top-transparent.svg';
+const APPROVED_FOOTER_LOGO = '/ja-logo-approved.webp';
 
 function lockApprovedResultLogo() {
   document
-    .querySelectorAll<HTMLImageElement>('.report-card[data-approved="1"] .result-brand > img, .report-card[data-approved="1"] .result-footer > img')
+    .querySelectorAll<HTMLImageElement>('.report-card[data-approved="1"] .result-brand > img')
     .forEach((image) => {
-      if (image.getAttribute('src') !== APPROVED_RESULT_LOGO) {
-        image.src = APPROVED_RESULT_LOGO;
+      if (image.getAttribute('src') !== APPROVED_TOP_LOGO) {
+        image.src = APPROVED_TOP_LOGO;
+      }
+      image.removeAttribute('srcset');
+    });
+
+  document
+    .querySelectorAll<HTMLImageElement>('.report-card[data-approved="1"] .result-footer > img')
+    .forEach((image) => {
+      if (image.getAttribute('src') !== APPROVED_FOOTER_LOGO) {
+        image.src = APPROVED_FOOTER_LOGO;
       }
       image.removeAttribute('srcset');
     });
