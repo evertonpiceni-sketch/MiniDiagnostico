@@ -127,7 +127,8 @@ jobs:
           await browser.close();
           fs.writeFileSync('audit/report.json', JSON.stringify(audit, null, 2));
           EOF
-          node generate-result-pdfs.mjs\n          rm generate-result-pdfs.mjs
+          node generate-result-pdfs.mjs
+          rm generate-result-pdfs.mjs
 
       - name: Verify only intended PDFs changed
         run: |
