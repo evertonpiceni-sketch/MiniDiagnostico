@@ -64,52 +64,52 @@
 }
 
 /* Resultados: manter identidade aprovada, apenas aproximando proporção e respiro. */
-.report-card[data-approved="1"] {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) {
   width:min(100%,820px) !important;
   max-width:820px !important;
   margin:0 auto !important;
 }
 
-.report-card[data-approved="1"] .result-hero {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-hero {
   min-height:520px !important;
 }
 
-.report-card[data-approved="1"] .result-brand {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-brand {
   left:4.2% !important;
   right:4.2% !important;
   top:2.8% !important;
 }
 
-.report-card[data-approved="1"] .result-brand strong {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-brand strong {
   font-size:clamp(24px,3.5vw,34px) !important;
 }
 
-.report-card[data-approved="1"] .result-brand small {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-brand small {
   letter-spacing:.11em !important;
 }
 
-.report-card[data-approved="1"] .result-heading {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-heading {
   left:6% !important;
   right:6% !important;
   bottom:4.5% !important;
 }
 
-.report-card[data-approved="1"] .result-sections {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-sections {
   padding-left:3.2% !important;
   padding-right:3.2% !important;
 }
 
-.report-card[data-approved="1"] .result-section {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-section {
   border-radius:16px !important;
   box-shadow:0 2px 10px rgba(45,35,25,.035) !important;
 }
 
-.report-card[data-approved="1"] .result-actions {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-actions {
   margin-left:7% !important;
   margin-right:7% !important;
 }
 
-.report-card[data-approved="1"] .result-footer {
+.report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-footer {
   margin-top:16px !important;
   padding-top:12px !important;
   padding-bottom:10px !important;
@@ -139,12 +139,12 @@
     gap:12px !important;
   }
 
-  .report-card[data-approved="1"] {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) {
     width:100% !important;
     max-width:none !important;
   }
 
-  .report-card[data-approved="1"] .result-hero {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-hero {
     min-height:485px !important;
   }
 
@@ -156,28 +156,28 @@
     min-height:0 !important;
   }
 
-  .report-card[data-approved="1"] .result-brand {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-brand {
     left:4% !important;
     right:4% !important;
     top:2.6% !important;
   }
 
-  .report-card[data-approved="1"] .result-brand strong {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-brand strong {
     font-size:clamp(21px,6.7vw,27px) !important;
   }
 
-  .report-card[data-approved="1"] .result-heading {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-heading {
     left:4% !important;
     right:4% !important;
     bottom:3.4% !important;
   }
 
-  .report-card[data-approved="1"] .result-sections {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-sections {
     padding-left:2.5% !important;
     padding-right:2.5% !important;
   }
 
-  .report-card[data-approved="1"] .result-actions {
+  .report-card[data-approved="1"]:not([data-pattern="MEDO"]) .result-actions {
     margin-left:4% !important;
     margin-right:4% !important;
   }
