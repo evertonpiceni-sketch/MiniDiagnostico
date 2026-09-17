@@ -42,7 +42,7 @@ jobs:
       - name: Regenerate PDFs from current approved result screen
         run: |
           mkdir -p audit
-          cat > /tmp/generate-result-pdfs.mjs <<'EOF'
+          cat > generate-result-pdfs.mjs <<'EOF'
           import { chromium } from 'playwright';
           import fs from 'node:fs';
 
@@ -127,7 +127,7 @@ jobs:
           await browser.close();
           fs.writeFileSync('audit/report.json', JSON.stringify(audit, null, 2));
           EOF
-          node /tmp/generate-result-pdfs.mjs
+          node generate-result-pdfs.mjs\n          rm generate-result-pdfs.mjs
 
       - name: Verify only intended PDFs changed
         run: |
