@@ -18,6 +18,7 @@ import './result-final.css';
 import './result-clean-final.css';
 import './result-color-final.css';
 import './logo-layout-final.css';
+import './project-visual-final.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
