@@ -4,6 +4,7 @@ import './post-payment-recovery';
 import './ambient-audio';
 import './result-enhancer';
 import './result-brand-lock';
+import './pdf-logo-only';
 import App from './App.tsx';
 import './index.css';
 import './brand-system.css';
