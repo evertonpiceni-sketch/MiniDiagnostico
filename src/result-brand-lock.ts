@@ -1,4 +1,4 @@
-const APPROVED_TOP_LOGO = '/result-assets/ja-logo-top-transparent.svg';
+const APPROVED_TOP_LOGO = '/ja-logo-approved.webp';
 const APPROVED_FOOTER_LOGO = '/ja-logo-approved.webp';
 
 function lockApprovedResultLogo() {
