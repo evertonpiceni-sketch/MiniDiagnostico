@@ -1,0 +1,167 @@
+name: Regenerate audited result PDFs
+
+on:
+  push:
+    branches:
+      - work/regenerate-final-pdfs-20260917
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install application
+        run: npm ci --no-audit --no-fund
+
+      - name: Install browser for isolated PDF capture
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start approved application locally
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/mini-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mini-vite.log
+          exit 1
+
+      - name: Regenerate PDFs from current approved result screen
+        run: |
+          mkdir -p audit
+          cat > /tmp/generate-result-pdfs.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const base = 'http://127.0.0.1:4173';
+          const items = [
+            { pattern: 'MEDO', id: '00000000-0000-0000-0000-000000000001', file: 'medo.pdf', scores: {score_medo:12,score_inseguranca:5,score_procrastinacao:4} },
+            { pattern: 'INSEGURANÇA', id: '00000000-0000-0000-0000-000000000002', file: 'inseguranca.pdf', scores: {score_medo:5,score_inseguranca:12,score_procrastinacao:4} },
+            { pattern: 'PROCRASTINAÇÃO', id: '00000000-0000-0000-0000-000000000003', file: 'procrastinacao.pdf', scores: {score_medo:4,score_inseguranca:5,score_procrastinacao:12} },
+          ];
+
+          const browser = await chromium.launch({ headless: true });
+          const audit = [];
+
+          for (const item of items) {
+            const context = await browser.newContext({
+              viewport: { width: 529, height: 1600 },
+              acceptDownloads: true,
+              deviceScaleFactor: 1,
+            });
+            const page = await context.newPage();
+
+            await page.route('**/api/admin-test', async route => {
+              await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                  ok: true,
+                  test_mode: true,
+                  synthetic_preview: true,
+                  simulated_payment: true,
+                  result: {
+                    quiz_session_id: item.id,
+                    nome: 'Janaína — Teste',
+                    ...item.scores,
+                    resultado_dominante: item.pattern,
+                    payment_status: 'simulated',
+                  },
+                }),
+              });
+            });
+
+            await page.goto(`${base}/resultado?admin_test=1&session_id=${encodeURIComponent(item.id)}`, {
+              waitUntil: 'networkidle',
+              timeout: 60000,
+            });
+
+            await page.waitForSelector('.report-card[data-approved="1"] .result-poster', { timeout: 30000 });
+            await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
+            await page.waitForTimeout(1200);
+
+            const poster = page.locator('.report-card[data-approved="1"] .result-poster');
+            await poster.screenshot({ path: `audit/${item.file.replace('.pdf','.png')}` });
+
+            const geometry = await page.evaluate(() => {
+              const hero = document.querySelector('.report-card[data-pattern="PROCRASTINAÇÃO"] .result-hero');
+              const labels = [...document.querySelectorAll('.report-card[data-pattern="PROCRASTINAÇÃO"] .result-sign-labels span')];
+              const box = el => {
+                if (!el) return null;
+                const r = el.getBoundingClientRect();
+                return { x:r.x, y:r.y, width:r.width, height:r.height, top:r.top, bottom:r.bottom, left:r.left, right:r.right };
+              };
+              return {
+                poster: box(document.querySelector('.result-poster')),
+                hero: box(hero),
+                labels: labels.map(el => ({ text: el.textContent, ...box(el) })),
+                heading: document.querySelector('.result-cycle h3')?.textContent?.trim() || null,
+                finalQuote: document.querySelector('.result-final-quote')?.textContent?.trim() || null,
+                text: document.querySelector('.result-poster')?.textContent || '',
+              };
+            });
+
+            const downloadPromise = page.waitForEvent('download', { timeout: 90000 });
+            await page.click('.result-download');
+            const download = await downloadPromise;
+            await download.saveAs(`public/result-pdf/${item.file}`);
+
+            const stat = fs.statSync(`public/result-pdf/${item.file}`);
+            audit.push({ pattern:item.pattern, file:item.file, bytes:stat.size, geometry });
+            await context.close();
+          }
+
+          await browser.close();
+          fs.writeFileSync('audit/report.json', JSON.stringify(audit, null, 2));
+          EOF
+          node /tmp/generate-result-pdfs.mjs
+
+      - name: Verify only intended PDFs changed
+        run: |
+          git status --short
+          changed="$(git status --short | awk '{print $2}' | sort)"
+          expected="$(printf '%s\n' public/result-pdf/inseguranca.pdf public/result-pdf/medo.pdf public/result-pdf/procrastinacao.pdf | sort)"
+          if [ "$changed" != "$expected" ]; then
+            echo "Unexpected changed files:"
+            git status --short
+            exit 1
+          fi
+
+      - name: Run project checks
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Upload PDFs and visual audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-result-pdfs-audit
+          path: |
+            public/result-pdf/medo.pdf
+            public/result-pdf/inseguranca.pdf
+            public/result-pdf/procrastinacao.pdf
+            audit/*.png
+            audit/report.json
+          if-no-files-found: error
+
+      - name: Commit regenerated PDFs to temporary audit branch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/result-pdf/medo.pdf public/result-pdf/inseguranca.pdf public/result-pdf/procrastinacao.pdf
+          git commit -m "Regenerate final result PDFs from approved screen"
+          git push origin HEAD:work/regenerate-final-pdfs-20260917
