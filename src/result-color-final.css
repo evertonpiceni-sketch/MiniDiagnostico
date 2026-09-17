@@ -1,0 +1,133 @@
+/* Ajuste final restrito à cor e ao logo.
+   Referência visual oficial: IMG-20260908-WA0009.jpg.
+   Não altera textos, tipografia, medidas, espaçamento, composição ou fluxo. */
+
+/* Mantém o logo oficial sem filtros que apaguem o dourado. */
+.report-card[data-approved="1"] .result-brand > img,
+.report-card[data-approved="1"] .result-footer > img {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* MEDO — aquecer e devolver a vivacidade do dourado/creme aprovado. */
+.report-card[data-pattern="MEDO"] .result-hero-image {
+  filter: saturate(1.16) contrast(1.04) brightness(1.02) !important;
+}
+.report-card[data-pattern="MEDO"] .result-poster,
+.report-card[data-pattern="MEDO"] .result-sections {
+  background: #f8f0e4 !important;
+}
+.report-card[data-pattern="MEDO"] .result-section,
+.report-card[data-pattern="MEDO"] .result-interpretation {
+  background: #fff8ed !important;
+}
+.report-card[data-pattern="MEDO"] .result-pair .result-section {
+  background: #f8e7c5 !important;
+}
+.report-card[data-pattern="MEDO"] .result-path {
+  background: #e7efdf !important;
+}
+.report-card[data-pattern="MEDO"] .result-practices {
+  background: #f1e3f3 !important;
+}
+.report-card[data-pattern="MEDO"] .result-heading h2 {
+  color: #e6b64d !important;
+}
+.report-card[data-pattern="MEDO"] .result-final-quote {
+  background: #604a31 !important;
+}
+.report-card[data-pattern="MEDO"] .result-whatsapp {
+  background: #07994a !important;
+}
+.report-card[data-pattern="MEDO"] .result-footer {
+  background: #fbf2e4 !important;
+}
+
+/* INSEGURANÇA — lilás mais presente, sem alterar contraste nem estrutura. */
+.report-card[data-pattern="INSEGURANÇA"] .result-hero-image {
+  filter: saturate(1.16) contrast(1.04) brightness(1.01) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-poster {
+  --paper: #f0e0f9 !important;
+  background: #f0e0f9 !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-sections {
+  background: linear-gradient(180deg, #f3e4fa 0%, #ead8f2 70%, #f1e4f7 100%) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-section {
+  background: rgba(255, 248, 255, .97) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-interpretation {
+  background: rgba(248, 235, 252, .99) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-pair .result-section {
+  background: rgba(214, 194, 223, .98) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-question {
+  background: rgba(245, 233, 250, .99) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-path {
+  background: rgba(229, 240, 222, .99) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-practices {
+  background: rgba(234, 217, 242, .99) !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-heading h2,
+.report-card[data-pattern="INSEGURANÇA"] .result-section h3 {
+  color: #64266f !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-final-quote {
+  background: #58336a !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-whatsapp {
+  background: #07994a !important;
+}
+.report-card[data-pattern="INSEGURANÇA"] .result-footer {
+  background: rgba(240, 224, 249, .99) !important;
+}
+
+/* PROCRASTINAÇÃO — verde/azulado mais vivo, conforme a peça aprovada. */
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-hero-image {
+  filter: saturate(1.16) contrast(1.04) brightness(1.01) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-poster {
+  --paper: #e1f2f0 !important;
+  background: #e1f2f0 !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-sections {
+  background: linear-gradient(180deg, #e7f5f2 0%, #dceee9 72%, #e5f4f0 100%) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-section {
+  background: rgba(248, 255, 252, .97) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-interpretation {
+  background: rgba(238, 249, 246, .99) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-cycle {
+  background: rgba(203, 223, 218, .99) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-pair .result-section {
+  background: rgba(203, 223, 218, .98) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-question {
+  background: rgba(229, 242, 238, .99) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-path {
+  background: rgba(225, 241, 220, .99) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-practices {
+  background: rgba(214, 236, 232, .99) !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-heading h2,
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-section h3 {
+  color: #0b625f !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-final-quote {
+  background: #0b6763 !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-whatsapp {
+  background: #07994a !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-footer {
+  background: rgba(225, 242, 240, .99) !important;
+}
