@@ -148,6 +148,14 @@
     min-height:485px !important;
   }
 
+  /* PROCRASTINAÇÃO — preservar a altura responsiva original do hero.
+     As palavras PLANEJAR / COMEÇAR / CONQUISTAR são sobreposições calibradas
+     para as placas da imagem e perdem o alinhamento quando o min-height genérico
+     estica o hero no celular. */
+  .report-card[data-pattern="PROCRASTINAÇÃO"] .result-hero {
+    min-height:0 !important;
+  }
+
   .report-card[data-approved="1"] .result-brand {
     left:4% !important;
     right:4% !important;
