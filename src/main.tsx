@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './post-payment-recovery';
 import './ambient-audio';
 import './result-enhancer';
+import './result-brand-lock';
 import App from './App.tsx';
 import './index.css';
 import './brand-system.css';
@@ -13,6 +14,7 @@ import './exact-reference.css';
 import './landing-approved-exact.css';
 import './result-final.css';
 import './result-clean-final.css';
+import './result-color-final.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
