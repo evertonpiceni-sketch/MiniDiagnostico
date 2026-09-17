@@ -43,7 +43,7 @@
   background: #fcf0e0 !important;
 }
 .report-card[data-pattern="MEDO"] .result-path {
-  background: #ebeCDF !important;
+  background: #ebecdf !important;
 }
 .report-card[data-pattern="MEDO"] .result-practices {
   background: #f5e6ee !important;
@@ -148,4 +148,34 @@
 }
 .report-card[data-pattern="PROCRASTINAÇÃO"] .result-footer {
   background: #eaf6f2 !important;
+}
+
+/* CORREÇÃO FINAL DO TOPO — remover visualmente a caixa clara do asset sem tocar no rodapé. */
+.report-card[data-approved="1"] .result-brand > img {
+  background: transparent !important;
+  mix-blend-mode: multiply !important;
+}
+.report-card[data-approved="1"] .result-footer > img {
+  mix-blend-mode: normal !important;
+}
+
+/* MEDO — aproximar o conjunto de marca do alinhamento usado nos outros resultados. */
+.report-card[data-pattern="MEDO"] .result-brand {
+  left: 4.5cqw !important;
+  right: 4cqw !important;
+}
+
+/* MEDO — impedir que SINAIS COMUNS comprima O QUE ISSO PODE CAUSAR. */
+.report-card[data-pattern="MEDO"] .result-pair {
+  grid-template-columns: minmax(0, .96fr) minmax(0, 1.04fr) !important;
+  gap: 2cqw !important;
+}
+.report-card[data-pattern="MEDO"] .result-pair > .result-section {
+  width: auto !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere;
+}
+.report-card[data-pattern="MEDO"] .result-pair .result-effects {
+  padding-left: 2.7cqw !important;
+  padding-right: 2.7cqw !important;
 }
