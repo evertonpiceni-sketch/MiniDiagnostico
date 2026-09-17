@@ -130,14 +130,14 @@ jobs:
           node generate-result-pdfs.mjs
           rm generate-result-pdfs.mjs
 
-      - name: Verify only intended PDFs changed
+      - name: Verify only intended tracked files changed
         run: |
           git status --short
-          changed="$(git status --short | awk '{print $2}' | sort)"
+          changed="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' public/result-pdf/inseguranca.pdf public/result-pdf/medo.pdf public/result-pdf/procrastinacao.pdf | sort)"
           if [ "$changed" != "$expected" ]; then
-            echo "Unexpected changed files:"
-            git status --short
+            echo "Unexpected tracked changes:"
+            git diff --name-only
             exit 1
           fi
 
