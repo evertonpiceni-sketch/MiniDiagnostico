@@ -150,13 +150,15 @@
   background: #eaf6f2 !important;
 }
 
-/* CORREÇÃO FINAL DO TOPO — remover visualmente a caixa clara do asset sem tocar no rodapé. */
+/* TOPO — manter o logo visível e fazer o fundo claro do arquivo se fundir com a foto. */
 .report-card[data-approved="1"] .result-brand > img {
   background: transparent !important;
-  mix-blend-mode: multiply !important;
+  mix-blend-mode: darken !important;
+  opacity: .98 !important;
 }
 .report-card[data-approved="1"] .result-footer > img {
   mix-blend-mode: normal !important;
+  opacity: 1 !important;
 }
 
 /* MEDO — aproximar o conjunto de marca do alinhamento usado nos outros resultados. */
