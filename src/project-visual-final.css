@@ -182,3 +182,26 @@
     margin-right:4% !important;
   }
 }
+
+
+/* PROCRASTINAÇÃO — correção pontual do hero.
+   Mantém as três palavras exatamente sobre as placas e afasta o bloco do resultado
+   para que CONQUISTAR não seja invadido pelo título. */
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-heading {
+  left:50% !important;
+  right:2.5cqw !important;
+  bottom:1.5cqw !important;
+}
+.report-card[data-pattern="PROCRASTINAÇÃO"] .result-heading h2 {
+  font-size:4.25cqw !important;
+}
+@media (max-width:700px) {
+  .report-card[data-pattern="PROCRASTINAÇÃO"] .result-heading {
+    left:51% !important;
+    right:2cqw !important;
+    bottom:1.2cqw !important;
+  }
+  .report-card[data-pattern="PROCRASTINAÇÃO"] .result-heading h2 {
+    font-size:4.1cqw !important;
+  }
+}
