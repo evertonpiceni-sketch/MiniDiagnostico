@@ -192,11 +192,13 @@ export default async function handler(req: Req, res: Res) {
     let payment: any = null;
     if (quiz.asaas_payment_id) {
       try {
-        payment = await asaas<any>(`/payments/${encodeURIComponent(String(quiz.asaas_payment_id))}`);
-        if (String(payment?.externalReference || '') !== id || Number(payment?.value) !== 9.9 || String(payment?.billingType || '') !== 'PIX') throw new Error('ASAAS_PAYMENT_MISMATCH');
+        const existing = await asaas<any>(`/payments/${encodeURIComponent(String(quiz.asaas_payment_id))}`);
+        const sameSession = String(existing?.externalReference || '') === id;
+        const sameValue = Math.abs(Number(existing?.value) - 9.9) <= 0.001;
+        const isPix = String(existing?.billingType || '') === 'PIX';
+        if (sameSession && sameValue && isPix) payment = existing;
       } catch (error: any) {
-        if (String(error?.message || '').startsWith('ASAAS_404:')) payment = null;
-        else throw error;
+        if (!String(error?.message || '').startsWith('ASAAS_404:')) throw error;
       }
     }
 
@@ -225,7 +227,6 @@ export default async function handler(req: Req, res: Res) {
     if (message === 'ASAAS_CONNECTION') return res.status(503).json({ error: 'Não foi possível conectar ao Asaas a partir do servidor.' });
     if (message === 'ASAAS_CUSTOMER_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou o cadastro do cliente.' });
     if (message === 'ASAAS_PAYMENT_ID_MISSING') return res.status(502).json({ error: 'Asaas não retornou a identificação da cobrança PIX.' });
-    if (message === 'ASAAS_PAYMENT_MISMATCH') return res.status(409).json({ error: 'A cobrança PIX encontrada não corresponde a este diagnóstico.' });
     if (message === 'ASAAS_QR_MISSING') return res.status(502).json({ error: 'Asaas não retornou o QR Code do PIX.' });
     const asaasError = publicAsaasError(message);
     if (asaasError) return res.status(asaasError.status).json({ error: asaasError.error });
