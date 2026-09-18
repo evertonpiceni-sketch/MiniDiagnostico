@@ -8,8 +8,8 @@ const validId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab
 function header(req: Req, name: string) { const value = req.headers[name] ?? req.headers[name.toLowerCase()]; return Array.isArray(value) ? value[0] || '' : String(value || ''); }
 async function markPaid(quizSessionId: string, asaasPaymentId: string, method: 'pix_asaas' | 'card_asaas') {
   if (!DB_URL || !DB_KEY) throw new Error('DB_CONFIG');
-  const filters = `quiz_session_id=eq.${encodeURIComponent(quizSessionId)}&asaas_payment_id=eq.${encodeURIComponent(asaasPaymentId)}&payment_status=neq.paid`;
-  const r = await fetch(`${DB_URL}/rest/v1/quiz_sessions?${filters}`, { method: 'PATCH', headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}), 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify({ payment_status: 'paid', paid_at: new Date().toISOString(), payment_method_selected: method, checkout_error_code: null, checkout_error_message: null, checkout_error_at: null, whatsapp_delivery_status: 'pending' }) });
+  const filters = `quiz_session_id=eq.${encodeURIComponent(quizSessionId)}&payment_status=neq.paid`;
+  const r = await fetch(`${DB_URL}/rest/v1/quiz_sessions?${filters}`, { method: 'PATCH', headers: { apikey: DB_KEY, ...(DB_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${DB_KEY}` } : {}), 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: JSON.stringify({ payment_status: 'paid', paid_at: new Date().toISOString(), payment_method_selected: method, asaas_payment_id: asaasPaymentId, checkout_error_code: null, checkout_error_message: null, checkout_error_at: null, whatsapp_delivery_status: 'pending' }) });
   const text = await r.text(); if (!r.ok) throw new Error(`DB_${r.status}`); const rows = text ? JSON.parse(text) as any[] : []; return rows.length > 0;
 }
 export default async function handler(req: Req, res: Res) {
