@@ -153,15 +153,6 @@ export function calculateScores(answers: Record<string, number>, desempate?: unk
   };
 }
 
-async function findDuplicate(whatsapp: string, answers: Record<string, number>, resultado: ResultPattern) {
-  const rows = await db<any[]>(
-    `quiz_sessions?whatsapp=eq.${encodeURIComponent(whatsapp)}&payment_status=eq.pending&select=quiz_session_id,whatsapp,respostas,resultado_dominante,payment_status&order=created_at.desc&limit=20`,
-  );
-  return rows.find(
-    (row) => String(row?.whatsapp || '') === whatsapp && row?.resultado_dominante === resultado && JSON.stringify(row?.respostas || {}) === JSON.stringify(answers),
-  ) || null;
-}
-
 const errorResponse = (res: VercelResponse, error: unknown) => {
   const message = String((error as any)?.message || '');
 
@@ -206,16 +197,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!nome || nome.length > 120) throw new Error('Nome inválido.');
 
-    const duplicate = await findDuplicate(whatsapp, respostas, scores.resultado_dominante);
-    if (duplicate?.quiz_session_id) {
-      setRecoveryCookie(res, duplicate.quiz_session_id);
-      return res.status(200).json({
-        ok: true,
-        quiz_session_id: duplicate.quiz_session_id,
-        reused: true,
-      });
-    }
-
     const quiz_session_id = randomUUID();
     const row = {
       quiz_session_id,
@@ -233,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     setRecoveryCookie(res, quiz_session_id);
-    return res.status(201).json({ ok: true, quiz_session_id, reused: false });
+    return res.status(201).json({ ok: true, quiz_session_id });
   } catch (error) {
     return errorResponse(res, error);
   }
