@@ -17,7 +17,7 @@ export default function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [respostas, setRespostas] = useState<Record<number, number>>({});
   const [tieBreakResult, setTieBreakResult] = useState<QuizResult|null>(null);
-  const [quizSessionId, setQuizSessionId] = useState<string|null>(() => new URLSearchParams(window.location.search).get('session_id') || localStorage.getItem('quiz_session_id'));
+  const [quizSessionId, setQuizSessionId] = useState<string|null>(() => new URLSearchParams(window.location.search).get('session_id'));
   const [resultToken, setResultToken] = useState(() => new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('result_token') || '');
   const [resultado, setResultado] = useState<any>(null);
   const [activePaymentTab, setActivePaymentTab] = useState<'pix'|'card'>('pix');
@@ -86,9 +86,23 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
-    const recoverableSessionId = sessionId || localStorage.getItem('quiz_session_id');
     const token = params.get('token') || sessionStorage.getItem('result_token') || '';
     const adminTest = params.get('admin_test') === '1';
+
+    // A visita ao link público deve sempre começar um diagnóstico novo.
+    // Sessões anteriores continuam recuperáveis somente por URLs explícitas
+    // de /resultado ou /paywall, usadas no retorno legítimo do pagamento.
+    if (window.location.pathname === '/') {
+      localStorage.removeItem('quiz_session_id');
+      sessionStorage.removeItem('result_token');
+      setQuizSessionId(null);
+      setResultToken('');
+      setResultado(null);
+      setCurrentStep('inicio');
+      if (window.location.search || window.location.hash) history.replaceState({}, '', '/');
+      return;
+    }
+
     if (token) setResultToken(token);
     if (window.location.pathname === '/resultado' && sessionId) {
       setCurrentStep('loading');
@@ -97,8 +111,6 @@ export default function App() {
       else void recoverPaidResult(sessionId).then((recovered) => { if (!recovered) setCurrentStep('paywall'); });
     } else if (window.location.pathname === '/paywall' && sessionId && !token) {
       void recoverPaidResult(sessionId);
-    } else if (window.location.pathname === '/' && recoverableSessionId && !token) {
-      void recoverPaidResult(recoverableSessionId);
     }
   }, []);
 
