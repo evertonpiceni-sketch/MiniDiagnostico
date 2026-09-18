@@ -1,0 +1,161 @@
+name: Build definitive PDFs from approved result screens
+
+on:
+  push:
+    branches:
+      - work/fix-all-pdfs-definitive-20260917
+
+permissions:
+  contents: write
+
+jobs:
+  build-pdfs:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install project
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start current approved application
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/mini-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mini-vite.log
+          exit 1
+
+      - name: Capture approved screens into static PDFs
+        run: |
+          mkdir -p audit
+          cat > generate-definitive-pdfs.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+          import { PDFDocument } from 'pdf-lib';
+
+          const base = 'http://127.0.0.1:4173';
+          const items = [
+            { pattern: 'MEDO', id: '00000000-0000-4000-8000-000000000001', file: 'medo.pdf', scores: {score_medo:12,score_inseguranca:5,score_procrastinacao:4} },
+            { pattern: 'INSEGURANÇA', id: '00000000-0000-4000-8000-000000000002', file: 'inseguranca.pdf', scores: {score_medo:5,score_inseguranca:12,score_procrastinacao:4} },
+            { pattern: 'PROCRASTINAÇÃO', id: '00000000-0000-4000-8000-000000000003', file: 'procrastinacao.pdf', scores: {score_medo:4,score_inseguranca:5,score_procrastinacao:12} },
+          ];
+
+          const browser = await chromium.launch({ headless: true });
+          const report = [];
+
+          for (const item of items) {
+            const context = await browser.newContext({
+              viewport: { width: 900, height: 1800 },
+              deviceScaleFactor: 2,
+            });
+            const page = await context.newPage();
+
+            await page.route('**/api/admin-test', async route => {
+              await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                  ok: true,
+                  test_mode: true,
+                  result: {
+                    quiz_session_id: item.id,
+                    nome: 'Teste',
+                    ...item.scores,
+                    resultado_dominante: item.pattern,
+                    payment_status: 'simulated',
+                  },
+                }),
+              });
+            });
+
+            await page.goto(`${base}/resultado?admin_test=1&session_id=${encodeURIComponent(item.id)}`, {
+              waitUntil: 'networkidle',
+              timeout: 60000,
+            });
+            await page.waitForSelector('.report-card[data-approved="1"] .result-poster', { timeout: 30000 });
+            await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
+            await page.waitForTimeout(1000);
+
+            const poster = page.locator('.report-card[data-approved="1"] .result-poster');
+            const pngPath = `audit/${item.file.replace('.pdf','.png')}`;
+            await poster.screenshot({ path: pngPath });
+
+            const text = await poster.innerText();
+            const rect = await poster.boundingBox();
+            const labels = await page.locator('.report-card[data-pattern="PROCRASTINAÇÃO"] .result-sign-labels span').allTextContents();
+
+            const pngBytes = fs.readFileSync(pngPath);
+            const pdf = await PDFDocument.create();
+            const image = await pdf.embedPng(pngBytes);
+            const width = image.width * 0.75;
+            const height = image.height * 0.75;
+            const pdfPage = pdf.addPage([width, height]);
+            pdfPage.drawImage(image, { x:0, y:0, width, height });
+            const bytes = await pdf.save();
+            fs.writeFileSync(`public/result-pdf/${item.file}`, bytes);
+
+            report.push({
+              pattern:item.pattern,
+              file:item.file,
+              screenshot:{width:image.width,height:image.height},
+              cssPixels:rect,
+              labels,
+              text,
+            });
+
+            await context.close();
+          }
+
+          await browser.close();
+          fs.writeFileSync('audit/report.json', JSON.stringify(report, null, 2));
+          EOF
+          node generate-definitive-pdfs.mjs
+          rm generate-definitive-pdfs.mjs
+
+      - name: Ensure only the three PDFs are tracked changes
+        run: |
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' public/result-pdf/inseguranca.pdf public/result-pdf/medo.pdf public/result-pdf/procrastinacao.pdf | sort)"
+          printf 'Changed files:\n%s\n' "$changed"
+          if [ "$changed" != "$expected" ]; then
+            echo "Unexpected tracked changes"
+            exit 1
+          fi
+
+      - name: Run checks
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Upload visual audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: definitive-pdfs-audit
+          path: |
+            public/result-pdf/*.pdf
+            audit/*.png
+            audit/report.json
+          if-no-files-found: error
+
+      - name: Commit generated PDFs on work branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/result-pdf/medo.pdf public/result-pdf/inseguranca.pdf public/result-pdf/procrastinacao.pdf
+          git commit -m "Generate definitive PDFs from approved result screens"
+          git push origin HEAD:work/fix-all-pdfs-definitive-20260917
