@@ -180,6 +180,8 @@ test('webhook reconhece pagamento válido da sessão mesmo após troca da forma 
 
 test('cada diagnóstico concluído cria uma sessão nova, sem reaproveitar pendência anterior', async () => {
   configureEnv();
+  process.env.SUPABASE_URL = 'https://mini-test.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service_role_test_key_123456789';
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), init });
